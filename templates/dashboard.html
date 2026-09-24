@@ -13,10 +13,16 @@
             <i class="bi bi-plus-circle me-1"></i> Harcama / Gelir
         </button>
         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
-            <i class="bi bi-graph-up-arrow me-1"></i> Yatırım Ekle
+            <i class="bi bi-graph-up-arrow me-1"></i> Yatırım Al
+        </button>
+        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
+            <i class="bi bi-graph-down-arrow me-1"></i> Yatırım Sat
+        </button>
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+            <i class="bi bi-tags me-1"></i> Kategori & Bütçe
         </button>
         <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-            <i class="bi bi-calendar-event me-1"></i> Fatura / Kart Borcu
+            <i class="bi bi-calendar-event me-1"></i> Fatura / Borç
         </button>
         <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#goalModal">
             <i class="bi bi-piggy-bank me-1"></i> Hedef Kumbara
@@ -84,7 +90,12 @@
 
         <!-- KATEGORİ BÜTÇELERİ VE DOLULUK ORANLARI -->
         <div class="card p-3 mb-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+                    <i class="bi bi-gear me-1"></i>Yönet
+                </button>
+            </div>
             {% if category_budgets %}
                 {% for b in category_budgets %}
                 <div class="mb-3">
@@ -117,6 +128,7 @@
                             <th>Kategori</th>
                             <th>Yöntem</th>
                             <th class="text-end">Tutar</th>
+                            <th class="text-center" style="width: 50px;">Sil</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -133,6 +145,13 @@
                             </td>
                             <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
                                 {{ '+' if t[5] == 'gelir' else '-' }}{{ "%.2f"|format(t[1]) }} TL
+                            </td>
+                            <td class="text-center">
+                                <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}
@@ -161,6 +180,7 @@
                                 <th>Maliyet</th>
                                 <th>Anlık</th>
                                 <th class="text-end">Kâr/Zarar</th>
+                                <th class="text-end" style="width: 50px;">İşlem</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -173,6 +193,18 @@
                                 <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
                                     {{ '+' if item.pnl >= 0 else '' }}{{ "%.2f"|format(item.pnl) }} TL<br>
                                     <span class="fw-normal">(%{{ item.pnl_pct }})</span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger py-0 px-2 quick-sell-btn"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#sellAssetModal" 
+                                            data-id="{{ item.id }}" 
+                                            data-symbol="{{ item.symbol }}"
+                                            data-qty="{{ item.qty }}" 
+                                            data-price="{{ item.live_price }}"
+                                            title="{{ item.symbol }} Sat">
+                                        Sat
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -195,13 +227,20 @@
                             <span class="fw-semibold d-block">{{ s[1] }}</span>
                             <small class="text-muted">Son Gün: {{ s[4].strftime('%d.%m.%Y') }}</small>
                         </div>
-                        <div class="text-end">
-                            <span class="fw-bold d-block">{{ "%.2f"|format(s[2]) }} TL</span>
-                            {% if s[5] <= 3 %}
-                                <span class="badge bg-danger">Son {{ s[5] }} gün!</span>
-                            {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary">{{ s[5] }} gün</span>
-                            {% endif %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="text-end">
+                                <span class="fw-bold d-block">{{ "%.2f"|format(s[2]) }} TL</span>
+                                {% if s[5] <= 3 %}
+                                    <span class="badge bg-danger">Son {{ s[5] }} gün!</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">{{ s[5] }} gün</span>
+                                {% endif %}
+                            </div>
+                            <form action="{{ url_for('delete_subscription', sub_id=s[0]) }}" method="POST" onsubmit="return confirm('Bu faturayı/ödemeyi silmek istediğinize emin misiniz?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Sil">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </li>
                     {% endfor %}
@@ -217,9 +256,21 @@
             {% if savings_goals %}
                 {% for g in savings_goals %}
                 <div class="border rounded p-3 mb-2">
-                    <div class="d-flex justify-content-between mb-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="fw-bold">{{ g.title }}</span>
-                        <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
+                            <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hedefi tamamlandı olarak işaretlemek istiyor musunuz?');">
+                                <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Hedefi Tamamla">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                            <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu hedefi silmek istediğinize emin misiniz?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Hedefi Sil">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     <div class="progress mb-2" style="height: 8px;">
                         <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
@@ -393,6 +444,139 @@
     </div>
 </div>
 
+<!-- 5. YATIRIM SATIŞ MODAL -->
+<div class="modal fade" id="sellAssetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-graph-down-arrow me-2"></i>Varlık Satışı Yap</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('sell_asset') }}" method="POST">
+                <div class="modal-body">
+                    {% if portfolio_items %}
+                    <div class="mb-3">
+                        <label class="form-label">Satılacak Varlık</label>
+                        <select name="asset_id" id="sellAssetSelect" class="form-select" required>
+                            {% for item in portfolio_items %}
+                            <option value="{{ item.id }}" data-qty="{{ item.qty }}" data-price="{{ item.live_price }}">
+                                {{ item.symbol }} (Eldeki: {{ "%.2f"|format(item.qty) }} adet | Canlı Fiyat: {{ "%.2f"|format(item.live_price) }} TL)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Satış Adedi</label>
+                            <input type="number" step="0.0001" name="quantity" id="sellQuantityInput" class="form-control" placeholder="Adet" required>
+                            <small class="text-muted d-block mt-1" id="sellMaxInfo"></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Birim Satış Fiyatı (TL)</label>
+                            <input type="number" step="0.01" name="unit_price" id="sellPriceInput" class="form-control" placeholder="TL" required>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3 mb-0">Portföyünüzde satılabilecek varlık bulunmamaktadır.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    {% if portfolio_items %}
+                    <button type="submit" class="btn btn-danger">Satışı Onayla</button>
+                    {% else %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 6. KATEGORİ VE BÜTÇE YÖNETİM MODAL -->
+<div class="modal fade" id="categoryManageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-tags me-2 text-primary"></i>Kategori ve Bütçe Yönetimi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- YENİ KATEGORİ EKLE -->
+                <div class="card p-3 mb-4 bg-light border">
+                    <h6 class="fw-bold mb-3">Yeni Kategori Ekle</h6>
+                    <form action="{{ url_for('add_category') }}" method="POST" class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small">Kategori Adı</label>
+                            <input type="text" name="name" class="form-control form-control-sm" placeholder="Örn: Sağlık, Spor" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Kategori Türü</label>
+                            <select name="type" class="form-select form-select-sm">
+                                <option value="gider">Gider (Harcama)</option>
+                                <option value="gelir">Gelir</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Aylık Bütçe (TL)</label>
+                            <input type="number" step="100" name="monthly_budget" class="form-control form-control-sm" placeholder="0.00">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-primary w-100">Ekle</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- MEVCUT KATEGORİLER -->
+                <h6 class="fw-bold mb-2">Mevcut Kategoriler ve Bütçeler</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Kategori Adı</th>
+                                <th>Tür</th>
+                                <th>Aylık Bütçe (TL)</th>
+                                <th class="text-end">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in categories %}
+                            <tr>
+                                <td class="fw-semibold">{{ c[1] }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success-subtle text-success' if c[2] == 'gelir' else 'bg-danger-subtle text-danger' }}">
+                                        {{ c[2]|upper }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if c[2] == 'gider' %}
+                                    <form action="{{ url_for('update_category_budget') }}" method="POST" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="category_id" value="{{ c[0] }}">
+                                        <input type="number" step="100" name="monthly_budget" class="form-control form-control-sm" value="{{ c[3]|int }}" style="width: 100px;">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Bütçeyi Güncelle">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <form action="{{ url_for('delete_category', cat_id=c[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Kategoriyi Sil">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- GİZLİ VERİ BLOKLARI -->
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
 <script id="data-cat-values" type="application/json">{{ chart_cat_values|safe }}</script>
@@ -439,6 +623,66 @@
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 3. Hızlı Satış Butonları ve Modal Dinamik Ayarları
+        function updateSellModalDefaults() {
+            const sellSelect = document.getElementById('sellAssetSelect');
+            if (!sellSelect || sellSelect.options.length === 0) return;
+            const opt = sellSelect.options[sellSelect.selectedIndex];
+            if (opt) {
+                const price = opt.getAttribute('data-price');
+                const qty = opt.getAttribute('data-qty');
+                const priceInput = document.getElementById('sellPriceInput');
+                if (priceInput && (!priceInput.value || priceInput.value == '0')) priceInput.value = price;
+                const qtyInput = document.getElementById('sellQuantityInput');
+                if (qtyInput) qtyInput.setAttribute('max', qty);
+                const maxInfo = document.getElementById('sellMaxInfo');
+                if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+            }
+        }
+
+        updateSellModalDefaults();
+
+        const sellSelectEl = document.getElementById('sellAssetSelect');
+        if (sellSelectEl) {
+            sellSelectEl.addEventListener('change', function() {
+                const opt = this.options[this.selectedIndex];
+                if (opt) {
+                    const price = opt.getAttribute('data-price');
+                    const qty = opt.getAttribute('data-qty');
+                    const priceInput = document.getElementById('sellPriceInput');
+                    if (priceInput) priceInput.value = price;
+                    const qtyInput = document.getElementById('sellQuantityInput');
+                    if (qtyInput) {
+                        qtyInput.setAttribute('max', qty);
+                        qtyInput.value = '';
+                    }
+                    const maxInfo = document.getElementById('sellMaxInfo');
+                    if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+                }
+            });
+        }
+
+        document.querySelectorAll('.quick-sell-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const assetId = this.getAttribute('data-id');
+                const price = this.getAttribute('data-price');
+                const qty = this.getAttribute('data-qty');
+                
+                if (sellSelectEl) {
+                    sellSelectEl.value = assetId;
+                }
+                const priceInput = document.getElementById('sellPriceInput');
+                if (priceInput) priceInput.value = price;
+                const qtyInput = document.getElementById('sellQuantityInput');
+                if (qtyInput) {
+                    qtyInput.setAttribute('max', qty);
+                    qtyInput.value = '';
+                }
+                const maxInfo = document.getElementById('sellMaxInfo');
+                if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+            });
         });
     });
 </script>
