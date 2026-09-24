@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime
 import json
+import time
 import yfinance as yf
 from db import get_db_connection
 
@@ -18,11 +19,21 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- CANLI FİYAT ÇEKİCİ MOTOR (API) ---
+# --- CANLI FİYAT ÇEKİCİ MOTOR & ÖNBELLEK (CACHE) ---
+PRICE_CACHE = {}  # { (clean_sym, asset_type): (price, timestamp) }
+CACHE_TTL = 300   # 5 dakika (300 saniye)
+
 def fetch_live_price(symbol, asset_type):
-    """yfinance üzerinden anlık fiyat çeker; hata durumunda None döner."""
+    """yfinance üzerinden anlık fiyat çeker; 5 dakikalık önbellek kullanır."""
     try:
         clean_sym = symbol.strip().upper()
+        cache_key = (clean_sym, asset_type)
+        now = time.time()
+        if cache_key in PRICE_CACHE:
+            cached_price, cached_time = PRICE_CACHE[cache_key]
+            if now - cached_time < CACHE_TTL:
+                return cached_price
+
         ticker_str = clean_sym
         
         if asset_type == 'hisse':
@@ -42,16 +53,33 @@ def fetch_live_price(symbol, asset_type):
             p_gold = ticker_gold.fast_info.get('lastPrice')
             p_usd = ticker_usd.fast_info.get('lastPrice')
             if p_gold and p_usd:
-                return round((p_gold * p_usd) / 31.1035, 2)
+                price = round((p_gold * p_usd) / 31.1035, 2)
+                PRICE_CACHE[cache_key] = (price, now)
+                return price
             return None
 
         ticker = yf.Ticker(ticker_str)
         price = ticker.fast_info.get('lastPrice')
         if price:
-            return round(float(price), 2)
+            val = round(float(price), 2)
+            PRICE_CACHE[cache_key] = (val, now)
+            return val
     except Exception:
         pass
     return None
+
+def get_or_create_category(cursor, user_id, name, cat_type, default_budget=0.0):
+    """Kategori varsa ID'sini döner, yoksa otomatik oluşturur."""
+    cursor.execute("SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ?", (user_id, name, cat_type))
+    row = cursor.fetchone()
+    if row:
+        return row[0]
+    cursor.execute("""
+        INSERT INTO categories (user_id, name, type, monthly_budget)
+        VALUES (?, ?, ?, ?)
+    """, (user_id, name, cat_type, default_budget))
+    cursor.execute("SELECT @@IDENTITY")
+    return cursor.fetchone()[0]
 
 @app.route('/')
 def index():
@@ -157,18 +185,36 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Finansal Özet: Gelir, Nakit Gider, Kredi Kartı Gideri (Ekstre)
+    # Tarih Filtresi (Varsayılan: Mevcut Ay ve Yıl)
+    now = datetime.today()
+    selected_year = request.args.get('year', type=int) or now.year
+    selected_month = request.args.get('month', type=int) or now.month
+    if selected_month < 1 or selected_month > 12:
+        selected_month = now.month
+
+    prev_month = 12 if selected_month == 1 else selected_month - 1
+    prev_year = selected_year - 1 if selected_month == 1 else selected_year
+    next_month = 1 if selected_month == 12 else selected_month + 1
+    next_year = selected_year + 1 if selected_month == 12 else selected_year
+
+    month_names = {
+        1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+        7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'
+    }
+    selected_month_name = month_names.get(selected_month, '')
+
+    # 1. Finansal Özet: Gelir, Nakit Gider, Kredi Kartı Gideri (Ödenmemiş Ekstre)
     cursor.execute("""
         SELECT 
             ISNULL(SUM(CASE WHEN c.type = 'gelir' THEN t.amount ELSE 0 END), 0) AS total_income,
             ISNULL(SUM(CASE WHEN c.type = 'gider' AND ISNULL(t.payment_method, 'nakit') = 'nakit' THEN t.amount ELSE 0 END), 0) AS cash_expense,
-            ISNULL(SUM(CASE WHEN c.type = 'gider' AND t.payment_method = 'kredi_karti' THEN t.amount ELSE 0 END), 0) AS cc_expense
+            ISNULL(SUM(CASE WHEN c.type = 'gider' AND t.payment_method = 'kredi_karti' AND ISNULL(t.is_paid, 0) = 0 THEN t.amount ELSE 0 END), 0) AS cc_expense
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
         WHERE t.user_id = ? 
-          AND MONTH(t.transaction_date) = MONTH(GETDATE()) 
-          AND YEAR(t.transaction_date) = YEAR(GETDATE())
-    """, (user_id,))
+          AND MONTH(t.transaction_date) = ? 
+          AND YEAR(t.transaction_date) = ?
+    """, (user_id, selected_month, selected_year))
     row = cursor.fetchone()
     total_income = float(row[0])
     cash_expense = float(row[1])
@@ -185,12 +231,12 @@ def dashboard():
             ISNULL(SUM(t.amount), 0) AS spent
         FROM categories c
         LEFT JOIN transactions t ON c.id = t.category_id 
-             AND MONTH(t.transaction_date) = MONTH(GETDATE()) 
-             AND YEAR(t.transaction_date) = YEAR(GETDATE())
+             AND MONTH(t.transaction_date) = ? 
+             AND YEAR(t.transaction_date) = ?
         WHERE c.user_id = ? AND c.type = 'gider'
         GROUP BY c.id, c.name, c.monthly_budget
         ORDER BY spent DESC
-    """, (user_id,))
+    """, (selected_month, selected_year, user_id))
     budgets_raw = cursor.fetchall()
     
     category_budgets = []
@@ -293,14 +339,24 @@ def dashboard():
     total_portfolio_pnl = total_portfolio_value - total_portfolio_cost
     total_portfolio_pnl_pct = round((total_portfolio_pnl / total_portfolio_cost * 100), 2) if total_portfolio_cost > 0 else 0.0
 
-    # 6. Son İşlem Hareketleri
+    # Toplam Realize Edilen Kâr / Zarar
     cursor.execute("""
-        SELECT TOP 8 t.id, t.amount, t.transaction_date, t.description, c.name, c.type, t.payment_method
+        SELECT ISNULL(SUM(realized_pnl), 0) 
+        FROM asset_transactions 
+        WHERE user_id = ? AND transaction_type = 'satis'
+    """, (user_id,))
+    total_realized_pnl = float(cursor.fetchone()[0])
+
+    # 6. İşlem Hareketleri (Seçilen Dönem)
+    cursor.execute("""
+        SELECT TOP 20 t.id, t.amount, t.transaction_date, t.description, c.name, c.type, t.payment_method, c.id, t.is_paid
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id = ?
+        WHERE t.user_id = ? 
+          AND MONTH(t.transaction_date) = ? 
+          AND YEAR(t.transaction_date) = ?
         ORDER BY t.transaction_date DESC, t.id DESC
-    """, (user_id,))
+    """, (user_id, selected_month, selected_year))
     recent_transactions = cursor.fetchall()
 
     # Kategori Listesi (İşlem modalı ve Kategori Yönetimi için)
@@ -324,8 +380,16 @@ def dashboard():
         total_portfolio_value=total_portfolio_value,
         total_portfolio_pnl=total_portfolio_pnl,
         total_portfolio_pnl_pct=total_portfolio_pnl_pct,
+        total_realized_pnl=total_realized_pnl,
         recent_transactions=recent_transactions,
         categories=categories,
+        selected_month=selected_month,
+        selected_year=selected_year,
+        selected_month_name=selected_month_name,
+        prev_month=prev_month,
+        prev_year=prev_year,
+        next_month=next_month,
+        next_year=next_year,
         today_str=datetime.today().strftime('%Y-%m-%d'),
         chart_cat_labels=json.dumps(chart_category_labels),
         chart_cat_values=json.dumps(chart_category_values),
@@ -343,19 +407,48 @@ def add_transaction():
     transaction_date = request.form.get('transaction_date')
     description = request.form.get('description', '').strip()
     payment_method = request.form.get('payment_method', 'nakit')
+    is_paid = 0 if payment_method == 'kredi_karti' else 1
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (user_id, category_id, float(amount), transaction_date, description, payment_method))
+            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, category_id, float(amount), transaction_date, description, payment_method, is_paid))
         conn.commit()
         flash("İşlem kaydedildi.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+@app.route('/edit_transaction/<int:tx_id>', methods=['POST'])
+@login_required
+def edit_transaction(tx_id):
+    user_id = session['user_id']
+    category_id = request.form.get('category_id')
+    amount = request.form.get('amount')
+    transaction_date = request.form.get('transaction_date')
+    description = request.form.get('description', '').strip()
+    payment_method = request.form.get('payment_method', 'nakit')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE transactions 
+            SET category_id = ?, amount = ?, transaction_date = ?, description = ?, payment_method = ?
+            WHERE id = ? AND user_id = ?
+        """, (category_id, float(amount), transaction_date, description, payment_method, tx_id, user_id))
+        conn.commit()
+        flash("İşlem güncellendi.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Güncelleme hatası: {e}", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -378,6 +471,54 @@ def delete_transaction(tx_id):
         cursor.close()
         conn.close()
     return redirect(url_for('dashboard'))
+
+@app.route('/pay_credit_card', methods=['POST'])
+@login_required
+def pay_credit_card():
+    user_id = session['user_id']
+    month = request.form.get('month', type=int) or datetime.today().month
+    year = request.form.get('year', type=int) or datetime.today().year
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT ISNULL(SUM(amount), 0) 
+            FROM transactions 
+            WHERE user_id = ? AND payment_method = 'kredi_karti' AND ISNULL(is_paid, 0) = 0
+              AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
+        """, (user_id, month, year))
+        unpaid_cc = float(cursor.fetchone()[0])
+
+        if unpaid_cc <= 0:
+            flash("Bu döneme ait ödenecek kredi kartı ekstre borcu bulunmamaktadır.", "info")
+            return redirect(url_for('dashboard', month=month, year=year))
+
+        # 1. Kredi kartı harcamalarını ödendi olarak işaretle
+        cursor.execute("""
+            UPDATE transactions 
+            SET is_paid = 1 
+            WHERE user_id = ? AND payment_method = 'kredi_karti' AND ISNULL(is_paid, 0) = 0
+              AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
+        """, (user_id, month, year))
+
+        # 2. Nakit akışından kredi kartı borç ödemesi olarak çıkış kaydet
+        cat_id = get_or_create_category(cursor, user_id, 'Kredi Kartı Borç Ödemesi', 'gider')
+        cursor.execute("""
+            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+            VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+        """, (user_id, cat_id, unpaid_cc, f"{month}/{year} Kredi Kartı Ekstresi Ödemesi"))
+
+        conn.commit()
+        flash(f"{month}/{year} dönemi için {unpaid_cc:.2f} TL tutarındaki kredi kartı ekstresi nakit bakiyenizden başarıyla ödendi.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Ekstre ödeme hatası: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard', month=month, year=year))
 
 @app.route('/add_subscription', methods=['POST'])
 @login_required
@@ -444,17 +585,42 @@ def deposit_savings_goal():
     goal_id = request.form.get('goal_id')
     amount = float(request.form.get('amount', 0))
 
+    if amount <= 0:
+        flash("Geçerli bir tutar girin.", "warning")
+        return redirect(url_for('dashboard'))
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE savings_goals 
-        SET current_amount = current_amount + ?
-        WHERE id = ? AND user_id = ?
-    """, (amount, goal_id, user_id))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    flash("Kumbaraya para eklendi!", "success")
+    try:
+        cursor.execute("SELECT title FROM savings_goals WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        goal = cursor.fetchone()
+        if not goal:
+            flash("Hedef bulunamadı.", "danger")
+            return redirect(url_for('dashboard'))
+        goal_title = goal[0]
+
+        cursor.execute("""
+            UPDATE savings_goals 
+            SET current_amount = current_amount + ?
+            WHERE id = ? AND user_id = ?
+        """, (amount, goal_id, user_id))
+
+        # Nakit akışından kumbara transferi olarak harcama kaydı düş
+        cat_id = get_or_create_category(cursor, user_id, 'Tasarruf & Kumbara', 'gider')
+        cursor.execute("""
+            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+            VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+        """, (user_id, cat_id, amount, f"Kumbaraya Ekleme: {goal_title}"))
+
+        conn.commit()
+        flash(f"Kumbaraya {amount:.2f} TL eklendi ve nakit harcamanıza işlendi!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
     return redirect(url_for('dashboard'))
 
 @app.route('/delete_savings_goal/<int:goal_id>', methods=['POST'])
@@ -533,14 +699,23 @@ def buy_asset():
             cursor.execute("SELECT @@IDENTITY")
             asset_id = cursor.fetchone()[0]
 
+        total_cost = quantity * unit_price
+
         # Alım hareketini kaydet
         cursor.execute("""
             INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, transaction_date)
             VALUES (?, ?, 'alis', ?, ?, ?, CAST(GETDATE() AS DATE))
-        """, (asset_id, user_id, quantity, unit_price, (quantity * unit_price)))
+        """, (asset_id, user_id, quantity, unit_price, total_cost))
+
+        # Nakit akışından alım tutarını harcama olarak düş
+        cat_id = get_or_create_category(cursor, user_id, 'Yatırım & Portföy', 'gider')
+        cursor.execute("""
+            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+            VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+        """, (user_id, cat_id, total_cost, f"Varlık Alımı: {quantity:.2f} adet {symbol}"))
 
         conn.commit()
-        flash(f"{symbol} alımı portföye eklendi.", "success")
+        flash(f"{symbol} alımı portföye eklendi ve nakit harcamanıza işlendi.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Alım hatası: {e}", "danger")
@@ -599,9 +774,17 @@ def sell_asset():
             VALUES (?, ?, 'satis', ?, ?, ?, ?, CAST(GETDATE() AS DATE))
         """, (asset_id, user_id, quantity, unit_price, total_amount, realized_pnl))
 
-        conn.commit()
         pnl_text = f"+{realized_pnl:.2f} TL Kâr" if realized_pnl >= 0 else f"{realized_pnl:.2f} TL Zarar"
-        flash(f"{symbol} satışı gerçekleştirildi ({quantity} adet, {pnl_text}).", "success")
+
+        # Satıştan gelen nakit tutarını gelirlere kaydet
+        cat_id = get_or_create_category(cursor, user_id, 'Yatırım Satış Geliri', 'gelir')
+        cursor.execute("""
+            INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+            VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+        """, (user_id, cat_id, total_amount, f"Varlık Satışı: {quantity:.2f} adet {symbol} ({pnl_text})"))
+
+        conn.commit()
+        flash(f"{symbol} satışı yapıldı ({quantity} adet, {pnl_text}) ve nakit gelirinize eklendi.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Satış işlemi sırasında hata: {e}", "danger")
