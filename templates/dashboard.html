@@ -30,12 +30,46 @@
     </div>
 </div>
 
+<!-- DÖNEM SEÇİCİ VE AY BAZLI ÖZET BARI -->
+<div class="card p-3 mb-4 bg-white border shadow-sm">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-outline-secondary btn-sm" title="Önceki Ay">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <span class="fs-5 fw-bold text-dark mb-0">
+                <i class="bi bi-calendar3 me-2 text-primary"></i>{{ selected_month_name }} {{ selected_year }}
+            </span>
+            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-outline-secondary btn-sm" title="Sonraki Ay">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% if selected_month != today_str[:7].split('-')[1]|int or selected_year != today_str[:4]|int %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-link text-decoration-none">Bu Aya Dön</a>
+            {% endif %}
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            {% if total_realized_pnl != 0 %}
+            <span class="badge {{ 'bg-success' if total_realized_pnl >= 0 else 'bg-danger' }} py-2 px-3">
+                Toplam Realize Kâr/Zarar: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.2f"|format(total_realized_pnl) }} TL
+            </span>
+            {% endif %}
+            <span class="badge bg-light text-dark border py-2 px-3">
+                Net Tasarruf (Gelir - Gider): 
+                <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }}">
+                    {{ '+' if net_savings >= 0 else '' }}{{ "%.2f"|format(net_savings) }} TL
+                </b>
+            </span>
+        </div>
+    </div>
+</div>
+
 <!-- 1. FİNANSAL ÖZET KARTLARI -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card p-3 border-start border-success border-4 h-100">
             <span class="text-muted fw-semibold small">Bu Ayki Gelir</span>
             <h4 class="fw-bold text-success mt-2 mb-0">{{ "%.2f"|format(total_income) }} TL</h4>
+            <small class="text-muted">{{ selected_month_name }} dönemi</small>
         </div>
     </div>
     <div class="col-md-3">
@@ -47,18 +81,40 @@
     </div>
     <div class="col-md-3">
         <div class="card p-3 border-start border-warning border-4 h-100">
-            <span class="text-muted fw-semibold small">Gelecek Kredi Kartı Ekstresi</span>
-            <h4 class="fw-bold text-warning mt-2 mb-0">{{ "%.2f"|format(cc_expense) }} TL</h4>
-            <small class="text-muted">Bu ay karttan çekilen</small>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="text-muted fw-semibold small">Kredi Kartı Ekstre Borcu</span>
+                    <h4 class="fw-bold text-warning mt-2 mb-0">{{ "%.2f"|format(cc_expense) }} TL</h4>
+                    <small class="text-muted">{{ selected_month_name }} dönemi ödenmemiş</small>
+                </div>
+                {% if cc_expense > 0 %}
+                <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                    <input type="hidden" name="month" value="{{ selected_month }}">
+                    <input type="hidden" name="year" value="{{ selected_year }}">
+                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold" title="Ekstreyi Nakit ile Öde">
+                        <i class="bi bi-credit-card-2-front me-1"></i>Öde
+                    </button>
+                </form>
+                {% else %}
+                <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
+                {% endif %}
+            </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card p-3 border-start border-primary border-4 h-100">
             <span class="text-muted fw-semibold small">Yatırım Portföyü (Canlı)</span>
             <h4 class="fw-bold text-primary mt-2 mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h4>
-            <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
-                {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL (%{{ total_portfolio_pnl_pct }})
-            </small>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
+                    {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL (%{{ total_portfolio_pnl_pct }})
+                </small>
+                {% if total_realized_pnl != 0 %}
+                <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold" title="Satışlardan realize edilen net kâr/zarar">
+                    Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.0f"|format(total_realized_pnl) }} TL
+                </small>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -119,26 +175,35 @@
 
         <!-- SON İŞLEMLER -->
         <div class="card p-3">
-            <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 text-secondary"></i>Son İşlemler</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-secondary"></i>İşlem Hareketleri</h5>
+                <span class="badge bg-light text-dark border">{{ selected_month_name }} {{ selected_year }}</span>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Tarih</th>
-                            <th>Kategori</th>
-                            <th>Yöntem</th>
+                            <th>İşlem / Kategori</th>
+                            <th>Ödeme Yöntemi</th>
                             <th class="text-end">Tutar</th>
-                            <th class="text-center" style="width: 50px;">Sil</th>
+                            <th class="text-center" style="width: 80px;">İşlem</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% if recent_transactions %}
                         {% for t in recent_transactions %}
                         <tr>
                             <td>{{ t[2].strftime('%d.%m') }}</td>
-                            <td><span class="badge bg-light text-dark border">{{ t[4] }}</span></td>
+                            <td>
+                                <span class="fw-semibold d-block">{{ t[3] if t[3] else t[4] }}</span>
+                                <small class="text-muted">{{ t[4] }}</small>
+                            </td>
                             <td>
                                 {% if t[6] == 'kredi_karti' %}
-                                    <span class="badge bg-warning-subtle text-warning-emphasis">Kredi Kartı</span>
+                                    <span class="badge {{ 'bg-warning-subtle text-warning-emphasis' if not t[8] else 'bg-secondary-subtle text-secondary' }}">
+                                        {{ 'Kredi Kartı (Ödenmedi)' if not t[8] else 'Kredi Kartı (Ödendi)' }}
+                                    </span>
                                 {% else %}
                                     <span class="badge bg-secondary-subtle text-secondary">Nakit</span>
                                 {% endif %}
@@ -147,14 +212,31 @@
                                 {{ '+' if t[5] == 'gelir' else '-' }}{{ "%.2f"|format(t[1]) }} TL
                             </td>
                             <td class="text-center">
-                                <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
-                                        <i class="bi bi-trash"></i>
+                                <div class="d-flex justify-content-center gap-1">
+                                    <button class="btn btn-sm btn-outline-primary py-0 px-2 edit-tx-btn"
+                                            data-id="{{ t[0] }}"
+                                            data-amount="{{ t[1] }}"
+                                            data-date="{{ t[2].strftime('%Y-%m-%d') }}"
+                                            data-desc="{{ t[3] or '' }}"
+                                            data-cat="{{ t[7] }}"
+                                            data-method="{{ t[6] }}"
+                                            title="İşlemi Düzenle">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
-                                </form>
+                                    <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">Bu döneme ait işlem kaydı bulunamadı.</td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -335,6 +417,52 @@
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 1.1 İŞLEM DÜZENLEME MODAL -->
+<div class="modal fade" id="editTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2 text-primary"></i>İşlemi Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editTransactionForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Kategori</label>
+                        <select name="category_id" id="editTxCategory" class="form-select" required>
+                            {% for cat in categories %}
+                                <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ödeme Yöntemi</label>
+                        <select name="payment_method" id="editTxMethod" class="form-select" required>
+                            <option value="nakit">Nakit / Vadesiz Hesap (Anında Çıkan)</option>
+                            <option value="kredi_karti">Kredi Kartı (Ekstreye Yazılacak)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tutar (TL)</label>
+                        <input type="number" step="0.01" name="amount" id="editTxAmount" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tarih</label>
+                        <input type="date" name="transaction_date" id="editTxDate" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Açıklama</label>
+                        <input type="text" name="description" id="editTxDesc" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Değişiklikleri Kaydet</button>
                 </div>
             </form>
         </div>
@@ -682,6 +810,34 @@
                 }
                 const maxInfo = document.getElementById('sellMaxInfo');
                 if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+            });
+        });
+
+        // 4. İşlem Düzenleme Modal Ayarları
+        document.querySelectorAll('.edit-tx-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const amount = this.getAttribute('data-amount');
+                const date = this.getAttribute('data-date');
+                const desc = this.getAttribute('data-desc');
+                const cat = this.getAttribute('data-cat');
+                const method = this.getAttribute('data-method');
+
+                const form = document.getElementById('editTransactionForm');
+                if (form) form.action = '/edit_transaction/' + id;
+                const catSelect = document.getElementById('editTxCategory');
+                if (catSelect) catSelect.value = cat;
+                const methodSelect = document.getElementById('editTxMethod');
+                if (methodSelect) methodSelect.value = method;
+                const amtInput = document.getElementById('editTxAmount');
+                if (amtInput) amtInput.value = amount;
+                const dateInput = document.getElementById('editTxDate');
+                if (dateInput) dateInput.value = date;
+                const descInput = document.getElementById('editTxDesc');
+                if (descInput) descInput.value = desc;
+
+                const editModal = new bootstrap.Modal(document.getElementById('editTransactionModal'));
+                editModal.show();
             });
         });
     });
