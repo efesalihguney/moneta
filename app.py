@@ -198,12 +198,14 @@ def dashboard():
     chart_category_values = []
 
     for b in budgets_raw:
+        cat_id = b[0]
         cat_name = b[1]
         budget = float(b[2])
         spent = float(b[3])
         pct = round((spent / budget * 100), 1) if budget > 0 else 0.0
         
         category_budgets.append({
+            'id': cat_id,
             'name': cat_name,
             'budget': budget,
             'spent': spent,
@@ -301,8 +303,8 @@ def dashboard():
     """, (user_id,))
     recent_transactions = cursor.fetchall()
 
-    # Kategori Listesi (İşlem modalı için)
-    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = ? ORDER BY type, name", (user_id,))
+    # Kategori Listesi (İşlem modalı ve Kategori Yönetimi için)
+    cursor.execute("SELECT id, name, type, monthly_budget FROM categories WHERE user_id = ? ORDER BY type, name", (user_id,))
     categories = cursor.fetchall()
 
     cursor.close()
@@ -354,6 +356,24 @@ def add_transaction():
     except Exception as e:
         conn.rollback()
         flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+@app.route('/delete_transaction/<int:tx_id>', methods=['POST'])
+@login_required
+def delete_transaction(tx_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM transactions WHERE id = ? AND user_id = ?", (tx_id, user_id))
+        conn.commit()
+        flash("İşlem başarıyla silindi.", "info")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Silme hatası: {e}", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -437,6 +457,42 @@ def deposit_savings_goal():
     flash("Kumbaraya para eklendi!", "success")
     return redirect(url_for('dashboard'))
 
+@app.route('/delete_savings_goal/<int:goal_id>', methods=['POST'])
+@login_required
+def delete_savings_goal(goal_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM savings_goals WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        conn.commit()
+        flash("Tasarruf hedefi kaldırıldı.", "info")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+@app.route('/complete_savings_goal/<int:goal_id>', methods=['POST'])
+@login_required
+def complete_savings_goal(goal_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE savings_goals SET status = 'tamamlandi' WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        conn.commit()
+        flash("Tebrikler! Tasarruf hedefini başarıyla tamamladınız.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
 # --- YATIRIM ALIM / SATIM İŞLEMLERİ (WACC MANTIĞI) ---
 @app.route('/buy_asset', methods=['POST'])
 @login_required
@@ -488,6 +544,153 @@ def buy_asset():
     except Exception as e:
         conn.rollback()
         flash(f"Alım hatası: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard'))
+
+@app.route('/sell_asset', methods=['POST'])
+@login_required
+def sell_asset():
+    user_id = session['user_id']
+    asset_id = request.form.get('asset_id')
+    quantity = float(request.form.get('quantity', 0))
+    unit_price = float(request.form.get('unit_price', 0))
+
+    if quantity <= 0 or unit_price <= 0:
+        flash("Geçerli bir adet ve satış fiyatı girin.", "danger")
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id, asset_symbol, total_quantity, average_cost 
+            FROM portfolio_assets 
+            WHERE id = ? AND user_id = ?
+        """, (asset_id, user_id))
+        asset = cursor.fetchone()
+
+        if not asset:
+            flash("Satılacak varlık bulunamadı.", "danger")
+            return redirect(url_for('dashboard'))
+
+        symbol = asset[1]
+        cur_qty = float(asset[2])
+        avg_cost = float(asset[3])
+
+        if quantity > cur_qty:
+            flash(f"Yetersiz bakiye! Portföyünüzde {cur_qty:.2f} adet {symbol} bulunmaktadır.", "warning")
+            return redirect(url_for('dashboard'))
+
+        new_qty = cur_qty - quantity
+        total_amount = quantity * unit_price
+        realized_pnl = (unit_price - avg_cost) * quantity
+
+        cursor.execute("""
+            UPDATE portfolio_assets 
+            SET total_quantity = ? 
+            WHERE id = ?
+        """, (new_qty, asset_id))
+
+        cursor.execute("""
+            INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, realized_pnl, transaction_date)
+            VALUES (?, ?, 'satis', ?, ?, ?, ?, CAST(GETDATE() AS DATE))
+        """, (asset_id, user_id, quantity, unit_price, total_amount, realized_pnl))
+
+        conn.commit()
+        pnl_text = f"+{realized_pnl:.2f} TL Kâr" if realized_pnl >= 0 else f"{realized_pnl:.2f} TL Zarar"
+        flash(f"{symbol} satışı gerçekleştirildi ({quantity} adet, {pnl_text}).", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Satış işlemi sırasında hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard'))
+
+# --- KATEGORİ VE BÜTÇE YÖNETİMİ ---
+@app.route('/add_category', methods=['POST'])
+@login_required
+def add_category():
+    user_id = session['user_id']
+    name = request.form.get('name', '').strip()
+    cat_type = request.form.get('type', 'gider')
+    monthly_budget = float(request.form.get('monthly_budget', 0) or 0)
+
+    if not name:
+        flash("Kategori adı boş bırakılamaz.", "warning")
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM categories WHERE user_id = ? AND name = ? AND type = ?", (user_id, name, cat_type))
+        if cursor.fetchone():
+            flash("Bu kategori zaten mevcut.", "warning")
+            return redirect(url_for('dashboard'))
+
+        cursor.execute("""
+            INSERT INTO categories (user_id, name, type, monthly_budget)
+            VALUES (?, ?, ?, ?)
+        """, (user_id, name, cat_type, monthly_budget))
+        conn.commit()
+        flash(f"'{name}' kategorisi başarıyla eklendi.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Kategori eklenirken hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard'))
+
+@app.route('/update_category_budget', methods=['POST'])
+@login_required
+def update_category_budget():
+    user_id = session['user_id']
+    category_id = request.form.get('category_id')
+    monthly_budget = float(request.form.get('monthly_budget', 0) or 0)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE categories 
+            SET monthly_budget = ? 
+            WHERE id = ? AND user_id = ?
+        """, (monthly_budget, category_id, user_id))
+        conn.commit()
+        flash("Kategori bütçesi güncellendi.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Güncelleme hatası: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard'))
+
+@app.route('/delete_category/<int:cat_id>', methods=['POST'])
+@login_required
+def delete_category(cat_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE category_id = ? AND user_id = ?", (cat_id, user_id))
+        tx_count = cursor.fetchone()[0]
+        if tx_count > 0:
+            flash("Bu kategoriye bağlı harcama/gelir kayıtları bulunduğu için kategori silinemez.", "warning")
+        else:
+            cursor.execute("DELETE FROM categories WHERE id = ? AND user_id = ?", (cat_id, user_id))
+            conn.commit()
+            flash("Kategori başarıyla silindi.", "info")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Silme hatası: {e}", "danger")
     finally:
         cursor.close()
         conn.close()
