@@ -3,7 +3,7 @@
 
 {% block content %}
 <!-- ÜST BAŞLIK VE HIZLI AKSİYONLAR -->
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
         <h2 class="fw-bold mb-0">Finans & Varlık Yönetimi</h2>
         <p class="text-muted mb-0">Nakit akışı, kredi kartı ekstresi, bütçe limitleri ve canlı portföy</p>
@@ -19,14 +19,59 @@
             <i class="bi bi-graph-down-arrow me-1"></i> Yatırım Sat
         </button>
         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-            <i class="bi bi-tags me-1"></i> Kategori & Bütçe
+            <i class="bi bi-tags me-1"></i> Bütçe Yönetimi
         </button>
         <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-            <i class="bi bi-calendar-event me-1"></i> Fatura / Borç
+            <i class="bi bi-calendar-event me-1"></i> Fatura Ekle
         </button>
         <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#goalModal">
-            <i class="bi bi-piggy-bank me-1"></i> Hedef Kumbara
+            <i class="bi bi-piggy-bank me-1"></i> Kumbara Hedefi
         </button>
+    </div>
+</div>
+
+<!-- ================= 1. BÜYÜK RESİM: TOPLAM NET SERVET (NET WORTH HERO CARD) ================= -->
+<div class="card mb-4 border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-lg-5 mb-3 mb-lg-0 border-end-lg border-secondary pe-lg-4">
+                <span class="text-uppercase tracking-wider small fw-semibold text-info d-block mb-1">
+                    <i class="bi bi-shield-check me-1"></i>Toplam Net Servet (Net Worth)
+                </span>
+                <h2 class="display-6 fw-bold mb-1 {{ 'text-success' if total_net_worth >= 0 else 'text-danger' }}">
+                    {{ '+' if total_net_worth > 0 else '' }}{{ "%.2f"|format(total_net_worth) }} TL
+                </h2>
+                <small class="text-light opacity-75">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
+            </div>
+            <div class="col-lg-7 ps-lg-4">
+                <div class="row g-2">
+                    <div class="col-6 col-sm-3">
+                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
+                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">💵 Vadesiz Nakit</small>
+                            <span class="fw-bold text-white fs-6">{{ "%.2f"|format(cash_balance) }} TL</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
+                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">📈 Canlı Portföy</small>
+                            <span class="fw-bold text-success fs-6">{{ "%.2f"|format(total_portfolio_value) }} TL</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
+                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">🎯 Kumbaralar</small>
+                            <span class="fw-bold text-info fs-6">{{ "%.2f"|format(total_savings_amount) }} TL</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-3">
+                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
+                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">💳 Kart Borcu</small>
+                            <span class="fw-bold text-danger fs-6">-{{ "%.2f"|format(total_unpaid_cc) }} TL</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -54,7 +99,7 @@
             </span>
             {% endif %}
             <span class="badge bg-light text-dark border py-2 px-3">
-                Net Tasarruf (Gelir - Gider): 
+                Bu Ayki Net Tasarruf (Gelir - Gider): 
                 <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }}">
                     {{ '+' if net_savings >= 0 else '' }}{{ "%.2f"|format(net_savings) }} TL
                 </b>
@@ -63,341 +108,632 @@
     </div>
 </div>
 
-<!-- 1. FİNANSAL ÖZET KARTLARI -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card p-3 border-start border-success border-4 h-100">
-            <span class="text-muted fw-semibold small">Bu Ayki Gelir</span>
-            <h4 class="fw-bold text-success mt-2 mb-0">{{ "%.2f"|format(total_income) }} TL</h4>
-            <small class="text-muted">{{ selected_month_name }} dönemi</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3 border-start border-danger border-4 h-100">
-            <span class="text-muted fw-semibold small">Nakit Harcamalar</span>
-            <h4 class="fw-bold text-danger mt-2 mb-0">{{ "%.2f"|format(cash_expense) }} TL</h4>
-            <small class="text-muted">Cebinden anında çıkan</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3 border-start border-warning border-4 h-100">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <span class="text-muted fw-semibold small">Kredi Kartı Ekstre Borcu</span>
-                    <h4 class="fw-bold text-warning mt-2 mb-0">{{ "%.2f"|format(cc_expense) }} TL</h4>
-                    <small class="text-muted">{{ selected_month_name }} dönemi ödenmemiş</small>
-                </div>
-                {% if cc_expense > 0 %}
-                <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
-                    <input type="hidden" name="month" value="{{ selected_month }}">
-                    <input type="hidden" name="year" value="{{ selected_year }}">
-                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold" title="Ekstreyi Nakit ile Öde">
-                        <i class="bi bi-credit-card-2-front me-1"></i>Öde
-                    </button>
-                </form>
-                {% else %}
-                <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3 border-start border-primary border-4 h-100">
-            <span class="text-muted fw-semibold small">Yatırım Portföyü (Canlı)</span>
-            <h4 class="fw-bold text-primary mt-2 mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h4>
-            <div class="d-flex justify-content-between align-items-center mt-1">
-                <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
-                    {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL (%{{ total_portfolio_pnl_pct }})
-                </small>
-                {% if total_realized_pnl != 0 %}
-                <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold" title="Satışlardan realize edilen net kâr/zarar">
-                    Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.0f"|format(total_realized_pnl) }} TL
-                </small>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+<!-- ================= 2. MODÜLER VE FERAH SEKME NAVİGASYONU ================= -->
+<ul class="nav nav-pills mb-4 gap-2 bg-white p-2 rounded-3 border shadow-sm" id="dashboardTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold" id="overview-tab" data-bs-toggle="pill" data-bs-target="#tab-overview" type="button" role="tab">
+            <i class="bi bi-grid-1x2 me-2"></i>Genel Bakış
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="portfolio-tab" data-bs-toggle="pill" data-bs-target="#tab-portfolio" type="button" role="tab">
+            <i class="bi bi-graph-up-arrow me-2"></i>Yatırımlar & Portföy
+            {% if portfolio_items %}<span class="badge bg-primary ms-1">{{ portfolio_items|length }}</span>{% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="transactions-tab" data-bs-toggle="pill" data-bs-target="#tab-transactions" type="button" role="tab">
+            <i class="bi bi-receipt me-2"></i>İşlem Geçmişi & Bütçe
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="goals-tab" data-bs-toggle="pill" data-bs-target="#tab-goals" type="button" role="tab">
+            <i class="bi bi-piggy-bank me-2"></i>Kumbaralar & Faturalar
+            {% if subscriptions %}<span class="badge bg-danger ms-1">{{ subscriptions|length }}</span>{% endif %}
+        </button>
+    </li>
+</ul>
 
-<!-- ANA GÖVDE: 2 SÜTUN -->
-<div class="row g-4">
-    
-    <!-- SOL SÜTUN: BÜTÇELER, GRAFİKLER VE SON İŞLEMLER -->
-    <div class="col-lg-7">
+<!-- ================= SEKME İÇERİKLERİ ================= -->
+<div class="tab-content" id="dashboardTabContent">
+
+    <!-- ================= SEKME 1: GENEL BAKIŞ ================= -->
+    <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
         
-        <!-- GRAFİK PANELİ -->
-        <div class="card p-3 mb-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart me-2 text-primary"></i>Harcama Analizleri</h5>
-            <div class="row align-items-center">
-                <div class="col-md-6 text-center">
-                    <span class="small fw-semibold text-muted d-block mb-2">Kategori Dağılımı</span>
-                    <div style="max-height: 220px; position: relative;">
-                        <canvas id="categoryChart"></canvas>
+        <!-- AYLIK METRİK KARTLARI -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card p-3 border-start border-success border-4 h-100">
+                    <span class="text-muted fw-semibold small">Bu Ayki Gelir</span>
+                    <h4 class="fw-bold text-success mt-2 mb-0">{{ "%.2f"|format(total_income) }} TL</h4>
+                    <small class="text-muted">{{ selected_month_name }} dönemi</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 border-start border-danger border-4 h-100">
+                    <span class="text-muted fw-semibold small">Nakit Harcamalar</span>
+                    <h4 class="fw-bold text-danger mt-2 mb-0">{{ "%.2f"|format(cash_expense) }} TL</h4>
+                    <small class="text-muted">Cebinden anında çıkan</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 border-start border-warning border-4 h-100">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="text-muted fw-semibold small">Kredi Kartı Ekstre Borcu</span>
+                            <h4 class="fw-bold text-warning mt-2 mb-0">{{ "%.2f"|format(cc_expense) }} TL</h4>
+                            <small class="text-muted">{{ selected_month_name }} dönemi ödenmemiş</small>
+                        </div>
+                        {% if cc_expense > 0 %}
+                        <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                            <input type="hidden" name="month" value="{{ selected_month }}">
+                            <input type="hidden" name="year" value="{{ selected_year }}">
+                            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold" title="Ekstreyi Nakit ile Öde">
+                                <i class="bi bi-credit-card-2-front me-1"></i>Öde
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="col-md-6 text-center mt-3 mt-md-0">
-                    <span class="small fw-semibold text-muted d-block mb-2">Nakit vs Kredi Kartı</span>
-                    <div style="max-height: 220px; position: relative;">
-                        <canvas id="paymentMethodChart"></canvas>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 border-start border-primary border-4 h-100">
+                    <span class="text-muted fw-semibold small">Canlı Portföy Değeri</span>
+                    <h4 class="fw-bold text-primary mt-2 mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h4>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
+                            {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL (%{{ total_portfolio_pnl_pct }})
+                        </small>
+                        {% if total_realized_pnl != 0 %}
+                        <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold">
+                            Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.0f"|format(total_realized_pnl) }} TL
+                        </small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- KATEGORİ BÜTÇELERİ VE DOLULUK ORANLARI -->
-        <div class="card p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-                    <i class="bi bi-gear me-1"></i>Yönet
-                </button>
-            </div>
-            {% if category_budgets %}
-                {% for b in category_budgets %}
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="fw-semibold">{{ b.name }}</span>
-                        <span class="small text-muted">
-                            {{ "%.2f"|format(b.spent) }} TL / {{ "%.2f"|format(b.budget) }} TL 
-                            <b>(%{{ b.percent }})</b>
-                        </span>
+        <!-- 2 GRAFİK YAN YANA: HARCAMA DAĞILIMI & PORTFÖY VARLIK DAĞILIMI -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card p-3 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart me-2 text-primary"></i>Harcama Analizleri</h5>
+                        <small class="text-muted">{{ selected_month_name }} Dönemi</small>
                     </div>
-                    <div class="progress" style="height: 10px;">
-                        <div class="progress-bar progress-bar-dynamic {% if b.percent > 100 %}bg-danger{% elif b.percent >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
-                             role="progressbar" data-width="{{ b.percent }}"></div>
+                    <div class="row align-items-center">
+                        <div class="col-sm-6 text-center">
+                            <span class="small fw-semibold text-muted d-block mb-2">Kategori Dağılımı</span>
+                            <div style="height: 180px; position: relative;">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 text-center mt-3 mt-sm-0">
+                            <span class="small fw-semibold text-muted d-block mb-2">Nakit vs Kredi Kartı</span>
+                            <div style="height: 180px; position: relative;">
+                                <canvas id="paymentMethodChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <p class="text-muted text-center py-3 mb-0">Tanımlı bütçe bulunamadı.</p>
-            {% endif %}
-        </div>
-
-        <!-- SON İŞLEMLER -->
-        <div class="card p-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-secondary"></i>İşlem Hareketleri</h5>
-                <span class="badge bg-light text-dark border">{{ selected_month_name }} {{ selected_year }}</span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Tarih</th>
-                            <th>İşlem / Kategori</th>
-                            <th>Ödeme Yöntemi</th>
-                            <th class="text-end">Tutar</th>
-                            <th class="text-center" style="width: 80px;">İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if recent_transactions %}
-                        {% for t in recent_transactions %}
-                        <tr>
-                            <td>{{ t[2].strftime('%d.%m') }}</td>
-                            <td>
-                                <span class="fw-semibold d-block">{{ t[3] if t[3] else t[4] }}</span>
-                                <small class="text-muted">{{ t[4] }}</small>
-                            </td>
-                            <td>
-                                {% if t[6] == 'kredi_karti' %}
-                                    <span class="badge {{ 'bg-warning-subtle text-warning-emphasis' if not t[8] else 'bg-secondary-subtle text-secondary' }}">
-                                        {{ 'Kredi Kartı (Ödenmedi)' if not t[8] else 'Kredi Kartı (Ödendi)' }}
+
+            <div class="col-lg-6">
+                <div class="card p-3 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Portföy Varlık Dağılımı</h5>
+                        <span class="badge bg-success-subtle text-success">Canlı Değerleme</span>
+                    </div>
+                    {% if portfolio_items %}
+                    <div class="row align-items-center">
+                        <div class="col-sm-6 text-center">
+                            <div style="height: 180px; position: relative;">
+                                <canvas id="assetAllocationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 mt-3 mt-sm-0">
+                            <ul class="list-group list-group-flush small" id="assetAllocationLegend">
+                                {% for item in portfolio_items %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 border-0">
+                                    <span>
+                                        <span class="fw-bold">{{ item.symbol }}</span>
+                                        <small class="text-muted ms-1">({{ item.type }})</small>
                                     </span>
-                                {% else %}
-                                    <span class="badge bg-secondary-subtle text-secondary">Nakit</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
-                                {{ '+' if t[5] == 'gelir' else '-' }}{{ "%.2f"|format(t[1]) }} TL
-                            </td>
-                            <td class="text-center">
-                                <div class="d-flex justify-content-center gap-1">
-                                    <button class="btn btn-sm btn-outline-primary py-0 px-2 edit-tx-btn"
-                                            data-id="{{ t[0] }}"
-                                            data-amount="{{ t[1] }}"
-                                            data-date="{{ t[2].strftime('%Y-%m-%d') }}"
-                                            data-desc="{{ t[3] or '' }}"
-                                            data-cat="{{ t[7] }}"
-                                            data-method="{{ t[6] }}"
-                                            title="İşlemi Düzenle">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
+                                    <span class="fw-semibold">{{ "%.2f"|format(item.cur_val) }} TL</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-wallet2 display-6 d-block mb-2 opacity-50"></i>
+                        Portföyünüzde henüz varlık bulunmuyor.<br>
+                        <button class="btn btn-sm btn-outline-success mt-2" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+                            + İlk Varlığı Ekle
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ÖZET LİSTELER: BÜTÇE İLERLEMESİ & YAKLAŞAN ÖDEMELER -->
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card p-3 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Durumu</h5>
+                        <a href="javascript:void(0)" class="small text-decoration-none switch-to-tab" data-tab="transactions-tab">Tümünü Gör</a>
+                    </div>
+                    {% if category_budgets %}
+                        {% for b in category_budgets[:4] %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center small mb-1">
+                                <span class="fw-bold">{{ b.name }}</span>
+                                <span>
+                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
+                                        {{ "%.2f"|format(b.spent) }} TL
+                                    </span> 
+                                    / {{ "%.2f"|format(b.budget) }} TL
+                                    <span class="text-muted ms-1">(%{{ b.percent }})</span>
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 7px;">
+                                <div class="progress-bar progress-bar-dynamic {{ 'bg-danger' if b.spent > b.budget and b.budget > 0 else ('bg-warning' if b.percent > 80 else 'bg-primary') }}" 
+                                     data-width="{{ b.percent }}"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-4 mb-0">Tanımlı kategori bütçesi bulunmuyor.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card p-3 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Ödemeler & Kumbaralar</h5>
+                        <a href="javascript:void(0)" class="small text-decoration-none switch-to-tab" data-tab="goals-tab">Detaylar</a>
+                    </div>
+                    {% if subscriptions %}
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for sub in subscriptions[:3] %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                <div>
+                                    <span class="fw-bold">{{ sub[1] }}</span>
+                                    <small class="text-muted d-block">{{ sub[4].strftime('%d.%m.%Y') }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fw-bold">{{ "%.2f"|format(sub[2]) }} TL</span>
+                                    <span class="badge {{ 'bg-danger' if sub[5] <= 3 else 'bg-warning text-dark' }} ms-1">
+                                        {{ sub[5] }} gün
+                                    </span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if savings_goals %}
+                        <h6 class="fw-bold text-muted small mt-2 mb-2"><i class="bi bi-piggy-bank me-1 text-info"></i>Tasarruf Kumbarası Hedefleri</h6>
+                        {% for g in savings_goals[:2] %}
+                        <div class="border rounded p-2 mb-2 bg-light">
+                            <div class="d-flex justify-content-between align-items-center small mb-1">
+                                <span class="fw-bold">{{ g.title }}</span>
+                                <span class="text-primary fw-semibold">%{{ g.percent }} ({{ "%.0f"|format(g.current_amount) }} / {{ "%.0f"|format(g.target_amount) }} TL)</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    {% if not subscriptions and not savings_goals %}
+                        <p class="text-muted text-center py-4 mb-0">Kayıtlı fatura veya kumbara hedefi bulunmuyor.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= SEKME 2: YATIRIMLAR & PORTFÖY ================= -->
+    <div class="tab-pane fade" id="tab-portfolio" role="tabpanel">
+        
+        <!-- PORTFÖY İSTATİSTİK BANNERI -->
+        <div class="card p-3 mb-4 bg-light border">
+            <div class="row g-3 align-items-center text-center text-md-start">
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Toplam Portföy Değeri</span>
+                    <h3 class="fw-bold text-primary mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h3>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Toplam Kâr / Zarar</span>
+                    <h4 class="fw-bold mb-0 {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
+                        {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL 
+                        <span class="fs-6 fw-normal">(%{{ total_portfolio_pnl_pct }})</span>
+                    </h4>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Realize Edilen Kâr/Zarar</span>
+                    <h4 class="fw-bold mb-0 {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
+                        {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.2f"|format(total_realized_pnl) }} TL
+                    </h4>
+                </div>
+                <div class="col-md-3 text-md-end">
+                    <div class="d-flex justify-content-md-end gap-2">
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+                            <i class="bi bi-plus-lg me-1"></i>Varlık Al
+                        </button>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
+                            <i class="bi bi-dash-lg me-1"></i>Varlık Sat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- CANLI PORTFÖY TABLOSU -->
+            <div class="col-lg-8">
+                <div class="card p-3 shadow-sm h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-graph-up me-2 text-success"></i>Canlı Varlık Portföyü</h5>
+                        <span class="badge bg-success-subtle text-success">Otomatik Canlı Fiyat</span>
+                    </div>
+                    {% if portfolio_items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th>Piyasa & Varlık</th>
+                                    <th>Adet / Lot</th>
+                                    <th>Ort. Maliyet</th>
+                                    <th>Anlık Fiyat</th>
+                                    <th>Toplam Değer</th>
+                                    <th class="text-end">Kâr / Zarar</th>
+                                    <th class="text-end" style="width: 70px;">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in portfolio_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span class="fw-bold fs-6">{{ item.symbol }}</span>
+                                            {% if item.type == 'abd_hisse' %}
+                                                <span class="badge bg-primary-subtle text-primary">ABD ($)</span>
+                                            {% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}
+                                                <span class="badge bg-info-subtle text-info-emphasis">TEFAS / BEFAS</span>
+                                            {% elif item.type == 'hisse' %}
+                                                <span class="badge bg-secondary-subtle text-secondary">BIST</span>
+                                            {% elif item.type == 'emtia_altin' %}
+                                                <span class="badge bg-warning-subtle text-warning-emphasis">Altın</span>
+                                            {% elif item.type == 'doviz' %}
+                                                <span class="badge bg-success-subtle text-success">Döviz</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="fw-semibold">
+                                        {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }}
+                                    </td>
+                                    <td class="small">{{ "%.2f"|format(item.avg_cost) }} TL</td>
+                                    <td class="small fw-semibold">
+                                        {% if item.type == 'abd_hisse' and item.orig_price %}
+                                            <span class="text-primary">${{ "%.2f"|format(item.orig_price) }}</span><br>
+                                            <small class="text-muted">({{ "%.2f"|format(item.live_price) }} TL)</small>
+                                        {% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}
+                                            {{ "%.4f"|format(item.live_price) }} TL
+                                        {% else %}
+                                            {{ "%.2f"|format(item.live_price) }} TL
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ "%.2f"|format(item.cur_val) }} TL</td>
+                                    <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
+                                        {{ '+' if item.pnl >= 0 else '' }}{{ "%.2f"|format(item.pnl) }} TL<br>
+                                        <span class="fw-normal">(%{{ item.pnl_pct }})</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-danger py-0 px-2 quick-sell-btn"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#sellAssetModal" 
+                                                data-id="{{ item.id }}" 
+                                                data-symbol="{{ item.symbol }}"
+                                                data-type="{{ item.type }}"
+                                                data-qty="{{ item.qty }}" 
+                                                data-price="{{ item.live_price }}"
+                                                data-orig-price="{{ item.orig_price or item.live_price }}"
+                                                data-currency="{{ item.currency }}"
+                                                title="{{ item.symbol }} Sat">
+                                            Sat
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-graph-up-arrow display-4 d-block mb-3 opacity-50"></i>
+                        <h5>Henüz portföyünüzde bir yatırım varlığı yok</h5>
+                        <p class="small text-muted mb-3">Borsa İstanbul, ABD Borsaları, TEFAS/BEFAS fonları, Döviz ve Altın ekleyebilirsiniz.</p>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+                            <i class="bi bi-plus-lg me-1"></i>İlk Varlığı Satın Al
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- PORTFÖY DAĞILIM PASTA GRAFİĞİ -->
+            <div class="col-lg-4">
+                <div class="card p-3 shadow-sm h-100">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Varlık Dağılımı</h5>
+                    {% if portfolio_items %}
+                    <div class="text-center my-3">
+                        <div style="height: 240px; position: relative;">
+                            <canvas id="assetAllocationChartTab"></canvas>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6 class="fw-bold small text-muted mb-2">Varlık Ağırlıkları</h6>
+                        <ul class="list-group list-group-flush small">
+                            {% for item in portfolio_items %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                <span>
+                                    <span class="fw-bold">{{ item.symbol }}</span>
+                                    <small class="text-muted ms-1">({{ "%.2f"|format((item.cur_val / total_portfolio_value) * 100) }}%)</small>
+                                </span>
+                                <span class="fw-semibold">{{ "%.2f"|format(item.cur_val) }} TL</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-5 mb-0">Grafik için varlık bulunmuyor.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= SEKME 3: İŞLEM GEÇMİŞİ & BÜTÇE ================= -->
+    <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
+        <div class="row g-4">
+            
+            <!-- SOL: KATEGORİ BÜTÇELERİ -->
+            <div class="col-lg-5">
+                <div class="card p-3 shadow-sm mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+                            <i class="bi bi-gear me-1"></i>Yönet
+                        </button>
+                    </div>
+                    {% if category_budgets %}
+                        {% for b in category_budgets %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center small mb-1">
+                                <span class="fw-bold">{{ b.name }}</span>
+                                <span>
+                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
+                                        {{ "%.2f"|format(b.spent) }} TL
+                                    </span> 
+                                    / {{ "%.2f"|format(b.budget) }} TL
+                                    <span class="text-muted ms-1">(%{{ b.percent }})</span>
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar progress-bar-dynamic {{ 'bg-danger' if b.spent > b.budget and b.budget > 0 else ('bg-warning' if b.percent > 80 else 'bg-primary') }}" 
+                                     data-width="{{ b.percent }}"></div>
+                            </div>
+                            {% if b.spent > b.budget and b.budget > 0 %}
+                            <small class="text-danger d-block mt-1">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Bütçe {{ "%.2f"|format(b.spent - b.budget) }} TL aşıldı!
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-4 mb-0">Henüz kategori bütçesi tanımlanmamış.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- SAĞ: SON İŞLEMLER VE CANLI ARAMA -->
+            <div class="col-lg-7">
+                <div class="card p-3 shadow-sm">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark"></i>İşlem Hareketleri</h5>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                            <i class="bi bi-plus-lg me-1"></i>Yeni İşlem
+                        </button>
+                    </div>
+
+                    <!-- CANLI ARAMA ÇUBUĞU -->
+                    <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" id="txSearchInput" class="form-control" placeholder="Açıklama, kategori veya tutar ara...">
+                    </div>
+
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="txTable">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Kategori & Açıklama</th>
+                                    <th>Ödeme</th>
+                                    <th class="text-end">Tutar</th>
+                                    <th class="text-center" style="width: 80px;">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in recent_transactions %}
+                                <tr class="tx-row">
+                                    <td class="small text-muted">{{ t[2].strftime('%d.%m.%Y') }}</td>
+                                    <td>
+                                        <span class="fw-semibold d-block tx-cat">{{ t[4] }}</span>
+                                        <small class="text-muted tx-desc">{{ t[3] or '-' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if t[6] == 'kredi_karti' %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1"></i>Kart</span>
+                                            {% if t[8] == 1 %}
+                                                <span class="badge bg-success-subtle text-success ms-1">Ödendi</span>
+                                            {% else %}
+                                                <span class="badge bg-danger-subtle text-danger ms-1">Ekstrede</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-cash me-1"></i>Nakit</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
+                                        {{ '+' if t[5] == 'gelir' else '-' }}<span class="tx-amt">{{ "%.2f"|format(t[1]) }}</span> TL
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-sm btn-outline-primary py-0 px-2 edit-tx-btn"
+                                                    data-id="{{ t[0] }}"
+                                                    data-amount="{{ t[1] }}"
+                                                    data-date="{{ t[2].strftime('%Y-%m-%d') }}"
+                                                    data-desc="{{ t[3] or '' }}"
+                                                    data-cat="{{ t[7] }}"
+                                                    data-method="{{ t[6] }}"
+                                                    title="İşlemi Düzenle">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4 mb-0">Bu döneme ait işlem kaydı bulunamadı.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ================= SEKME 4: KUMBARALAR & FATURALAR ================= -->
+    <div class="tab-pane fade" id="tab-goals" role="tabpanel">
+        <div class="row g-4">
+            
+            <!-- TASARRUF KUMBARASI -->
+            <div class="col-lg-6">
+                <div class="card p-3 shadow-sm h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-piggy-bank me-2 text-info"></i>Tasarruf Kumbarası</h5>
+                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#goalModal">
+                            <i class="bi bi-plus-lg me-1"></i>Yeni Hedef
+                        </button>
+                    </div>
+                    {% if savings_goals %}
+                        {% for g in savings_goals %}
+                        <div class="border rounded-3 p-3 mb-3 bg-light shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-6">{{ g.title }}</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
+                                    <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hedefi tamamlandı olarak işaretlemek istiyor musunuz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Hedefi Tamamla">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu hedefi silmek istediğinize emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Hedefi Sil">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-3">Bu döneme ait işlem kaydı bulunamadı.</td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- SAĞ SÜTUN: CANLI PORTFÖY, FATURALAR VE KUMBARA -->
-    <div class="col-lg-5">
-        
-        <!-- CANLI YATIRIM PORTFÖYÜ -->
-        <div class="card p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0"><i class="bi bi-graph-up me-2 text-success"></i>Canlı Portföy</h5>
-                <span class="badge bg-success-subtle text-success">Canlı API</span>
-            </div>
-            {% if portfolio_items %}
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead class="text-muted small">
-                            <tr>
-                                <th>Varlık</th>
-                                <th>Adet</th>
-                                <th>Maliyet</th>
-                                <th>Anlık</th>
-                                <th class="text-end">Kâr/Zarar</th>
-                                <th class="text-end" style="width: 50px;">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in portfolio_items %}
-                            <tr>
-                                <td>
-                                    <span class="fw-bold">{{ item.symbol }}</span>
-                                    {% if item.type == 'abd_hisse' %}
-                                        <span class="badge bg-primary-subtle text-primary ms-1">ABD ($)</span>
-                                    {% elif item.type == 'tefas_fon' %}
-                                        <span class="badge bg-info-subtle text-info-emphasis ms-1">TEFAS / BEFAS</span>
-                                    {% elif item.type == 'hisse' %}
-                                        <span class="badge bg-secondary-subtle text-secondary ms-1">BIST</span>
-                                    {% elif item.type == 'emtia_altin' %}
-                                        <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Altın</span>
-                                    {% elif item.type == 'doviz' %}
-                                        <span class="badge bg-success-subtle text-success ms-1">Döviz</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ "%.4f"|format(item.qty) if item.type == 'tefas_fon' or item.qty < 1 else "%.2f"|format(item.qty) }}</td>
-                                <td class="small">{{ "%.2f"|format(item.avg_cost) }} TL</td>
-                                <td class="small fw-semibold">
-                                    {% if item.type == 'abd_hisse' and item.orig_price %}
-                                        <span class="text-primary">${{ "%.2f"|format(item.orig_price) }}</span><br>
-                                        <small class="text-muted">({{ "%.2f"|format(item.live_price) }} TL)</small>
-                                    {% elif item.type == 'tefas_fon' %}
-                                        {{ "%.4f"|format(item.live_price) }} TL
-                                    {% else %}
-                                        {{ "%.2f"|format(item.live_price) }} TL
-                                    {% endif %}
-                                </td>
-                                <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
-                                    {{ '+' if item.pnl >= 0 else '' }}{{ "%.2f"|format(item.pnl) }} TL<br>
-                                    <span class="fw-normal">(%{{ item.pnl_pct }})</span>
-                                </td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-danger py-0 px-2 quick-sell-btn"
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#sellAssetModal" 
-                                            data-id="{{ item.id }}" 
-                                            data-symbol="{{ item.symbol }}"
-                                            data-type="{{ item.type }}"
-                                            data-qty="{{ item.qty }}" 
-                                            data-price="{{ item.live_price }}"
-                                            data-orig-price="{{ item.orig_price or item.live_price }}"
-                                            data-currency="{{ item.currency }}"
-                                            title="{{ item.symbol }} Sat">
-                                        Sat
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-muted text-center py-3 mb-0">Portföyünüzde varlık bulunmuyor.</p>
-            {% endif %}
-        </div>
-
-        <!-- YAKLAŞAN FATURALAR & KART GÜNLERİ -->
-        <div class="card p-3 mb-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Ödemeler</h5>
-            {% if subscriptions %}
-                <ul class="list-group list-group-flush">
-                    {% for s in subscriptions %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        <div>
-                            <span class="fw-semibold d-block">{{ s[1] }}</span>
-                            <small class="text-muted">Son Gün: {{ s[4].strftime('%d.%m.%Y') }}</small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="text-end">
-                                <span class="fw-bold d-block">{{ "%.2f"|format(s[2]) }} TL</span>
-                                {% if s[5] <= 3 %}
-                                    <span class="badge bg-danger">Son {{ s[5] }} gün!</span>
-                                {% else %}
-                                    <span class="badge bg-secondary-subtle text-secondary">{{ s[5] }} gün</span>
-                                {% endif %}
                             </div>
-                            <form action="{{ url_for('delete_subscription', sub_id=s[0]) }}" method="POST" onsubmit="return confirm('Bu faturayı/ödemeyi silmek istediğinize emin misiniz?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Sil">
-                                    <i class="bi bi-trash"></i>
+                            <div class="progress mb-2" style="height: 10px;">
+                                <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small">
+                                <span class="fw-semibold text-muted">{{ "%.2f"|format(g.current_amount) }} / {{ "%.2f"|format(g.target_amount) }} TL</span>
+                                <button class="btn btn-sm btn-primary py-1 px-3 deposit-goal-btn" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#depositGoalModal"
+                                        data-id="{{ g.id }}" 
+                                        data-title="{{ g.title }}">
+                                    <i class="bi bi-cash-stack me-1"></i>Para Yatır
                                 </button>
-                            </form>
+                            </div>
                         </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="text-muted text-center py-3 mb-0">Kayıtlı fatura yok.</p>
-            {% endif %}
-        </div>
-
-        <!-- TASARRUF KUMBARASI -->
-        <div class="card p-3">
-            <h5 class="fw-bold mb-3"><i class="bi bi-piggy-bank me-2 text-info"></i>Tasarruf Kumbarası</h5>
-            {% if savings_goals %}
-                {% for g in savings_goals %}
-                <div class="border rounded p-3 mb-2">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="fw-bold">{{ g.title }}</span>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
-                            <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hedefi tamamlandı olarak işaretlemek istiyor musunuz?');">
-                                <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Hedefi Tamamla">
-                                    <i class="bi bi-check-lg"></i>
-                                </button>
-                            </form>
-                            <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu hedefi silmek istediğinize emin misiniz?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Hedefi Sil">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-piggy-bank display-5 d-block mb-2 opacity-50"></i>
+                            Henüz tasarruf hedefi oluşturmadınız.<br>
+                            <button class="btn btn-sm btn-info text-white mt-2" data-bs-toggle="modal" data-bs-target="#goalModal">
+                                + İlk Tasarruf Hedefini Ekle
+                            </button>
                         </div>
-                    </div>
-                    <div class="progress mb-2" style="height: 8px;">
-                        <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center small text-muted">
-                        <span>{{ "%.2f"|format(g.current_amount) }} / {{ "%.2f"|format(g.target_amount) }} TL</span>
-                        <form action="{{ url_for('deposit_savings_goal') }}" method="POST" class="d-flex gap-1">
-                            <input type="hidden" name="goal_id" value="{{ g.id }}">
-                            <input type="number" step="10" name="amount" class="form-control form-control-sm" placeholder="TL Ekle" style="width: 80px;" required>
-                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">+</button>
-                        </form>
-                    </div>
+                    {% endif %}
                 </div>
-                {% endfor %}
-            {% else %}
-                <p class="text-muted text-center py-3 mb-0">Henüz hedef oluşturulmadı.</p>
-            {% endif %}
-        </div>
+            </div>
 
+            <!-- YAKLAŞAN FATURALAR & KART ÖDEMELERİ -->
+            <div class="col-lg-6">
+                <div class="card p-3 shadow-sm h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Faturalar & Borçlar</h5>
+                        <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+                            <i class="bi bi-plus-lg me-1"></i>Fatura Ekle
+                        </button>
+                    </div>
+                    {% if subscriptions %}
+                        <ul class="list-group list-group-flush">
+                            {% for sub in subscriptions %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+                                <div>
+                                    <h6 class="fw-bold mb-1">{{ sub[1] }}</h6>
+                                    <span class="badge {{ 'bg-danger' if sub[5] <= 3 else ('bg-warning text-dark' if sub[5] <= 7 else 'bg-secondary') }}">
+                                        {{ sub[5] }} gün kaldı ({{ sub[4].strftime('%d.%m.%Y') }})
+                                    </span>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="fw-bold fs-6">{{ "%.2f"|format(sub[2]) }} TL</span>
+                                    <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" onsubmit="return confirm('Bu ödemeyi silmek istediğinize emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Ödemeyi Sil">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-calendar-event display-5 d-block mb-2 opacity-50"></i>
+                            Kayıtlı fatura veya abonelik bulunmuyor.<br>
+                            <button class="btn btn-sm btn-dark mt-2" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+                                + Fatura / Ödeme Ekle
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
     </div>
+
 </div>
 
 <!-- ================= MODALLAR ================= -->
@@ -545,69 +881,7 @@
     </div>
 </div>
 
-<!-- 3. FATURA / KART MODAL -->
-<div class="modal fade" id="subscriptionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Fatura / Kredi Kartı Ödemesi Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('add_subscription') }}" method="POST">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Ödeme Başlığı</label>
-                        <input type="text" name="title" class="form-control" placeholder="Örn: Elektrik Faturası veya Garanti Bonus" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tutar (TL)</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Son Ödeme Tarihi</label>
-                        <input type="date" name="next_due_date" class="form-control" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-dark">Kaydet</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- 4. TASARRUF HEDEF MODAL -->
-<div class="modal fade" id="goalModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Yeni Tasarruf Hedefi</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('add_savings_goal') }}" method="POST">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Hedef Adı</label>
-                        <input type="text" name="title" class="form-control" placeholder="Örn: Yeni Bilgisayar, Tatil Fonu" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Hedeflenen Tutar (TL)</label>
-                        <input type="number" step="1" name="target_amount" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Hedef Tarih (Opsiyonel)</label>
-                        <input type="date" name="target_date" class="form-control">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-info text-white">Hedef Oluştur</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- 5. YATIRIM SATIŞ MODAL -->
+<!-- 3. YATIRIM SATIŞ MODAL -->
 <div class="modal fade" id="sellAssetModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -628,7 +902,7 @@
                                     data-orig-price="{{ item.orig_price or item.live_price }}"
                                     data-currency="{{ item.currency }}"
                                     data-type="{{ item.type }}">
-                                {{ item.symbol }} (Eldeki: {{ "%.4f"|format(item.qty) if item.type == 'tefas_fon' or item.qty < 1 else "%.2f"|format(item.qty) }} adet | Canlı: {% if item.type == 'abd_hisse' and item.orig_price %}${{ "%.2f"|format(item.orig_price) }} ({{ "%.2f"|format(item.live_price) }} TL){% elif item.type == 'tefas_fon' %}{{ "%.4f"|format(item.live_price) }} TL{% else %}{{ "%.2f"|format(item.live_price) }} TL{% endif %})
+                                {{ item.symbol }} (Eldeki: {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }} adet | Canlı: {% if item.type == 'abd_hisse' and item.orig_price %}${{ "%.2f"|format(item.orig_price) }} ({{ "%.2f"|format(item.live_price) }} TL){% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}{{ "%.4f"|format(item.live_price) }} TL{% else %}{{ "%.2f"|format(item.live_price) }} TL{% endif %})
                             </option>
                             {% endfor %}
                         </select>
@@ -661,6 +935,100 @@
                     {% else %}
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
                     {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 4. FATURA / KART MODAL -->
+<div class="modal fade" id="subscriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Fatura / Kredi Kartı Ödemesi Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_subscription') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Ödeme Başlığı</label>
+                        <input type="text" name="title" class="form-control" placeholder="Örn: Elektrik Faturası veya Garanti Bonus" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tutar (TL)</label>
+                        <input type="number" step="0.01" name="amount" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Son Ödeme Tarihi</label>
+                        <input type="date" name="next_due_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-dark">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 5. TASARRUF HEDEF MODAL -->
+<div class="modal fade" id="goalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Yeni Tasarruf Hedefi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_savings_goal') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Hedef Adı</label>
+                        <input type="text" name="title" class="form-control" placeholder="Örn: Yeni Bilgisayar, Tatil Fonu" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hedeflenen Tutar (TL)</label>
+                        <input type="number" step="1" name="target_amount" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hedef Tarih (Opsiyonel)</label>
+                        <input type="date" name="target_date" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info text-white">Hedef Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 5.1 KUMBARAYA PARA YATIR MODAL (YENİ VE TEMİZ DENEYİM) -->
+<div class="modal fade" id="depositGoalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-info"><i class="bi bi-piggy-bank me-2"></i>Kumbaraya Para Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('deposit_savings_goal') }}" method="POST">
+                <input type="hidden" name="goal_id" id="depositGoalId">
+                <div class="modal-body">
+                    <p class="mb-3">Hedef: <strong id="depositGoalTitle" class="text-primary fs-6"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label">Eklenecek Tutar (TL)</label>
+                        <input type="number" step="1" name="amount" id="depositAmountInput" class="form-control" placeholder="Örn: 250" required>
+                        <small class="text-muted">Bu tutar nakit bakiyenizden çıkış yapılarak birikiminize eklenecektir.</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-amt-btn" data-amt="100">+100 TL</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-amt-btn" data-amt="250">+250 TL</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-amt-btn" data-amt="500">+500 TL</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary quick-amt-btn" data-amt="1000">+1000 TL</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info text-white">Kumbaraya Yatır</button>
                 </div>
             </form>
         </div>
@@ -756,51 +1124,163 @@
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
 <script id="data-cat-values" type="application/json">{{ chart_cat_values|safe }}</script>
 <script id="data-payment-values" type="application/json">{{ chart_payment_values|safe }}</script>
+<script id="data-asset-labels" type="application/json">{{ chart_asset_labels|safe }}</script>
+<script id="data-asset-values" type="application/json">{{ chart_asset_values|safe }}</script>
 
-<!-- GRAFİK VE İLERLEME ÇUBUĞU SCRIPTI -->
+<!-- JAVASCRIPT KONTROLLERİ -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // İlerleme çubuklarını (Progress Bar) dinamik genişliğe ayarla
+        // 1. İlerleme çubuklarını (Progress Bar) dinamik genişliğe ayarla
         document.querySelectorAll('.progress-bar-dynamic').forEach(function (bar) {
             const rawVal = parseFloat(bar.getAttribute('data-width')) || 0;
             const clamped = Math.min(Math.max(rawVal, 0), 100);
             bar.style.width = clamped + '%';
         });
 
-        // Grafik verilerini al
+        // 2. Grafik verilerini oku
         const catLabels = JSON.parse(document.getElementById('data-cat-labels').textContent || "[]");
         const catValues = JSON.parse(document.getElementById('data-cat-values').textContent || "[]");
         const paymentValues = JSON.parse(document.getElementById('data-payment-values').textContent || "[0, 0]");
+        const assetLabels = JSON.parse(document.getElementById('data-asset-labels').textContent || "[]");
+        const assetValues = JSON.parse(document.getElementById('data-asset-values').textContent || "[]");
 
-        // 1. Kategori Grafiği
-        if (catValues.length > 0) {
+        // Harcama Kategori Grafiği
+        if (catValues.length > 0 && document.getElementById('categoryChart')) {
             new Chart(document.getElementById('categoryChart'), {
                 type: 'doughnut',
                 data: {
                     labels: catLabels,
                     datasets: [{
                         data: catValues,
-                        backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+                        backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
-        // 2. Nakit vs Kredi Kartı Grafiği
-        new Chart(document.getElementById('paymentMethodChart'), {
-            type: 'pie',
-            data: {
-                labels: ['Nakit', 'Kredi Kartı'],
-                datasets: [{
-                    data: paymentValues,
-                    backgroundColor: ['#64748b', '#f59e0b']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
+        // Nakit vs Kredi Kartı Grafiği
+        if (document.getElementById('paymentMethodChart')) {
+            new Chart(document.getElementById('paymentMethodChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Nakit', 'Kredi Kartı'],
+                    datasets: [{
+                        data: paymentValues,
+                        backgroundColor: ['#64748b', '#f59e0b']
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Portföy Varlık Dağılımı Grafikleri (Genel Bakış ve Portföy Sekmesi)
+        const assetColors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#64748b'];
+
+        if (assetValues.length > 0 && document.getElementById('assetAllocationChart')) {
+            new Chart(document.getElementById('assetAllocationChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: assetLabels,
+                    datasets: [{
+                        data: assetValues,
+                        backgroundColor: assetColors
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        if (assetValues.length > 0 && document.getElementById('assetAllocationChartTab')) {
+            new Chart(document.getElementById('assetAllocationChartTab'), {
+                type: 'doughnut',
+                data: {
+                    labels: assetLabels,
+                    datasets: [{
+                        data: assetValues,
+                        backgroundColor: assetColors
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        } 
+                    }
+                }
+            });
+        }
+
+        // 3. Sekmeler Arası Hızlı Geçiş Butonları
+        document.querySelectorAll('.switch-to-tab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const targetTabId = this.getAttribute('data-tab');
+                const triggerEl = document.getElementById(targetTabId);
+                if (triggerEl) {
+                    const tabTrigger = new bootstrap.Tab(triggerEl);
+                    tabTrigger.show();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
         });
 
-        // 3. Portföy Alış Modalı Dinamik Alanlar
+        // 4. İşlem Listesinde Canlı Arama (Search Filter)
+        const txSearchInput = document.getElementById('txSearchInput');
+        if (txSearchInput) {
+            txSearchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#txTable .tx-row');
+                rows.forEach(function(row) {
+                    const cat = (row.querySelector('.tx-cat')?.textContent || '').toLowerCase();
+                    const desc = (row.querySelector('.tx-desc')?.textContent || '').toLowerCase();
+                    const amt = (row.querySelector('.tx-amt')?.textContent || '').toLowerCase();
+                    if (cat.includes(query) || desc.includes(query) || amt.includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // 5. Kumbaraya Para Yatırma Modalı Ayarları
+        document.querySelectorAll('.deposit-goal-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const title = this.getAttribute('data-title');
+                const idInput = document.getElementById('depositGoalId');
+                const titleSpan = document.getElementById('depositGoalTitle');
+                const amtInput = document.getElementById('depositAmountInput');
+                if (idInput) idInput.value = id;
+                if (titleSpan) titleSpan.textContent = title;
+                if (amtInput) amtInput.value = '';
+            });
+        });
+
+        document.querySelectorAll('.quick-amt-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const amt = this.getAttribute('data-amt');
+                const amtInput = document.getElementById('depositAmountInput');
+                if (amtInput) amtInput.value = amt;
+            });
+        });
+
+        // 6. Portföy Alış Modalı Dinamik Alanlar
         const buyAssetTypeEl = document.getElementById('buyAssetType');
         const buyPriceCurrencyEl = document.getElementById('buyPriceCurrency');
         const buySymbolInputEl = document.getElementById('buySymbolInput');
@@ -812,16 +1292,12 @@
                 const val = this.value;
                 if (val === 'abd_hisse') {
                     if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'USD';
-                    if (buySymbolInputEl) {
-                        buySymbolInputEl.placeholder = 'Örn: AAPL, MSFT, NVDA, SPY';
-                    }
+                    if (buySymbolInputEl) buySymbolInputEl.placeholder = 'Örn: AAPL, MSFT, NVDA, SPY';
                     if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'ABD borsası ticker sembolü (Örn: AAPL, TSLA). Birim fiyat USD olarak girilebilir.';
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı ($)';
                 } else if (val === 'tefas_fon') {
                     if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
-                    if (buySymbolInputEl) {
-                        buySymbolInputEl.placeholder = 'Örn: TI2, TTE, MAC, ALR';
-                    }
+                    if (buySymbolInputEl) buySymbolInputEl.placeholder = 'Örn: TI2, TTE, MAC, ALR';
                     if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'TEFAS / BEFAS fon kodu (3-5 haneli kod, örn: TI2, MAC). Canlı fiyat TEFAS üzerinden anlık çekilir.';
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı (TL)';
                 } else if (val === 'emtia_altin') {
@@ -834,23 +1310,19 @@
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Gram Alış Fiyatı (TL)';
                 } else if (val === 'doviz') {
                     if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
-                    if (buySymbolInputEl) {
-                        buySymbolInputEl.placeholder = 'Örn: USD, EUR, GBP';
-                    }
+                    if (buySymbolInputEl) buySymbolInputEl.placeholder = 'Örn: USD, EUR, GBP';
                     if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Döviz cinsi (Örn: USD, EUR).';
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Kuru (TL)';
                 } else {
                     if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
-                    if (buySymbolInputEl) {
-                        buySymbolInputEl.placeholder = 'Örn: THYAO, ASELS, EREGL';
-                    }
+                    if (buySymbolInputEl) buySymbolInputEl.placeholder = 'Örn: THYAO, ASELS, EREGL';
                     if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Borsa İstanbul hisse senedi kodu.';
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı (TL)';
                 }
             });
         }
 
-        // 4. Hızlı Satış Butonları ve Modal Dinamik Ayarları
+        // 7. Hızlı Satış Butonları ve Modal Dinamik Ayarları
         function applySellOption(opt) {
             if (!opt) return;
             const price = opt.getAttribute('data-price') || '0';
@@ -929,7 +1401,7 @@
             });
         });
 
-        // 4. İşlem Düzenleme Modal Ayarları
+        // 8. İşlem Düzenleme Modal Ayarları
         document.querySelectorAll('.edit-tx-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 const id = this.getAttribute('data-id');

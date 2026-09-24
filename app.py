@@ -410,9 +410,56 @@ def dashboard():
     """, (user_id,))
     total_realized_pnl = float(cursor.fetchone()[0])
 
-    # 6. İşlem Hareketleri (Seçilen Dönem)
+    # 6. Kümülatif Net Servet (Net Worth) Bileşenleri
     cursor.execute("""
-        SELECT TOP 20 t.id, t.amount, t.transaction_date, t.description, c.name, c.type, t.payment_method, c.id, t.is_paid
+        SELECT ISNULL(SUM(CASE 
+            WHEN c.type = 'gelir' THEN t.amount 
+            ELSE (CASE WHEN ISNULL(t.payment_method, 'nakit') = 'nakit' THEN -t.amount ELSE 0 END) 
+        END), 0)
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ?
+    """, (user_id,))
+    cash_balance = float(cursor.fetchone()[0])
+
+    cursor.execute("""
+        SELECT ISNULL(SUM(current_amount), 0)
+        FROM savings_goals
+        WHERE user_id = ? AND status = 'devam_ediyor'
+    """, (user_id,))
+    total_savings_amount = float(cursor.fetchone()[0])
+
+    cursor.execute("""
+        SELECT ISNULL(SUM(amount), 0)
+        FROM transactions
+        WHERE user_id = ? AND payment_method = 'kredi_karti' AND ISNULL(is_paid, 0) = 0
+    """, (user_id,))
+    total_unpaid_cc = float(cursor.fetchone()[0])
+
+    total_net_worth = cash_balance + total_portfolio_value + total_savings_amount - total_unpaid_cc
+
+    # 7. Portföy Varlık Dağılımı (Asset Allocation)
+    asset_allocation = {}
+    type_display_names = {
+        'hisse': 'BIST Hisseleri',
+        'abd_hisse': 'ABD Borsası ($)',
+        'tefas_fon': 'TEFAS / BEFAS',
+        'befas_fon': 'TEFAS / BEFAS',
+        'fon': 'Yatırım Fonları',
+        'doviz': 'Döviz',
+        'emtia_altin': 'Altın & Emtia',
+        'diger': 'Diğer'
+    }
+    for item in portfolio_items:
+        tname = type_display_names.get(item['type'], item['type'])
+        asset_allocation[tname] = asset_allocation.get(tname, 0.0) + item['cur_val']
+
+    chart_asset_labels = list(asset_allocation.keys())
+    chart_asset_values = [round(v, 2) for v in asset_allocation.values()]
+
+    # 8. İşlem Hareketleri (Seçilen Dönem - En Son 50 İşlem)
+    cursor.execute("""
+        SELECT TOP 50 t.id, t.amount, t.transaction_date, t.description, c.name, c.type, t.payment_method, c.id, t.is_paid
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
         WHERE t.user_id = ? 
@@ -436,6 +483,10 @@ def dashboard():
         cc_expense=cc_expense,
         total_expense=total_expense,
         net_savings=net_savings,
+        total_net_worth=total_net_worth,
+        cash_balance=cash_balance,
+        total_savings_amount=total_savings_amount,
+        total_unpaid_cc=total_unpaid_cc,
         category_budgets=category_budgets,
         subscriptions=subscriptions,
         savings_goals=savings_goals,
@@ -456,7 +507,9 @@ def dashboard():
         today_str=datetime.today().strftime('%Y-%m-%d'),
         chart_cat_labels=json.dumps(chart_category_labels),
         chart_cat_values=json.dumps(chart_category_values),
-        chart_payment_values=json.dumps([cash_expense, cc_expense])
+        chart_payment_values=json.dumps([cash_expense, cc_expense]),
+        chart_asset_labels=json.dumps(chart_asset_labels),
+        chart_asset_values=json.dumps(chart_asset_values)
     )
 
 # --- İŞLEMLER (ACTIONS) ---
