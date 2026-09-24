@@ -4,6 +4,8 @@ from functools import wraps
 from datetime import datetime
 import json
 import time
+import urllib.request
+import re
 import yfinance as yf
 from db import get_db_connection
 
@@ -20,22 +22,82 @@ def login_required(f):
     return decorated_function
 
 # --- CANLI FİYAT ÇEKİCİ MOTOR & ÖNBELLEK (CACHE) ---
-PRICE_CACHE = {}  # { (clean_sym, asset_type): (price, timestamp) }
+PRICE_CACHE = {}  # { (clean_sym, asset_type): (data, timestamp) }
 CACHE_TTL = 300   # 5 dakika (300 saniye)
 
+def get_usdtry_rate():
+    """USDTRY kurunu döner; önbellek desteklidir."""
+    now = time.time()
+    usd_key = ('USDTRY=X', 'doviz')
+    if usd_key in PRICE_CACHE and (now - PRICE_CACHE[usd_key][1] < CACHE_TTL):
+        return PRICE_CACHE[usd_key][0]
+    try:
+        t_usd = yf.Ticker('USDTRY=X')
+        p_usd = t_usd.fast_info.get('lastPrice')
+        if p_usd:
+            rate = float(p_usd)
+            PRICE_CACHE[usd_key] = (rate, now)
+            return rate
+    except Exception:
+        pass
+    return None
+
 def fetch_live_price(symbol, asset_type):
-    """yfinance üzerinden anlık fiyat çeker; 5 dakikalık önbellek kullanır."""
+    """
+    BIST, ABD Borsası, TEFAS/BEFAS Fonları, Altın ve Döviz için anlık fiyat çeker.
+    5 dakikalık önbellek kullanır.
+    """
     try:
         clean_sym = symbol.strip().upper()
         cache_key = (clean_sym, asset_type)
         now = time.time()
         if cache_key in PRICE_CACHE:
-            cached_price, cached_time = PRICE_CACHE[cache_key]
+            cached_data, cached_time = PRICE_CACHE[cache_key]
             if now - cached_time < CACHE_TTL:
-                return cached_price
+                return cached_data
 
+        # 1. TEFAS & BEFAS Fonları (Örn: TI2, TTE, MAC, YAY, AFT, ALR, CHH)
+        if asset_type in ['tefas_fon', 'befas_fon', 'fon']:
+            url = f"https://www.tefas.gov.tr/FonAnaliz.aspx?FonKod={clean_sym}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            html = urllib.request.urlopen(req, timeout=8).read().decode('utf-8', errors='ignore')
+            m = re.search(r'Son Fiyat \(TL\).*?>\s*([0-9]+,[0-9]+)\s*</p>', html, re.DOTALL)
+            if m:
+                val = round(float(m.group(1).replace(',', '.')), 6)
+                PRICE_CACHE[cache_key] = (val, now)
+                return val
+            return None
+
+        # 2. ABD Borsası (US Stocks / ETFs: AAPL, MSFT, NVDA, TSLA, SPY, QQQ)
+        if asset_type == 'abd_hisse':
+            ticker = yf.Ticker(clean_sym)
+            usd_price = ticker.fast_info.get('lastPrice')
+            if usd_price:
+                usd_val = round(float(usd_price), 2)
+                usdtry = get_usdtry_rate() or 1.0
+                tl_val = round(usd_val * usdtry, 2)
+                data = {
+                    'tl_price': tl_val,
+                    'orig_price': usd_val,
+                    'currency': 'USD'
+                }
+                PRICE_CACHE[cache_key] = (data, now)
+                return data
+            return None
+
+        # 3. Altın (Gram Altın: Ons GC=F * USDTRY / 31.1035)
+        if asset_type == 'emtia_altin':
+            ticker_gold = yf.Ticker('GC=F')
+            p_gold = ticker_gold.fast_info.get('lastPrice')
+            usdtry = get_usdtry_rate()
+            if p_gold and usdtry:
+                price = round((float(p_gold) * usdtry) / 31.1035, 2)
+                PRICE_CACHE[cache_key] = (price, now)
+                return price
+            return None
+
+        # 4. Borsa İstanbul ve Döviz Kurları
         ticker_str = clean_sym
-        
         if asset_type == 'hisse':
             if not ticker_str.endswith('.IS'):
                 ticker_str = f"{clean_sym}.IS"
@@ -46,17 +108,6 @@ def fetch_live_price(symbol, asset_type):
                 ticker_str = 'EURTRY=X'
             elif clean_sym in ['GBP']:
                 ticker_str = 'GBPTRY=X'
-        elif asset_type == 'emtia_altin':
-            # Gram altın tahmini: Ons Altın (GC=F) * USDTRY / 31.1035
-            ticker_gold = yf.Ticker('GC=F')
-            ticker_usd = yf.Ticker('USDTRY=X')
-            p_gold = ticker_gold.fast_info.get('lastPrice')
-            p_usd = ticker_usd.fast_info.get('lastPrice')
-            if p_gold and p_usd:
-                price = round((p_gold * p_usd) / 31.1035, 2)
-                PRICE_CACHE[cache_key] = (price, now)
-                return price
-            return None
 
         ticker = yf.Ticker(ticker_str)
         price = ticker.fast_info.get('lastPrice')
@@ -312,9 +363,19 @@ def dashboard():
         qty = float(a[3])
         avg_cost = float(a[4])
 
-        live_price = fetch_live_price(symbol, atype)
-        if live_price is None:
-            live_price = avg_cost  # Fiyat çekilemezse maliyet varsayılır
+        price_info = fetch_live_price(symbol, atype)
+        if price_info is None:
+            live_price = avg_cost
+            orig_price = None
+            currency = 'TL'
+        elif isinstance(price_info, dict):
+            live_price = float(price_info['tl_price'])
+            orig_price = float(price_info['orig_price'])
+            currency = price_info.get('currency', 'TL')
+        else:
+            live_price = float(price_info)
+            orig_price = None
+            currency = 'TL'
 
         cost_val = qty * avg_cost
         cur_val = qty * live_price
@@ -331,6 +392,8 @@ def dashboard():
             'qty': qty,
             'avg_cost': avg_cost,
             'live_price': live_price,
+            'orig_price': orig_price,
+            'currency': currency,
             'cur_val': cur_val,
             'pnl': pnl,
             'pnl_pct': pnl_pct
@@ -668,10 +731,17 @@ def buy_asset():
     asset_type = request.form.get('asset_type')
     quantity = float(request.form.get('quantity', 0))
     unit_price = float(request.form.get('unit_price', 0))
+    price_currency = request.form.get('price_currency', 'TRY')
 
     if quantity <= 0 or unit_price <= 0:
         flash("Geçerli bir adet ve fiyat girin.", "danger")
         return redirect(url_for('dashboard'))
+
+    # ABD hissesi için USD girildiyse TL'ye dönüştür
+    unit_price_tl = unit_price
+    if asset_type == 'abd_hisse' and price_currency == 'USD':
+        rate = get_usdtry_rate() or 1.0
+        unit_price_tl = round(unit_price * rate, 2)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -683,8 +753,8 @@ def buy_asset():
         if existing:
             asset_id, cur_qty, cur_avg = existing[0], float(existing[1]), float(existing[2])
             new_qty = cur_qty + quantity
-            # Ağırlıklı Ortalama Maliyet Formülü (WACC)
-            new_avg_cost = ((cur_qty * cur_avg) + (quantity * unit_price)) / new_qty
+            # Ağırlıklı Ortalama Maliyet Formülü (WACC) - TL bazında
+            new_avg_cost = ((cur_qty * cur_avg) + (quantity * unit_price_tl)) / new_qty
 
             cursor.execute("""
                 UPDATE portfolio_assets 
@@ -695,24 +765,25 @@ def buy_asset():
             cursor.execute("""
                 INSERT INTO portfolio_assets (user_id, asset_symbol, asset_type, total_quantity, average_cost)
                 VALUES (?, ?, ?, ?, ?)
-            """, (user_id, symbol, asset_type, quantity, unit_price))
+            """, (user_id, symbol, asset_type, quantity, unit_price_tl))
             cursor.execute("SELECT @@IDENTITY")
             asset_id = cursor.fetchone()[0]
 
-        total_cost = quantity * unit_price
+        total_cost_tl = quantity * unit_price_tl
 
         # Alım hareketini kaydet
         cursor.execute("""
             INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, transaction_date)
             VALUES (?, ?, 'alis', ?, ?, ?, CAST(GETDATE() AS DATE))
-        """, (asset_id, user_id, quantity, unit_price, total_cost))
+        """, (asset_id, user_id, quantity, unit_price_tl, total_cost_tl))
 
         # Nakit akışından alım tutarını harcama olarak düş
         cat_id = get_or_create_category(cursor, user_id, 'Yatırım & Portföy', 'gider')
+        currency_info = f" (${unit_price:.2f})" if price_currency == 'USD' else ""
         cursor.execute("""
             INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
             VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
-        """, (user_id, cat_id, total_cost, f"Varlık Alımı: {quantity:.2f} adet {symbol}"))
+        """, (user_id, cat_id, total_cost_tl, f"Varlık Alımı: {quantity:.2f} adet {symbol}{currency_info}"))
 
         conn.commit()
         flash(f"{symbol} alımı portföye eklendi ve nakit harcamanıza işlendi.", "success")
@@ -732,6 +803,7 @@ def sell_asset():
     asset_id = request.form.get('asset_id')
     quantity = float(request.form.get('quantity', 0))
     unit_price = float(request.form.get('unit_price', 0))
+    sell_currency = request.form.get('sell_currency', 'TRY')
 
     if quantity <= 0 or unit_price <= 0:
         flash("Geçerli bir adet ve satış fiyatı girin.", "danger")
@@ -741,7 +813,7 @@ def sell_asset():
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT id, asset_symbol, total_quantity, average_cost 
+            SELECT id, asset_symbol, asset_type, total_quantity, average_cost 
             FROM portfolio_assets 
             WHERE id = ? AND user_id = ?
         """, (asset_id, user_id))
@@ -752,16 +824,22 @@ def sell_asset():
             return redirect(url_for('dashboard'))
 
         symbol = asset[1]
-        cur_qty = float(asset[2])
-        avg_cost = float(asset[3])
+        asset_type = asset[2]
+        cur_qty = float(asset[3])
+        avg_cost = float(asset[4])
 
         if quantity > cur_qty:
             flash(f"Yetersiz bakiye! Portföyünüzde {cur_qty:.2f} adet {symbol} bulunmaktadır.", "warning")
             return redirect(url_for('dashboard'))
 
+        unit_price_tl = unit_price
+        if asset_type == 'abd_hisse' and sell_currency == 'USD':
+            rate = get_usdtry_rate() or 1.0
+            unit_price_tl = round(unit_price * rate, 2)
+
         new_qty = cur_qty - quantity
-        total_amount = quantity * unit_price
-        realized_pnl = (unit_price - avg_cost) * quantity
+        total_amount_tl = quantity * unit_price_tl
+        realized_pnl = (unit_price_tl - avg_cost) * quantity
 
         cursor.execute("""
             UPDATE portfolio_assets 
@@ -772,16 +850,17 @@ def sell_asset():
         cursor.execute("""
             INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, realized_pnl, transaction_date)
             VALUES (?, ?, 'satis', ?, ?, ?, ?, CAST(GETDATE() AS DATE))
-        """, (asset_id, user_id, quantity, unit_price, total_amount, realized_pnl))
+        """, (asset_id, user_id, quantity, unit_price_tl, total_amount_tl, realized_pnl))
 
         pnl_text = f"+{realized_pnl:.2f} TL Kâr" if realized_pnl >= 0 else f"{realized_pnl:.2f} TL Zarar"
 
         # Satıştan gelen nakit tutarını gelirlere kaydet
         cat_id = get_or_create_category(cursor, user_id, 'Yatırım Satış Geliri', 'gelir')
+        currency_info = f" (${unit_price:.2f})" if sell_currency == 'USD' else ""
         cursor.execute("""
             INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
             VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
-        """, (user_id, cat_id, total_amount, f"Varlık Satışı: {quantity:.2f} adet {symbol} ({pnl_text})"))
+        """, (user_id, cat_id, total_amount_tl, f"Varlık Satışı: {quantity:.2f} adet {symbol}{currency_info} ({pnl_text})"))
 
         conn.commit()
         flash(f"{symbol} satışı yapıldı ({quantity} adet, {pnl_text}) ve nakit gelirinize eklendi.", "success")

@@ -268,10 +268,32 @@
                         <tbody>
                             {% for item in portfolio_items %}
                             <tr>
-                                <td class="fw-bold">{{ item.symbol }}</td>
-                                <td>{{ "%.2f"|format(item.qty) }}</td>
-                                <td class="small">{{ "%.2f"|format(item.avg_cost) }}</td>
-                                <td class="small fw-semibold">{{ "%.2f"|format(item.live_price) }}</td>
+                                <td>
+                                    <span class="fw-bold">{{ item.symbol }}</span>
+                                    {% if item.type == 'abd_hisse' %}
+                                        <span class="badge bg-primary-subtle text-primary ms-1">ABD ($)</span>
+                                    {% elif item.type == 'tefas_fon' %}
+                                        <span class="badge bg-info-subtle text-info-emphasis ms-1">TEFAS / BEFAS</span>
+                                    {% elif item.type == 'hisse' %}
+                                        <span class="badge bg-secondary-subtle text-secondary ms-1">BIST</span>
+                                    {% elif item.type == 'emtia_altin' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis ms-1">Altın</span>
+                                    {% elif item.type == 'doviz' %}
+                                        <span class="badge bg-success-subtle text-success ms-1">Döviz</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "%.4f"|format(item.qty) if item.type == 'tefas_fon' or item.qty < 1 else "%.2f"|format(item.qty) }}</td>
+                                <td class="small">{{ "%.2f"|format(item.avg_cost) }} TL</td>
+                                <td class="small fw-semibold">
+                                    {% if item.type == 'abd_hisse' and item.orig_price %}
+                                        <span class="text-primary">${{ "%.2f"|format(item.orig_price) }}</span><br>
+                                        <small class="text-muted">({{ "%.2f"|format(item.live_price) }} TL)</small>
+                                    {% elif item.type == 'tefas_fon' %}
+                                        {{ "%.4f"|format(item.live_price) }} TL
+                                    {% else %}
+                                        {{ "%.2f"|format(item.live_price) }} TL
+                                    {% endif %}
+                                </td>
                                 <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
                                     {{ '+' if item.pnl >= 0 else '' }}{{ "%.2f"|format(item.pnl) }} TL<br>
                                     <span class="fw-normal">(%{{ item.pnl_pct }})</span>
@@ -282,8 +304,11 @@
                                             data-bs-target="#sellAssetModal" 
                                             data-id="{{ item.id }}" 
                                             data-symbol="{{ item.symbol }}"
+                                            data-type="{{ item.type }}"
                                             data-qty="{{ item.qty }}" 
                                             data-price="{{ item.live_price }}"
+                                            data-orig-price="{{ item.orig_price or item.live_price }}"
+                                            data-currency="{{ item.currency }}"
                                             title="{{ item.symbol }} Sat">
                                         Sat
                                     </button>
@@ -474,31 +499,41 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold">Portföye Varlık / Hisse Ekle</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Portföye Varlık / Yatırım Ekle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('buy_asset') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Varlık Türü</label>
-                        <select name="asset_type" class="form-select" required>
-                            <option value="hisse">Borsa İstanbul Hissesi (Örn: THYAO, ASELS)</option>
-                            <option value="doviz">Döviz (Örn: USD, EUR)</option>
+                        <label class="form-label">Piyasa / Varlık Türü</label>
+                        <select name="asset_type" id="buyAssetType" class="form-select" required>
+                            <option value="hisse">Borsa İstanbul (BIST Hissesi - Örn: THYAO, ASELS, EREGL)</option>
+                            <option value="abd_hisse">ABD Borsası (Hisse / ETF - Örn: AAPL, MSFT, NVDA, SPY)</option>
+                            <option value="tefas_fon">TEFAS / BEFAS Fonu (Yatırım & Emeklilik Fonu - Örn: TI2, TTE, MAC, ALR)</option>
+                            <option value="doviz">Döviz (Örn: USD, EUR, GBP)</option>
                             <option value="emtia_altin">Altın (Gram Altın)</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Sembol / Kod</label>
-                        <input type="text" name="symbol" class="form-control" placeholder="Örn: THYAO veya USD" required>
+                        <label class="form-label" id="buySymbolLabel">Sembol / Kod</label>
+                        <input type="text" name="symbol" id="buySymbolInput" class="form-control" placeholder="Örn: THYAO, AAPL veya TI2" required>
+                        <small class="text-muted" id="buySymbolHelp">BIST için hisse kodu, ABD için ticker (AAPL), TEFAS için fon kodu (TI2) girin.</small>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Adet / Lot</label>
-                            <input type="number" step="0.0001" name="quantity" class="form-control" placeholder="Örn: 10" required>
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label">Adet / Lot / Pay</label>
+                            <input type="number" step="any" name="quantity" class="form-control" placeholder="Örn: 10" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Alış Fiyatı (TL)</label>
-                            <input type="number" step="0.01" name="unit_price" class="form-control" placeholder="Örn: 290.50" required>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" id="buyPriceLabel">Birim Alış Fiyatı</label>
+                            <input type="number" step="any" name="unit_price" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Para Birimi</label>
+                            <select name="price_currency" id="buyPriceCurrency" class="form-select">
+                                <option value="TRY">TL</option>
+                                <option value="USD">USD ($)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -587,21 +622,33 @@
                         <label class="form-label">Satılacak Varlık</label>
                         <select name="asset_id" id="sellAssetSelect" class="form-select" required>
                             {% for item in portfolio_items %}
-                            <option value="{{ item.id }}" data-qty="{{ item.qty }}" data-price="{{ item.live_price }}">
-                                {{ item.symbol }} (Eldeki: {{ "%.2f"|format(item.qty) }} adet | Canlı Fiyat: {{ "%.2f"|format(item.live_price) }} TL)
+                            <option value="{{ item.id }}" 
+                                    data-qty="{{ item.qty }}" 
+                                    data-price="{{ item.live_price }}"
+                                    data-orig-price="{{ item.orig_price or item.live_price }}"
+                                    data-currency="{{ item.currency }}"
+                                    data-type="{{ item.type }}">
+                                {{ item.symbol }} (Eldeki: {{ "%.4f"|format(item.qty) if item.type == 'tefas_fon' or item.qty < 1 else "%.2f"|format(item.qty) }} adet | Canlı: {% if item.type == 'abd_hisse' and item.orig_price %}${{ "%.2f"|format(item.orig_price) }} ({{ "%.2f"|format(item.live_price) }} TL){% elif item.type == 'tefas_fon' %}{{ "%.4f"|format(item.live_price) }} TL{% else %}{{ "%.2f"|format(item.live_price) }} TL{% endif %})
                             </option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-5 mb-3">
                             <label class="form-label">Satış Adedi</label>
-                            <input type="number" step="0.0001" name="quantity" id="sellQuantityInput" class="form-control" placeholder="Adet" required>
+                            <input type="number" step="any" name="quantity" id="sellQuantityInput" class="form-control" placeholder="Adet" required>
                             <small class="text-muted d-block mt-1" id="sellMaxInfo"></small>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Birim Satış Fiyatı (TL)</label>
-                            <input type="number" step="0.01" name="unit_price" id="sellPriceInput" class="form-control" placeholder="TL" required>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" id="sellPriceLabel">Birim Satış Fiyatı</label>
+                            <input type="number" step="any" name="unit_price" id="sellPriceInput" class="form-control" placeholder="Fiyat" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Para Birimi</label>
+                            <select name="sell_currency" id="sellCurrencySelect" class="form-select">
+                                <option value="TRY">TL</option>
+                                <option value="USD">USD ($)</option>
+                            </select>
                         </div>
                     </div>
                     {% else %}
@@ -753,21 +800,93 @@
             options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // 3. Hızlı Satış Butonları ve Modal Dinamik Ayarları
+        // 3. Portföy Alış Modalı Dinamik Alanlar
+        const buyAssetTypeEl = document.getElementById('buyAssetType');
+        const buyPriceCurrencyEl = document.getElementById('buyPriceCurrency');
+        const buySymbolInputEl = document.getElementById('buySymbolInput');
+        const buySymbolHelpEl = document.getElementById('buySymbolHelp');
+        const buyPriceLabelEl = document.getElementById('buyPriceLabel');
+
+        if (buyAssetTypeEl) {
+            buyAssetTypeEl.addEventListener('change', function() {
+                const val = this.value;
+                if (val === 'abd_hisse') {
+                    if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'USD';
+                    if (buySymbolInputEl) {
+                        buySymbolInputEl.placeholder = 'Örn: AAPL, MSFT, NVDA, SPY';
+                    }
+                    if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'ABD borsası ticker sembolü (Örn: AAPL, TSLA). Birim fiyat USD olarak girilebilir.';
+                    if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı ($)';
+                } else if (val === 'tefas_fon') {
+                    if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
+                    if (buySymbolInputEl) {
+                        buySymbolInputEl.placeholder = 'Örn: TI2, TTE, MAC, ALR';
+                    }
+                    if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'TEFAS / BEFAS fon kodu (3-5 haneli kod, örn: TI2, MAC). Canlı fiyat TEFAS üzerinden anlık çekilir.';
+                    if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı (TL)';
+                } else if (val === 'emtia_altin') {
+                    if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
+                    if (buySymbolInputEl) {
+                        buySymbolInputEl.value = 'ALTIN';
+                        buySymbolInputEl.placeholder = 'ALTIN';
+                    }
+                    if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Gram Altın fiyatı canlı olarak güncellenir.';
+                    if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Gram Alış Fiyatı (TL)';
+                } else if (val === 'doviz') {
+                    if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
+                    if (buySymbolInputEl) {
+                        buySymbolInputEl.placeholder = 'Örn: USD, EUR, GBP';
+                    }
+                    if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Döviz cinsi (Örn: USD, EUR).';
+                    if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Kuru (TL)';
+                } else {
+                    if (buyPriceCurrencyEl) buyPriceCurrencyEl.value = 'TRY';
+                    if (buySymbolInputEl) {
+                        buySymbolInputEl.placeholder = 'Örn: THYAO, ASELS, EREGL';
+                    }
+                    if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Borsa İstanbul hisse senedi kodu.';
+                    if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı (TL)';
+                }
+            });
+        }
+
+        // 4. Hızlı Satış Butonları ve Modal Dinamik Ayarları
+        function applySellOption(opt) {
+            if (!opt) return;
+            const price = opt.getAttribute('data-price') || '0';
+            const origPrice = opt.getAttribute('data-orig-price') || price;
+            const currency = opt.getAttribute('data-currency') || 'TRY';
+            const type = opt.getAttribute('data-type');
+            const qty = opt.getAttribute('data-qty') || '0';
+
+            const currencySelect = document.getElementById('sellCurrencySelect');
+            const priceLabel = document.getElementById('sellPriceLabel');
+            const priceInput = document.getElementById('sellPriceInput');
+            const qtyInput = document.getElementById('sellQuantityInput');
+            const maxInfo = document.getElementById('sellMaxInfo');
+
+            if (currencySelect) currencySelect.value = currency;
+            if (priceLabel) {
+                priceLabel.textContent = currency === 'USD' ? 'Birim Satış Fiyatı ($)' : 'Birim Satış Fiyatı (TL)';
+            }
+            if (priceInput) {
+                const targetPrice = currency === 'USD' ? parseFloat(origPrice) : parseFloat(price);
+                priceInput.value = (type === 'tefas_fon' && currency !== 'USD') ? targetPrice.toFixed(4) : targetPrice.toFixed(2);
+            }
+            if (qtyInput) {
+                qtyInput.setAttribute('max', qty);
+                qtyInput.value = '';
+            }
+            if (maxInfo) {
+                maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+            }
+        }
+
         function updateSellModalDefaults() {
             const sellSelect = document.getElementById('sellAssetSelect');
             if (!sellSelect || sellSelect.options.length === 0) return;
             const opt = sellSelect.options[sellSelect.selectedIndex];
-            if (opt) {
-                const price = opt.getAttribute('data-price');
-                const qty = opt.getAttribute('data-qty');
-                const priceInput = document.getElementById('sellPriceInput');
-                if (priceInput && (!priceInput.value || priceInput.value == '0')) priceInput.value = price;
-                const qtyInput = document.getElementById('sellQuantityInput');
-                if (qtyInput) qtyInput.setAttribute('max', qty);
-                const maxInfo = document.getElementById('sellMaxInfo');
-                if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
-            }
+            if (opt) applySellOption(opt);
         }
 
         updateSellModalDefaults();
@@ -776,18 +895,25 @@
         if (sellSelectEl) {
             sellSelectEl.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
-                if (opt) {
-                    const price = opt.getAttribute('data-price');
-                    const qty = opt.getAttribute('data-qty');
-                    const priceInput = document.getElementById('sellPriceInput');
-                    if (priceInput) priceInput.value = price;
-                    const qtyInput = document.getElementById('sellQuantityInput');
-                    if (qtyInput) {
-                        qtyInput.setAttribute('max', qty);
-                        qtyInput.value = '';
-                    }
-                    const maxInfo = document.getElementById('sellMaxInfo');
-                    if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
+                if (opt) applySellOption(opt);
+            });
+        }
+
+        const sellCurrencySelectEl = document.getElementById('sellCurrencySelect');
+        if (sellCurrencySelectEl && sellSelectEl) {
+            sellCurrencySelectEl.addEventListener('change', function() {
+                const opt = sellSelectEl.options[sellSelectEl.selectedIndex];
+                if (!opt) return;
+                const price = opt.getAttribute('data-price') || '0';
+                const origPrice = opt.getAttribute('data-orig-price') || price;
+                const priceLabel = document.getElementById('sellPriceLabel');
+                const priceInput = document.getElementById('sellPriceInput');
+                if (this.value === 'USD') {
+                    if (priceLabel) priceLabel.textContent = 'Birim Satış Fiyatı ($)';
+                    if (priceInput) priceInput.value = parseFloat(origPrice).toFixed(2);
+                } else {
+                    if (priceLabel) priceLabel.textContent = 'Birim Satış Fiyatı (TL)';
+                    if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
                 }
             });
         }
@@ -795,21 +921,11 @@
         document.querySelectorAll('.quick-sell-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 const assetId = this.getAttribute('data-id');
-                const price = this.getAttribute('data-price');
-                const qty = this.getAttribute('data-qty');
-                
                 if (sellSelectEl) {
                     sellSelectEl.value = assetId;
+                    const opt = sellSelectEl.options[sellSelectEl.selectedIndex];
+                    if (opt) applySellOption(opt);
                 }
-                const priceInput = document.getElementById('sellPriceInput');
-                if (priceInput) priceInput.value = price;
-                const qtyInput = document.getElementById('sellQuantityInput');
-                if (qtyInput) {
-                    qtyInput.setAttribute('max', qty);
-                    qtyInput.value = '';
-                }
-                const maxInfo = document.getElementById('sellMaxInfo');
-                if (maxInfo) maxInfo.textContent = 'Maksimum satılabilir: ' + qty;
             });
         });
 
