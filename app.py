@@ -512,6 +512,23 @@ def logout():
     flash("Çıkış yapıldı.", "info")
     return redirect(url_for('login'))
 
+@app.route('/auto-login')
+def auto_login():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT TOP 1 id, username, first_name FROM users ORDER BY id ASC")
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if user:
+        session['user_id'] = user[0]
+        session['username'] = user[1]
+        session['first_name'] = user[2]
+        flash(f"Hoş geldiniz {user[2]}, test oturumunuz başarıyla aktif edildi.", "success")
+        return redirect(url_for('dashboard'))
+    flash("Sistemde kayıtlı kullanıcı bulunamadı.", "warning")
+    return redirect(url_for('login'))
+
 # --- ANA DASHBOARD ---
 @app.route('/dashboard')
 @login_required
