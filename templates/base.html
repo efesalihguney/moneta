@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,37 +9,87 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Sayfa yüklenmeden önce tema ayarını uygula (ekran yanıp sönmesini engeller)
+        (function() {
+            const savedTheme = localStorage.getItem('wt_theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
     <style>
-        body { background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        [data-bs-theme="light"] body { background-color: #f1f5f9; color: #1e293b; }
+        [data-bs-theme="dark"] body { background-color: #0b0f19; color: #e2e8f0; }
+
         .navbar-brand { font-weight: 700; letter-spacing: -0.5px; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+        .card { 
+            border: none; 
+            border-radius: 14px; 
+            box-shadow: 0 4px 14px rgba(0,0,0,0.04); 
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+        [data-bs-theme="dark"] .card {
+            background-color: #151c2c;
+            border: 1px solid rgba(255, 255, 255, 0.07) !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        [data-bs-theme="dark"] .bg-light {
+            background-color: #1e2738 !important;
+        }
+        [data-bs-theme="dark"] .table-light {
+            background-color: #1e2738 !important;
+            color: #cbd5e1 !important;
+        }
+        [data-bs-theme="dark"] .border {
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        [data-bs-theme="dark"] .text-dark {
+            color: #e2e8f0 !important;
+        }
+        [data-bs-theme="dark"] .list-group-item {
+            background-color: transparent;
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        [data-bs-theme="dark"] .modal-content {
+            background-color: #151c2c;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2">
         <div class="container-fluid px-4">
-            <a class="navbar-brand text-primary" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
-                <i class="bi bi-wallet2 text-white me-2"></i>WealthTracker
+            <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
+                <i class="bi bi-wallet2 text-white me-2 fs-5"></i>WealthTracker
             </a>
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center gap-2">
+                <!-- TEMA DEĞİŞTİRME BUTONU -->
+                <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" id="themeToggleBtn" type="button" title="Koyu / Açık Tema Değiştir">
+                    <i class="bi bi-moon-stars" id="themeIcon"></i>
+                </button>
+
                 {% if session.get('user_id') %}
-                    <span class="nav-item nav-link text-light me-3">
-                        <i class="bi bi-person-circle me-1"></i>{{ session.get('first_name') }}
+                    <span class="nav-item nav-link text-light py-0 px-2 d-none d-sm-inline">
+                        <i class="bi bi-person-circle me-1 text-info"></i>{{ session.get('first_name') }}
                     </span>
-                    <a class="nav-link btn btn-outline-danger btn-sm text-light px-3" href="{{ url_for('logout') }}">Çıkış Yap</a>
+                    <a class="nav-link btn btn-outline-danger btn-sm text-light px-3 py-1 ms-1" href="{{ url_for('logout') }}">Çıkış Yap</a>
                 {% else %}
-                    <a class="nav-link" href="{{ url_for('login') }}">Giriş Yap</a>
-                    <a class="nav-link" href="{{ url_for('register') }}">Kayıt Ol</a>
+                    <a class="nav-link text-light py-1 px-2" href="{{ url_for('login') }}">Giriş Yap</a>
+                    <a class="nav-link text-light py-1 px-2" href="{{ url_for('register') }}">Kayıt Ol</a>
                 {% endif %}
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid px-4 mt-4">
+    <div class="container-fluid px-4 mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -51,5 +101,37 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Tema Değiştirme Mantığı
+        document.addEventListener('DOMContentLoaded', function () {
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            function updateIcon(theme) {
+                if (!themeIcon) return;
+                if (theme === 'dark') {
+                    themeIcon.className = 'bi bi-sun-fill text-warning';
+                } else {
+                    themeIcon.className = 'bi bi-moon-stars text-light';
+                }
+            }
+
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+            updateIcon(currentTheme);
+
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', function () {
+                    const activeTheme = document.documentElement.getAttribute('data-bs-theme');
+                    const newTheme = activeTheme === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-bs-theme', newTheme);
+                    localStorage.setItem('wt_theme', newTheme);
+                    updateIcon(newTheme);
+
+                    // Chart.js grafikleri varsa yeniden render etmeye yardımcı olmak için özel olay tetikle
+                    window.dispatchEvent(new Event('themeChanged'));
+                });
+            }
+        });
+    </script>
 </body>
 </html>

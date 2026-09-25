@@ -105,8 +105,33 @@
                 </b>
             </span>
         </div>
-    </div>
 </div>
+
+<!-- ================= AKILLI BİLDİRİM VE UYARI MERKEZİ ================= -->
+{% if smart_alerts %}
+<div class="mb-4">
+    {% for alert in smart_alerts %}
+    <div class="alert alert-{{ alert.type }} d-flex flex-wrap align-items-center justify-content-between p-3 mb-2 shadow-sm rounded-3 border" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi {{ alert.icon }} fs-4 me-3"></i>
+            <div>
+                <strong class="d-block">{{ alert.title }}</strong>
+                <span class="small">{{ alert.message }}</span>
+            </div>
+        </div>
+        {% if alert.action_pay_cc %}
+        <form action="{{ url_for('pay_credit_card') }}" method="POST" class="mt-2 mt-sm-0" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+            <input type="hidden" name="month" value="{{ selected_month }}">
+            <input type="hidden" name="year" value="{{ selected_year }}">
+            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
+                <i class="bi bi-credit-card-2-front me-1"></i>Hemen Öde
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <!-- ================= 2. MODÜLER VE FERAH SEKME NAVİGASYONU ================= -->
 <ul class="nav nav-pills mb-4 gap-2 bg-white p-2 rounded-3 border shadow-sm" id="dashboardTab" role="tablist">
@@ -193,6 +218,24 @@
                         {% endif %}
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- FİNANSAL GELİŞİM VE NET SERVET TRENDİ (ÇİZGİ GRAFİK - SON 6 AY) -->
+        <div class="card p-3 mb-4 shadow-sm">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Finansal Gelişim & Trend Analizi</h5>
+                    <small class="text-muted">Son 6 ayın gelir, gider ve net tasarruf performans grafiği</small>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success"><i class="bi bi-circle-fill me-1 small"></i>Gelir</span>
+                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-circle-fill me-1 small"></i>Gider</span>
+                    <span class="badge bg-primary-subtle text-primary"><i class="bi bi-circle-fill me-1 small"></i>Net Tasarruf</span>
+                </div>
+            </div>
+            <div style="height: 220px; position: relative;">
+                <canvas id="trendHistoryChart"></canvas>
             </div>
         </div>
 
@@ -365,7 +408,16 @@
                     </h4>
                 </div>
                 <div class="col-md-3 text-md-end">
-                    <div class="d-flex justify-content-md-end gap-2">
+                    <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-file-earmark-excel me-1"></i>Rapor
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li><a class="dropdown-item" href="{{ url_for('export_portfolio', format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Excel (.xlsx) İndir</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_portfolio', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>CSV İndir</a></li>
+                            </ul>
+                        </div>
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
                             <i class="bi bi-plus-lg me-1"></i>Varlık Al
                         </button>
@@ -551,9 +603,23 @@
                 <div class="card p-3 shadow-sm">
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                         <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark"></i>İşlem Hareketleri</h5>
-                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
-                            <i class="bi bi-plus-lg me-1"></i>Yeni İşlem
-                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Dışa Aktar
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Bu Ayı İndir (.xlsx)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Tüm Geçmişi İndir (.xlsx)</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>Bu Ayı İndir (CSV)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>Tüm Geçmişi İndir (CSV)</a></li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                                <i class="bi bi-plus-lg me-1"></i>Yeni İşlem
+                            </button>
+                        </div>
                     </div>
 
                     <!-- CANLI ARAMA ÇUBUĞU -->
@@ -731,6 +797,79 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- DÜZENLİ & TEKRARLAYAN İŞLEMLER (MAAŞ, KİRA, AİDAT VB.) -->
+        <div class="card p-3 shadow-sm mt-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-arrow-repeat me-2 text-success"></i>Düzenli & Sabit İşlemler (Maaş, Kira vb.)</h5>
+                    <small class="text-muted">Her ay tekrarlanan sabit gelir ve gider şablonlarınız</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <form action="{{ url_for('apply_recurring') }}" method="POST" class="d-inline" onsubmit="return confirm('Bu ay için tanımlı tüm düzenli şablonları eklemek istiyor musunuz? (Daha önce eklenenler çift eklenmez)');">
+                        <input type="hidden" name="month" value="{{ selected_month }}">
+                        <input type="hidden" name="year" value="{{ selected_year }}">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="bi bi-calendar-check me-1"></i>Bu Ayın Şablonunu Otomatik Ekle
+                        </button>
+                    </form>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#recurringModal">
+                        <i class="bi bi-plus-lg me-1"></i>Yeni Şablon Ekle
+                    </button>
+                </div>
+            </div>
+            {% if recurring_transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Her Ayın Günü</th>
+                                <th>Başlık & Kategori</th>
+                                <th>Ödeme Yöntemi</th>
+                                <th class="text-end">Tutar</th>
+                                <th class="text-end" style="width: 70px;">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rec in recurring_transactions %}
+                            <tr>
+                                <td class="fw-semibold">Her ayın {{ rec[5] }}. günü</td>
+                                <td>
+                                    <span class="fw-bold d-block">{{ rec[1] }}</span>
+                                    <small class="text-muted">[{{ rec[6] }}]</small>
+                                </td>
+                                <td>
+                                    {% if rec[4] == 'kredi_karti' %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1"></i>Kredi Kartı</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-cash me-1"></i>Nakit</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold {{ 'text-success' if rec[3] == 'gelir' else 'text-danger' }}">
+                                    {{ '+' if rec[3] == 'gelir' else '-' }}{{ "%.2f"|format(rec[2]) }} TL
+                                </td>
+                                <td class="text-end">
+                                    <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Şablonu Sil">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-arrow-repeat display-6 d-block mb-2 opacity-50"></i>
+                    Henüz kayıtlı düzenli işlem şablonu bulunmuyor.<br>
+                    <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#recurringModal">
+                        + İlk Şablonu Ekle (Maaş, Kira vb.)
+                    </button>
+                </div>
+            {% endif %}
         </div>
     </div>
 
@@ -1120,12 +1259,73 @@
     </div>
 </div>
 
+<!-- 7. DÜZENLİ İŞLEM EKLEME MODALI -->
+<div class="modal fade" id="recurringModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat me-2 text-success"></i>Yeni Düzenli İşlem Şablonu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_recurring') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Şablon Başlığı</label>
+                        <input type="text" name="title" class="form-control" placeholder="Örn: Aylık Maaş, Ev Kirası, İnternet Faturası" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kategori</label>
+                            <select name="category_id" class="form-select" required>
+                                {% for cat in categories %}
+                                    <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">İşlem Türü</label>
+                            <select name="type" class="form-select" required>
+                                <option value="gider">Gider (Harcama)</option>
+                                <option value="gelir">Gelir</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tutar (TL)</label>
+                            <input type="number" step="0.01" name="amount" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Her Ayın Hangi Günü?</label>
+                            <input type="number" min="1" max="31" name="day_of_month" class="form-control" value="1" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ödeme Yöntemi</label>
+                        <select name="payment_method" class="form-select" required>
+                            <option value="nakit">Nakit / Vadesiz Hesap</option>
+                            <option value="kredi_karti">Kredi Kartı</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Şablonu Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- GİZLİ VERİ BLOKLARI -->
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
 <script id="data-cat-values" type="application/json">{{ chart_cat_values|safe }}</script>
 <script id="data-payment-values" type="application/json">{{ chart_payment_values|safe }}</script>
 <script id="data-asset-labels" type="application/json">{{ chart_asset_labels|safe }}</script>
 <script id="data-asset-values" type="application/json">{{ chart_asset_values|safe }}</script>
+<script id="data-trend-labels" type="application/json">{{ chart_trend_labels|safe }}</script>
+<script id="data-trend-income" type="application/json">{{ chart_trend_income|safe }}</script>
+<script id="data-trend-expense" type="application/json">{{ chart_trend_expense|safe }}</script>
+<script id="data-trend-net" type="application/json">{{ chart_trend_net|safe }}</script>
 
 <!-- JAVASCRIPT KONTROLLERİ -->
 <script>
@@ -1143,6 +1343,80 @@
         const paymentValues = JSON.parse(document.getElementById('data-payment-values').textContent || "[0, 0]");
         const assetLabels = JSON.parse(document.getElementById('data-asset-labels').textContent || "[]");
         const assetValues = JSON.parse(document.getElementById('data-asset-values').textContent || "[]");
+
+        // Finansal Gelişim & Trend Çizgi Grafiği
+        const trendLabels = JSON.parse(document.getElementById('data-trend-labels').textContent || "[]");
+        const trendIncome = JSON.parse(document.getElementById('data-trend-income').textContent || "[]");
+        const trendExpense = JSON.parse(document.getElementById('data-trend-expense').textContent || "[]");
+        const trendNet = JSON.parse(document.getElementById('data-trend-net').textContent || "[]");
+
+        if (trendLabels.length > 0 && document.getElementById('trendHistoryChart')) {
+            new Chart(document.getElementById('trendHistoryChart'), {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [
+                        {
+                            label: 'Aylık Gelir',
+                            data: trendIncome,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Aylık Gider',
+                            data: trendExpense,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Net Tasarruf',
+                            data: trendNet,
+                            borderColor: '#3b82f6',
+                            borderDash: [5, 5],
+                            backgroundColor: 'transparent',
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString('tr-TR') + ' TL';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(150, 150, 150, 0.1)' },
+                            ticks: {
+                                callback: function(val) {
+                                    return val.toLocaleString('tr-TR') + ' TL';
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
 
         // Harcama Kategori Grafiği
         if (catValues.length > 0 && document.getElementById('categoryChart')) {

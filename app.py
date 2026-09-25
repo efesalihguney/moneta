@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime
@@ -6,6 +6,9 @@ import json
 import time
 import urllib.request
 import re
+import io
+import calendar
+import pandas as pd
 import yfinance as yf
 from db import get_db_connection
 
@@ -457,7 +460,91 @@ def dashboard():
     chart_asset_labels = list(asset_allocation.keys())
     chart_asset_values = [round(v, 2) for v in asset_allocation.values()]
 
-    # 8. İşlem Hareketleri (Seçilen Dönem - En Son 50 İşlem)
+    # 8. Son 6 Ayın Tarihsel Finansal Trendi (Gelir, Gider ve Net Tasarruf)
+    past_months = []
+    for i in range(5, -1, -1):
+        m = selected_month - i
+        y = selected_year
+        while m <= 0:
+            m += 12
+            y -= 1
+        past_months.append((y, m))
+
+    trend_labels = []
+    trend_income = []
+    trend_expense = []
+    trend_net = []
+
+    for y, m in past_months:
+        cursor.execute("""
+            SELECT 
+                ISNULL(SUM(CASE WHEN c.type = 'gelir' THEN t.amount ELSE 0 END), 0) AS inc,
+                ISNULL(SUM(CASE WHEN c.type = 'gider' THEN t.amount ELSE 0 END), 0) AS exp
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_id = ? AND MONTH(t.transaction_date) = ? AND YEAR(t.transaction_date) = ?
+        """, (user_id, m, y))
+        t_row = cursor.fetchone()
+        inc_val = float(t_row[0])
+        exp_val = float(t_row[1])
+        net_val = inc_val - exp_val
+
+        m_name = month_names.get(m, '')[:3]
+        trend_labels.append(f"{m_name} '{str(y)[2:]}")
+        trend_income.append(round(inc_val, 2))
+        trend_expense.append(round(exp_val, 2))
+        trend_net.append(round(net_val, 2))
+
+    # 9. Akıllı Bildirimler (Fatura günleri, Kredi Kartı, Bütçe Aşımları)
+    smart_alerts = []
+    for sub in subscriptions:
+        days_left = sub[5]
+        sub_title = sub[1]
+        sub_amt = float(sub[2])
+        if days_left < 0:
+            smart_alerts.append({
+                'type': 'danger',
+                'icon': 'bi-exclamation-octagon-fill',
+                'title': 'Günü Geçmiş Ödeme!',
+                'message': f"'{sub_title}' ({sub_amt:.2f} TL) son ödeme tarihi {abs(days_left)} gün önce geçti."
+            })
+        elif days_left <= 3:
+            smart_alerts.append({
+                'type': 'warning',
+                'icon': 'bi-alarm-fill',
+                'title': 'Yaklaşan Fatura / Kart Ödemesi',
+                'message': f"'{sub_title}' ({sub_amt:.2f} TL) için son {days_left} gün kaldı."
+            })
+
+    if cc_expense > 0:
+        smart_alerts.append({
+            'type': 'info',
+            'icon': 'bi-credit-card-2-front-fill',
+            'title': 'Ödenmemiş Kredi Kartı Ekstresi',
+            'message': f"{selected_month_name} dönemine ait {cc_expense:.2f} TL tutarında ekstre borcunuz bulunmaktadır."
+        })
+
+    for b in category_budgets:
+        if b['budget'] > 0 and b['spent'] > b['budget']:
+            over = b['spent'] - b['budget']
+            smart_alerts.append({
+                'type': 'danger',
+                'icon': 'bi-lightning-charge-fill',
+                'title': f"Bütçe Aşımı: {b['name']}",
+                'message': f"Bu ayki bütçe sınırı {over:.2f} TL tutarında aşıldı (%{b['percent']})."
+            })
+
+    # 10. Düzenli & Tekrarlayan İşlemler (Maaş, Kira vb.)
+    cursor.execute("""
+        SELECT r.id, r.title, r.amount, r.type, r.payment_method, r.day_of_month, c.name, r.category_id 
+        FROM recurring_transactions r 
+        JOIN categories c ON r.category_id = c.id 
+        WHERE r.user_id = ? AND r.is_active = 1 
+        ORDER BY r.day_of_month ASC
+    """, (user_id,))
+    recurring_transactions = cursor.fetchall()
+
+    # 11. İşlem Hareketleri (Seçilen Dönem - En Son 50 İşlem)
     cursor.execute("""
         SELECT TOP 50 t.id, t.amount, t.transaction_date, t.description, c.name, c.type, t.payment_method, c.id, t.is_paid
         FROM transactions t
@@ -509,8 +596,274 @@ def dashboard():
         chart_cat_values=json.dumps(chart_category_values),
         chart_payment_values=json.dumps([cash_expense, cc_expense]),
         chart_asset_labels=json.dumps(chart_asset_labels),
-        chart_asset_values=json.dumps(chart_asset_values)
+        chart_asset_values=json.dumps(chart_asset_values),
+        chart_trend_labels=json.dumps(trend_labels),
+        chart_trend_income=json.dumps(trend_income),
+        chart_trend_expense=json.dumps(trend_expense),
+        chart_trend_net=json.dumps(trend_net),
+        smart_alerts=smart_alerts,
+        recurring_transactions=recurring_transactions
     )
+
+# --- İŞLEMLER (ACTIONS) ---
+
+# --- DIŞA AKTARMA (EXPORT) İŞLEMLERİ ---
+@app.route('/export/transactions')
+@login_required
+def export_transactions():
+    user_id = session['user_id']
+    export_format = request.args.get('format', 'excel').lower()
+    month = request.args.get('month', type=int)
+    year = request.args.get('year', type=int)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if month and year:
+        cursor.execute("""
+            SELECT t.id, t.transaction_date, c.name, c.type, t.description, t.payment_method, t.is_paid, t.amount
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_id = ? AND MONTH(t.transaction_date) = ? AND YEAR(t.transaction_date) = ?
+            ORDER BY t.transaction_date DESC, t.id DESC
+        """, (user_id, month, year))
+        filename_prefix = f"islemler_{year}_{month:02d}"
+    else:
+        cursor.execute("""
+            SELECT t.id, t.transaction_date, c.name, c.type, t.description, t.payment_method, t.is_paid, t.amount
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.user_id = ?
+            ORDER BY t.transaction_date DESC, t.id DESC
+        """, (user_id,))
+        filename_prefix = "tum_islemler"
+
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    data = []
+    for r in rows:
+        data.append({
+            'İşlem No': r[0],
+            'Tarih': r[1].strftime('%Y-%m-%d') if r[1] else '',
+            'Kategori': r[2],
+            'Tür': 'Gelir' if r[3] == 'gelir' else 'Gider',
+            'Açıklama': r[4] or '',
+            'Ödeme Yöntemi': 'Kredi Kartı' if r[5] == 'kredi_karti' else 'Nakit',
+            'Durum': 'Ödendi' if r[6] == 1 else 'Ödenmemiş',
+            'Tutar (TL)': float(r[7])
+        })
+
+    df = pd.DataFrame(data)
+
+    if export_format == 'csv':
+        output = io.StringIO()
+        df.to_csv(output, index=False, encoding='utf-8-sig')
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment;filename={filename_prefix}.csv"}
+        )
+    else:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='İşlemler')
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"{filename_prefix}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+@app.route('/export/portfolio')
+@login_required
+def export_portfolio():
+    user_id = session['user_id']
+    export_format = request.args.get('format', 'excel').lower()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, asset_symbol, asset_type, total_quantity, average_cost
+        FROM portfolio_assets
+        WHERE user_id = ? AND total_quantity > 0
+    """, (user_id,))
+    assets_raw = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    type_map = {
+        'hisse': 'Borsa İstanbul (BIST)',
+        'abd_hisse': 'ABD Borsası (USD)',
+        'tefas_fon': 'TEFAS / BEFAS Fonu',
+        'befas_fon': 'TEFAS / BEFAS Fonu',
+        'fon': 'Yatırım Fonu',
+        'doviz': 'Döviz',
+        'emtia_altin': 'Altın & Emtia',
+        'diger': 'Diğer'
+    }
+
+    data = []
+    for a in assets_raw:
+        symbol = a[1]
+        atype = a[2]
+        qty = float(a[3])
+        avg_cost = float(a[4])
+
+        price_info = fetch_live_price(symbol, atype)
+        if price_info is None:
+            live_price = avg_cost
+        elif isinstance(price_info, dict):
+            live_price = float(price_info['tl_price'])
+        else:
+            live_price = float(price_info)
+
+        cost_val = qty * avg_cost
+        cur_val = qty * live_price
+        pnl = cur_val - cost_val
+        pnl_pct = round((pnl / cost_val * 100), 2) if cost_val > 0 else 0.0
+
+        data.append({
+            'Sembol': symbol,
+            'Piyasa / Varlık Türü': type_map.get(atype, atype),
+            'Adet / Pay': qty,
+            'Birim Maliyet (TL)': avg_cost,
+            'Canlı Fiyat (TL)': live_price,
+            'Toplam Maliyet (TL)': round(cost_val, 2),
+            'Toplam Güncel Değer (TL)': round(cur_val, 2),
+            'Kâr/Zarar (TL)': round(pnl, 2),
+            'Kâr/Zarar (%)': pnl_pct
+        })
+
+    df = pd.DataFrame(data)
+
+    if export_format == 'csv':
+        output = io.StringIO()
+        df.to_csv(output, index=False, encoding='utf-8-sig')
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=portfoy_raporu.csv"}
+        )
+    else:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Portföy')
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="portfoy_raporu.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+# --- DÜZENLİ / TEKRARLAYAN İŞLEMLER (RECURRING) ---
+@app.route('/add_recurring', methods=['POST'])
+@login_required
+def add_recurring():
+    user_id = session['user_id']
+    title = request.form.get('title', '').strip()
+    category_id = request.form.get('category_id')
+    amount = float(request.form.get('amount', 0))
+    rec_type = request.form.get('type', 'gider')
+    payment_method = request.form.get('payment_method', 'nakit')
+    day_of_month = int(request.form.get('day_of_month', 1))
+
+    if not title or amount <= 0:
+        flash("Geçerli bir başlık ve tutar girin.", "warning")
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO recurring_transactions (user_id, category_id, title, amount, type, payment_method, day_of_month, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        """, (user_id, category_id, title, amount, rec_type, payment_method, day_of_month))
+        conn.commit()
+        flash(f"'{title}' düzenli işlem şablonu başarıyla eklendi.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard'))
+
+@app.route('/delete_recurring/<int:rec_id>', methods=['POST'])
+@login_required
+def delete_recurring(rec_id):
+    user_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM recurring_transactions WHERE id = ? AND user_id = ?", (rec_id, user_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash("Düzenli işlem şablonu silindi.", "info")
+    return redirect(url_for('dashboard'))
+
+@app.route('/apply_recurring', methods=['POST'])
+@login_required
+def apply_recurring():
+    user_id = session['user_id']
+    month = request.form.get('month', type=int) or datetime.today().month
+    year = request.form.get('year', type=int) or datetime.today().year
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id, category_id, title, amount, type, payment_method, day_of_month
+            FROM recurring_transactions
+            WHERE user_id = ? AND is_active = 1
+        """, (user_id,))
+        templates = cursor.fetchall()
+
+        if not templates:
+            flash("Henüz tanımlı düzenli işlem şablonunuz bulunmuyor.", "info")
+            return redirect(url_for('dashboard', month=month, year=year))
+
+        added_count = 0
+        last_day = calendar.monthrange(year, month)[1]
+
+        for t in templates:
+            cat_id, title, amt, t_type, p_method, day = t[1], t[2], float(t[3]), t[4], t[5], t[6]
+            actual_day = min(day, last_day)
+            tx_date = f"{year:04d}-{month:02d}-{actual_day:02d}"
+
+            # Daha önce bu ay eklenmiş mi kontrol et (çift kaydı önle)
+            cursor.execute("""
+                SELECT id FROM transactions 
+                WHERE user_id = ? AND category_id = ? AND description = ? 
+                  AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
+            """, (user_id, cat_id, f"[Düzenli] {title}", month, year))
+            if cursor.fetchone():
+                continue
+
+            is_paid = 0 if p_method == 'kredi_karti' else 1
+            cursor.execute("""
+                INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, cat_id, amt, tx_date, f"[Düzenli] {title}", p_method, is_paid))
+            added_count += 1
+
+        conn.commit()
+        if added_count > 0:
+            flash(f"{month}/{year} dönemi için {added_count} adet düzenli işlem (Maaş, Kira vb.) başarıyla uygulandı!", "success")
+        else:
+            flash("Tüm düzenli işlemler bu dönem için zaten daha önce eklenmiş.", "info")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Uygulama hatası: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('dashboard', month=month, year=year))
 
 # --- İŞLEMLER (ACTIONS) ---
 
