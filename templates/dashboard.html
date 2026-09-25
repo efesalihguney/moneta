@@ -243,6 +243,37 @@
             </div>
         </div>
 
+        <!-- ================= AKILLI FİNANSAL ASİSTAN VE İÇGÖRÜLER (AI INSIGHTS) ================= -->
+        {% if ai_insights %}
+        <div class="card p-3 mb-4 shadow-sm border">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-robot fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Akıllı Finansal Asistan Analizi</h6>
+                        <small class="text-muted">{{ selected_month_name }} {{ selected_year }} dönemi bütçe ve harcama değerlendirmesi</small>
+                    </div>
+                </div>
+                <span class="badge bg-primary-subtle text-primary fw-semibold"><i class="bi bi-stars me-1"></i>Akıllı Öneri</span>
+            </div>
+            <div class="row g-2">
+                {% for ins in ai_insights %}
+                <div class="col-md-6">
+                    <div class="alert alert-{{ ins.type }} d-flex align-items-start p-3 mb-0 h-100 rounded-3 border">
+                        <i class="bi {{ ins.icon }} fs-4 me-3 mt-1 flex-shrink-0"></i>
+                        <div>
+                            <strong class="d-block mb-1">{{ ins.title }}</strong>
+                            <span class="small">{{ ins.text }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- FİNANSAL GELİŞİM VE NET SERVET TRENDİ (ÇİZGİ GRAFİK - SON 6 AY) -->
         <div class="card p-3 mb-4 shadow-sm">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -448,6 +479,73 @@
                         </button>
                     </div>
                 </div>
+        </div>
+
+        <!-- ================= PİYASA BENCHMARK & KIYASLAMA KARNESİ ================= -->
+        <div class="card p-3 mb-4 shadow-sm border">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info"></i>Piyasa Benchmark & Kıyaslama Karnesi</h5>
+                    <small class="text-muted">Portföyünüzün piyasa endeksleri ve emtialara göre göreceli performansı</small>
+                </div>
+                <div class="btn-group btn-group-sm" role="group" id="benchmarkPeriodGroup">
+                    <button type="button" class="btn btn-outline-primary active" data-period="1M">1 Aylık</button>
+                    <button type="button" class="btn btn-outline-primary" data-period="3M">3 Aylık</button>
+                    <button type="button" class="btn btn-outline-primary" data-period="6M">6 Aylık</button>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Portföyüm -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="p-3 rounded-3 border bg-light h-100">
+                        <span class="text-muted small fw-semibold">Portföyünüzün Getirisi</span>
+                        <h4 class="fw-bold my-1 {{ 'text-success' if total_portfolio_pnl_pct >= 0 else 'text-danger' }}">
+                            {{ '+' if total_portfolio_pnl_pct >= 0 else '' }}%{{ total_portfolio_pnl_pct }}
+                        </h4>
+                        <span class="badge bg-primary-subtle text-primary">Sizin Portföyünüz</span>
+                    </div>
+                </div>
+                <!-- BIST 100 -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="p-3 rounded-3 border bg-light h-100">
+                        <span class="text-muted small fw-semibold">BIST 100 (XU100)</span>
+                        <h4 class="fw-bold my-1" id="bmBistVal">
+                            {{ '+' if benchmark_data['1M']['bist'] >= 0 else '' }}%{{ benchmark_data['1M']['bist'] }}
+                        </h4>
+                        <span class="badge bg-secondary-subtle text-secondary" id="bmBistBadge">BIST Kıyası</span>
+                    </div>
+                </div>
+                <!-- Dolar/TL -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="p-3 rounded-3 border bg-light h-100">
+                        <span class="text-muted small fw-semibold">Dolar / TL (USD/TRY)</span>
+                        <h4 class="fw-bold my-1" id="bmUsdVal">
+                            {{ '+' if benchmark_data['1M']['usd'] >= 0 else '' }}%{{ benchmark_data['1M']['usd'] }}
+                        </h4>
+                        <span class="badge bg-success-subtle text-success" id="bmUsdBadge">Döviz Kıyası</span>
+                    </div>
+                </div>
+                <!-- Gram Altın -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="p-3 rounded-3 border bg-light h-100">
+                        <span class="text-muted small fw-semibold">Gram Altın (TL)</span>
+                        <h4 class="fw-bold my-1" id="bmGoldVal">
+                            {{ '+' if benchmark_data['1M']['gold'] >= 0 else '' }}%{{ benchmark_data['1M']['gold'] }}
+                        </h4>
+                        <span class="badge bg-warning-subtle text-warning-emphasis" id="bmGoldBadge">Emtia Kıyası</span>
+                    </div>
+                </div>
+            </div>
+            <div id="benchmarkSummaryText" class="mt-3 small p-2 rounded-2 bg-body-tertiary border">
+                <i class="bi bi-info-circle me-1 text-primary"></i>
+                <span id="bmCommentary">
+                    {% if total_portfolio_pnl_pct > benchmark_data['1M']['bist'] and total_portfolio_pnl_pct != 0 %}
+                    🚀 <b>Mükemmel:</b> Portföyünüz son 1 ayda BIST 100 endeksini geride bırakarak pozitif alfa üretmiştir.
+                    {% else %}
+                    💡 Portföyünüz ile BIST 100 ve altın getirilerini dönem bazında kıyaslayarak varlık dağılımınızı optimize edebilirsiniz.
+                    {% endif %}
+                </span>
             </div>
         </div>
 
@@ -708,6 +806,14 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
+                                            {% if t[9] %}
+                                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 view-receipt-btn"
+                                                    data-url="{{ url_for('get_receipt', filename=t[9]) }}"
+                                                    data-title="{{ t[4] }} - {{ t[3] or '' }}"
+                                                    title="Fiş / Makbuzu Görüntüle">
+                                                <i class="bi bi-receipt"></i>
+                                            </button>
+                                            {% endif %}
                                             <button class="btn btn-sm btn-outline-primary py-0 px-2 edit-tx-btn"
                                                     data-id="{{ t[0] }}"
                                                     data-amount="{{ t[1] }}"
@@ -715,6 +821,7 @@
                                                     data-desc="{{ t[3] or '' }}"
                                                     data-cat="{{ t[7] }}"
                                                     data-method="{{ t[6] }}"
+                                                    data-receipt="{{ t[9] or '' }}"
                                                     title="İşlemi Düzenle">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
@@ -928,7 +1035,7 @@
                 <h5 class="modal-title fw-bold">Yeni Gelir / Harcama Ekle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_transaction') }}" method="POST">
+            <form action="{{ url_for('add_transaction') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Kategori</label>
@@ -947,15 +1054,32 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tutar (TL)</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" placeholder="0.00" required>
+                        <input type="number" step="0.01" name="amount" id="txAmountInput" class="form-control" placeholder="0.00" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tarih</label>
-                        <input type="date" name="transaction_date" class="form-control" value="{{ today_str }}" required>
+                        <input type="date" name="transaction_date" id="txDateInput" class="form-control" value="{{ today_str }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
-                        <input type="text" name="description" class="form-control" placeholder="Örn: Market alışverişi">
+                        <input type="text" name="description" id="txDescInput" class="form-control" placeholder="Örn: Market alışverişi">
+                    </div>
+                    <!-- FİŞ / MAKBUZ YÜKLEME & OCR -->
+                    <div class="mb-3">
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-receipt me-1 text-primary"></i>Fiş / Fatura Görseli (İsteğe Bağlı)</span>
+                            <small class="text-muted">PNG, JPG, PDF</small>
+                        </label>
+                        <input type="file" name="receipt" id="receiptFileInput" class="form-control form-control-sm" accept="image/*,.pdf">
+                        <div id="receiptPreviewBox" class="mt-2 text-center d-none p-2 border rounded bg-body-tertiary">
+                            <img id="receiptPreviewImg" src="" class="img-fluid rounded shadow-sm mb-2" style="max-height: 150px;">
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnOcrScan">
+                                    <i class="bi bi-magic me-1"></i>Fişi Tara (Tutar ve Tarihi Otomatik Algıla)
+                                </button>
+                                <div id="ocrStatusMsg" class="small mt-1 text-muted"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -974,7 +1098,7 @@
                 <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2 text-primary"></i>İşlemi Düzenle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editTransactionForm" method="POST">
+            <form id="editTransactionForm" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Kategori</label>
@@ -1002,6 +1126,10 @@
                     <div class="mb-3">
                         <label class="form-label">Açıklama</label>
                         <input type="text" name="description" id="editTxDesc" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Yeni Fiş / Fatura Görseli (Değiştirmek için)</label>
+                        <input type="file" name="receipt" class="form-control form-control-sm" accept="image/*,.pdf">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1359,6 +1487,127 @@
     </div>
 </div>
 
+<!-- 8. FİŞ / MAKBUZ GÖRÜNTÜLEME MODALI -->
+<div class="modal fade" id="receiptPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="receiptModalTitle"><i class="bi bi-receipt me-2 text-info"></i>Fiş / Makbuz Detayı</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="receiptModalImg" src="" class="img-fluid rounded border shadow-sm" style="max-height: 520px;">
+                <div id="receiptModalPdfLink" class="d-none mt-3">
+                    <p class="text-muted">Bu dosya bir PDF belgesidir.</p>
+                    <a id="receiptPdfBtn" href="" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>PDF Belgesini Yeni Sekmede Aç
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <a id="receiptDownloadBtn" href="" download class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-download me-1"></i>Görseli İndir
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 9. VERİ YEDEKLEME & GERİ YÜKLEME MODALI -->
+<div class="modal fade" id="backupModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Veri Yedekleme & Geri Yükleme</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- YEDEK İNDİR -->
+                <div class="p-3 rounded border bg-body-tertiary mb-3">
+                    <h6 class="fw-bold mb-1"><i class="bi bi-download text-success me-2"></i>Tüm Verileri Bilgisayara İndir</h6>
+                    <p class="small text-muted mb-2">Tüm gelir-giderleriniz, hisse/fon portföyünüz, hedefleriniz ve şablonlarınız tek bir JSON dosyası olarak indirilir.</p>
+                    <a href="{{ url_for('backup_download') }}" class="btn btn-success btn-sm fw-semibold">
+                        <i class="bi bi-file-earmark-arrow-down me-1"></i>Yedeği İndir (.json)
+                    </a>
+                </div>
+
+                <!-- YEDEKTEN GERİ YÜKLE -->
+                <div class="p-3 rounded border bg-body-tertiary">
+                    <h6 class="fw-bold mb-1"><i class="bi bi-upload text-primary me-2"></i>Yedekten Geri Yükle / İçe Aktar</h6>
+                    <p class="small text-muted mb-2">Daha önce indirdiğiniz bir <code>.json</code> dosyasını seçerek tüm verilerinizi sisteme aktarabilirsiniz.</p>
+                    <form action="{{ url_for('backup_restore') }}" method="POST" enctype="multipart/form-data">
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="file" name="backup_file" class="form-control" accept=".json" required>
+                            <button type="submit" class="btn btn-primary" onclick="return confirm('Seçilen yedek dosyasındaki veriler mevcut hesabınıza eklenecektir. Devam etmek istiyor musunuz?');">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Yükle
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 10. TELEGRAM & BİLDİRİM AYARLARI MODALI -->
+<div class="modal fade" id="notificationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-telegram me-2 text-info"></i>Telegram & Bildirim Entegrasyonu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('update_notification_settings') }}" method="POST">
+                <div class="modal-body">
+                    <p class="small text-muted">
+                        Vadesi gelen faturalar, son ödeme günleri yaklaşan kart ekstreleri ve finansal özetleri kişisel Telegram botunuz üzerinden anlık olarak cebinize alabilirsiniz.
+                    </p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Telegram Bot Token</label>
+                        <input type="text" name="telegram_bot_token" class="form-control form-control-sm" value="{{ telegram_bot_token }}" placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz">
+                        <small class="text-muted" style="font-size: 0.75rem;">Telegram'da <code>@BotFather</code> ile saniyeler içinde ücretsiz oluşturabilirsiniz.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Telegram Chat ID (Kullanıcı veya Grup ID)</label>
+                        <input type="text" name="telegram_chat_id" class="form-control form-control-sm" value="{{ telegram_chat_id }}" placeholder="Örn: 987654321">
+                        <small class="text-muted" style="font-size: 0.75rem;">Telegram'da <code>@userinfobot</code> botuna mesaj atarak Chat ID numaranızı görebilirsiniz.</small>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="email_notifications" id="emailNotifCheck" {% if email_notifications %}checked{% endif %}>
+                        <label class="form-check-label small" for="emailNotifCheck">Haftalık finansal bültenleri e-posta ile de gönder</label>
+                    </div>
+
+                    <div class="d-flex gap-2 border-top pt-3">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Ayarları Kaydet</button>
+                    </div>
+                </div>
+            </form>
+            
+            {% if telegram_bot_token and telegram_chat_id %}
+            <div class="modal-footer bg-body-tertiary d-flex justify-content-between">
+                <form action="{{ url_for('send_telegram_test') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-send me-1"></i>Test Bildirimi Gönder
+                    </button>
+                </form>
+                <form action="{{ url_for('send_telegram_digest') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-bell me-1"></i>Finansal Özeti Gönder
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tesseract.js (İstemci Tarafı OCR Tarama Motoru) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <!-- GİZLİ VERİ BLOKLARI -->
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
 <script id="data-cat-values" type="application/json">{{ chart_cat_values|safe }}</script>
@@ -1369,6 +1618,7 @@
 <script id="data-trend-income" type="application/json">{{ chart_trend_income|safe }}</script>
 <script id="data-trend-expense" type="application/json">{{ chart_trend_expense|safe }}</script>
 <script id="data-trend-net" type="application/json">{{ chart_trend_net|safe }}</script>
+<script id="data-benchmark" type="application/json">{{ benchmark_data|tojson }}</script>
 
 <!-- JAVASCRIPT KONTROLLERİ -->
 <script>
@@ -1792,6 +2042,144 @@
 
                 const editModal = new bootstrap.Modal(document.getElementById('editTransactionModal'));
                 editModal.show();
+            });
+        });
+
+        // 9. Benchmark Dönem Değiştirme
+        const bmDataEl = document.getElementById('data-benchmark');
+        let benchmarkData = {};
+        try {
+            benchmarkData = JSON.parse(bmDataEl?.textContent || '{}');
+        } catch(e) {}
+
+        const bmPeriodBtns = document.querySelectorAll('#benchmarkPeriodGroup button');
+        bmPeriodBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                bmPeriodBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const period = this.getAttribute('data-period');
+                const pData = benchmarkData[period];
+                if (pData) {
+                    const bistEl = document.getElementById('bmBistVal');
+                    const usdEl = document.getElementById('bmUsdVal');
+                    const goldEl = document.getElementById('bmGoldVal');
+                    if (bistEl) bistEl.textContent = (pData.bist >= 0 ? '+' : '') + '%' + pData.bist;
+                    if (usdEl) usdEl.textContent = (pData.usd >= 0 ? '+' : '') + '%' + pData.usd;
+                    if (goldEl) goldEl.textContent = (pData.gold >= 0 ? '+' : '') + '%' + pData.gold;
+                }
+            });
+        });
+
+        // 10. Fiş / Makbuz Önizleme ve OCR Tarama
+        const receiptInput = document.getElementById('receiptFileInput');
+        const receiptPreviewBox = document.getElementById('receiptPreviewBox');
+        const receiptPreviewImg = document.getElementById('receiptPreviewImg');
+        const btnOcrScan = document.getElementById('btnOcrScan');
+        const ocrStatusMsg = document.getElementById('ocrStatusMsg');
+
+        if (receiptInput) {
+            receiptInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            if (receiptPreviewImg) receiptPreviewImg.src = e.target.result;
+                            if (receiptPreviewBox) receiptPreviewBox.classList.remove('d-none');
+                            if (ocrStatusMsg) ocrStatusMsg.textContent = '';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        if (receiptPreviewBox) receiptPreviewBox.classList.add('d-none');
+                    }
+                }
+            });
+        }
+
+        if (btnOcrScan && receiptPreviewImg) {
+            btnOcrScan.addEventListener('click', async function() {
+                if (!receiptPreviewImg.src) return;
+                btnOcrScan.disabled = true;
+                if (ocrStatusMsg) {
+                    ocrStatusMsg.className = 'small mt-1 text-primary';
+                    ocrStatusMsg.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Fiş taranıyor, lütfen bekleyin...';
+                }
+
+                try {
+                    if (typeof Tesseract !== 'undefined') {
+                        const worker = await Tesseract.createWorker('tur+eng');
+                        const ret = await worker.recognize(receiptPreviewImg.src);
+                        await worker.terminate();
+                        const text = ret.data.text || '';
+                        
+                        // Tutarı bul
+                        const matches = text.match(/\b\d{1,4}[.,]\d{2}\b/g);
+                        if (matches && matches.length > 0) {
+                            const numbers = matches.map(m => parseFloat(m.replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
+                            if (numbers.length > 0) {
+                                const maxVal = Math.max(...numbers);
+                                const amtInput = document.getElementById('txAmountInput');
+                                if (amtInput) amtInput.value = maxVal.toFixed(2);
+                            }
+                        }
+
+                        // Tarihi bul
+                        const dateMatch = text.match(/\b(\d{2})[./-](\d{2})[./-](\d{4})\b/);
+                        if (dateMatch) {
+                            const d = dateMatch[1];
+                            const m = dateMatch[2];
+                            const y = dateMatch[3];
+                            const dateInput = document.getElementById('txDateInput');
+                            if (dateInput) dateInput.value = `${y}-${m}-${d}`;
+                        }
+
+                        if (ocrStatusMsg) {
+                            ocrStatusMsg.className = 'small mt-1 text-success';
+                            ocrStatusMsg.innerHTML = '<i class="bi bi-check-circle me-1"></i>Fiş bilgileri başarıyla aktarıldı!';
+                        }
+                    } else {
+                        throw new Error('OCR kütüphanesi hazır değil.');
+                    }
+                } catch (err) {
+                    console.error('OCR Error:', err);
+                    if (ocrStatusMsg) {
+                        ocrStatusMsg.className = 'small mt-1 text-warning';
+                        ocrStatusMsg.textContent = 'Görsel başarıyla seçildi. Tutar ve tarihi elle girebilirsiniz.';
+                    }
+                } finally {
+                    btnOcrScan.disabled = false;
+                }
+            });
+        }
+
+        // 11. Fiş / Makbuz Detay Modalı Tetikleyici
+        document.querySelectorAll('.view-receipt-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                const title = this.getAttribute('data-title') || 'Fiş / Makbuz Detayı';
+                const modalTitle = document.getElementById('receiptModalTitle');
+                const modalImg = document.getElementById('receiptModalImg');
+                const pdfLinkBox = document.getElementById('receiptModalPdfLink');
+                const pdfBtn = document.getElementById('receiptPdfBtn');
+                const downloadBtn = document.getElementById('receiptDownloadBtn');
+
+                if (modalTitle) modalTitle.innerHTML = '<i class="bi bi-receipt me-2 text-info"></i>' + title;
+                if (downloadBtn) downloadBtn.href = url;
+
+                if (url.toLowerCase().endsWith('.pdf')) {
+                    if (modalImg) modalImg.classList.add('d-none');
+                    if (pdfLinkBox) pdfLinkBox.classList.remove('d-none');
+                    if (pdfBtn) pdfBtn.href = url;
+                } else {
+                    if (modalImg) {
+                        modalImg.src = url;
+                        modalImg.classList.remove('d-none');
+                    }
+                    if (pdfLinkBox) pdfLinkBox.classList.add('d-none');
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('receiptPreviewModal'));
+                modal.show();
             });
         });
     });
