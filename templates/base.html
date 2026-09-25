@@ -17,46 +17,145 @@
         })();
     </script>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            transition: background-color 0.25s ease, color 0.25s ease;
+        :root {
+            color-scheme: light dark;
         }
-        [data-bs-theme="light"] body { background-color: #f1f5f9; color: #1e293b; }
-        [data-bs-theme="dark"] body { background-color: #0b0f19; color: #e2e8f0; }
+        html {
+            min-height: 100%;
+        }
+        body { 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            min-height: 100vh;
+        }
+
+        /* LIGHT THEME */
+        html[data-bs-theme="light"],
+        html[data-bs-theme="light"] body { 
+            background-color: #f1f5f9 !important; 
+            color: #1e293b !important; 
+        }
+
+        /* DARK THEME */
+        html[data-bs-theme="dark"],
+        html[data-bs-theme="dark"] body { 
+            background-color: #0b0f19 !important; 
+            color: #e2e8f0 !important; 
+        }
 
         .navbar-brand { font-weight: 700; letter-spacing: -0.5px; }
+
+        /* CARDS & CONTAINERS */
         .card { 
-            border: none; 
+            border: 1px solid rgba(0,0,0,0.06); 
             border-radius: 14px; 
-            box-shadow: 0 4px 14px rgba(0,0,0,0.04); 
-            transition: background-color 0.25s ease, border-color 0.25s ease;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.03); 
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
         [data-bs-theme="dark"] .card {
-            background-color: #151c2c;
-            border: 1px solid rgba(255, 255, 255, 0.07) !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            background-color: #131b2e !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+            color: #e2e8f0 !important;
+        }
+
+        /* OVERRIDE BOOTSTRAP UTILITIES IN DARK MODE */
+        [data-bs-theme="dark"] .bg-white {
+            background-color: #131b2e !important;
+            color: #e2e8f0 !important;
         }
         [data-bs-theme="dark"] .bg-light {
-            background-color: #1e2738 !important;
-        }
-        [data-bs-theme="dark"] .table-light {
-            background-color: #1e2738 !important;
-            color: #cbd5e1 !important;
+            background-color: #1a233a !important;
+            color: #e2e8f0 !important;
         }
         [data-bs-theme="dark"] .border {
             border-color: rgba(255, 255, 255, 0.08) !important;
         }
         [data-bs-theme="dark"] .text-dark {
+            color: #f1f5f9 !important;
+        }
+        [data-bs-theme="dark"] .text-muted {
+            color: #94a3b8 !important;
+        }
+
+        /* TABLES IN DARK MODE */
+        [data-bs-theme="dark"] .table {
+            --bs-table-bg: transparent !important;
+            --bs-table-color: #e2e8f0 !important;
+            --bs-table-striped-bg: rgba(255, 255, 255, 0.02) !important;
+            --bs-table-hover-bg: rgba(255, 255, 255, 0.04) !important;
+            --bs-table-border-color: rgba(255, 255, 255, 0.08) !important;
             color: #e2e8f0 !important;
         }
-        [data-bs-theme="dark"] .list-group-item {
-            background-color: transparent;
-            color: #e2e8f0;
-            border-color: rgba(255, 255, 255, 0.08);
+        [data-bs-theme="dark"] .table > :not(caption) > * > * {
+            background-color: transparent !important;
+            color: inherit !important;
+            border-bottom-color: rgba(255, 255, 255, 0.08) !important;
         }
+        [data-bs-theme="dark"] thead.table-light,
+        [data-bs-theme="dark"] thead.table-light th {
+            background-color: #1a233a !important;
+            color: #cbd5e1 !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        /* MODALS & FORMS IN DARK MODE */
         [data-bs-theme="dark"] .modal-content {
-            background-color: #151c2c;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #131b2e !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+        }
+        [data-bs-theme="dark"] .modal-header,
+        [data-bs-theme="dark"] .modal-footer {
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        [data-bs-theme="dark"] .form-control,
+        [data-bs-theme="dark"] .form-select {
+            background-color: #1a233a !important;
+            color: #f8fafc !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+        [data-bs-theme="dark"] .form-control:focus,
+        [data-bs-theme="dark"] .form-select:focus {
+            background-color: #222e4c !important;
+            color: #ffffff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25) !important;
+        }
+        [data-bs-theme="dark"] .input-group-text {
+            background-color: #131b2e !important;
+            color: #94a3b8 !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+
+        /* LIST GROUP & DROPDOWNS */
+        [data-bs-theme="dark"] .list-group-item {
+            background-color: transparent !important;
+            color: #e2e8f0 !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        [data-bs-theme="dark"] .dropdown-menu {
+            background-color: #131b2e !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+        }
+        [data-bs-theme="dark"] .dropdown-item {
+            color: #cbd5e1 !important;
+        }
+        [data-bs-theme="dark"] .dropdown-item:hover {
+            background-color: #1a233a !important;
+            color: #ffffff !important;
+        }
+        [data-bs-theme="dark"] .nav-pills .nav-link:not(.active) {
+            color: #94a3b8 !important;
+        }
+        [data-bs-theme="dark"] .nav-pills .nav-link:not(.active):hover {
+            background-color: rgba(255, 255, 255, 0.06) !important;
+            color: #f8fafc !important;
+        }
+        [data-bs-theme="dark"] .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
         }
     </style>
 </head>

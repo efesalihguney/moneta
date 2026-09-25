@@ -563,8 +563,11 @@ def dashboard():
     cursor.close()
     conn.close()
 
+    savings_rate = round((net_savings / total_income * 100), 1) if total_income > 0 else 0.0
+
     return render_template(
         'dashboard.html',
+        savings_rate=savings_rate,
         total_income=total_income,
         cash_expense=cash_expense,
         cc_expense=cc_expense,
