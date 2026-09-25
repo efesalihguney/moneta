@@ -539,7 +539,7 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                                 <span>
                                     <span class="fw-bold">{{ item.symbol }}</span>
-                                    <small class="text-muted ms-1">({{ "%.2f"|format((item.cur_val / total_portfolio_value) * 100) }}%)</small>
+                                    <small class="text-muted ms-1">({{ "%.2f"|format((item.cur_val / total_portfolio_value) * 100) if total_portfolio_value > 0 else "0.00" }}%)</small>
                                 </span>
                                 <span class="fw-semibold">{{ "%.2f"|format(item.cur_val) }} TL</span>
                             </li>
