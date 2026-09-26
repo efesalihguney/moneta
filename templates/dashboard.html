@@ -9,39 +9,39 @@
         <p class="text-muted mb-0">Nakit akışı, kredi kartı ekstresi, bütçe limitleri ve canlı portföy</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
-            <i class="bi bi-plus-circle me-1"></i> Harcama / Gelir
+        <button class="btn btn-cta-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
+            <i class="bi bi-plus-circle me-1"></i> Harcama / Gelir Ekle
         </button>
-        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#initialBalanceModal">
-            <i class="bi bi-wallet2 me-1"></i> Nakit Bakiye
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#initialBalanceModal">
+            <i class="bi bi-wallet2 me-1 text-success"></i> Nakit Bakiye
         </button>
-        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
-            <i class="bi bi-graph-up-arrow me-1"></i> Yatırım Al
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+            <i class="bi bi-graph-up-arrow me-1 text-success"></i> Yatırım Al
         </button>
-        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
-            <i class="bi bi-graph-down-arrow me-1"></i> Yatırım Sat
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
+            <i class="bi bi-graph-down-arrow me-1 text-danger"></i> Yatırım Sat
         </button>
-        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-            <i class="bi bi-tags me-1"></i> Bütçe Yönetimi
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+            <i class="bi bi-tags me-1 text-primary"></i> Bütçe Yönetimi
         </button>
-        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-            <i class="bi bi-calendar-event me-1"></i> Fatura Ekle
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+            <i class="bi bi-calendar-event me-1 text-warning"></i> Fatura Ekle
         </button>
-        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#goalModal">
-            <i class="bi bi-piggy-bank me-1"></i> Kumbara Hedefi
+        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#goalModal">
+            <i class="bi bi-piggy-bank me-1 text-info"></i> Kumbara Hedefi
         </button>
     </div>
 </div>
 
 <!-- ================= 1. BÜYÜK RESİM: TOPLAM NET SERVET (NET WORTH HERO CARD) ================= -->
-<div class="card mb-4 border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px;">
+<div class="card hero-net-worth mb-4 border-0 text-white">
     <div class="card-body p-4">
         <div class="row align-items-center">
             <div class="col-lg-5 mb-3 mb-lg-0 border-end-lg border-secondary pe-lg-4">
-                <span class="text-uppercase tracking-wider small fw-semibold text-info d-block mb-1">
+                <span class="micro-label text-info d-block mb-1">
                     <i class="bi bi-shield-check me-1"></i>Toplam Net Servet (Net Worth)
                 </span>
-                <h2 class="display-6 fw-bold mb-1 {{ 'text-success' if total_net_worth >= 0 else 'text-danger' }}">
+                <h2 class="display-6 fw-bold mb-1 num-tabular {{ 'text-success' if total_net_worth >= 0 else 'text-danger' }}">
                     {{ '+' if total_net_worth > 0 else '' }}{{ total_net_worth|currency_tr }} TL
                 </h2>
                 <small class="text-light opacity-75">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
@@ -49,33 +49,33 @@
             <div class="col-lg-7 ps-lg-4">
                 <div class="row g-2">
                     <div class="col-6 col-sm-3">
-                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100 position-relative">
+                        <div class="p-3 hero-glass-card text-center h-100 position-relative">
                             <div class="d-flex justify-content-center align-items-center gap-1 mb-1">
-                                <small class="text-white opacity-75" style="font-size: 0.75rem;">💵 Vadesiz Nakit</small>
+                                <span class="micro-label text-light opacity-75">💵 Vadesiz Nakit</span>
                                 <button type="button" class="btn btn-link p-0 text-white opacity-75 text-decoration-none" 
                                         data-bs-toggle="modal" data-bs-target="#initialBalanceModal" title="Başlangıç / Mevcut Nakit Bakiyesini Güncelle">
                                     <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
                                 </button>
                             </div>
-                            <span class="fw-bold text-white fs-6">{{ cash_balance|currency_tr }} TL</span>
+                            <span class="fw-bold text-white fs-6 num-tabular">{{ cash_balance|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
-                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
-                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">📈 Canlı Portföy</small>
-                            <span class="fw-bold text-success fs-6">{{ total_portfolio_value|currency_tr }} TL</span>
+                        <div class="p-3 hero-glass-card text-center h-100">
+                            <span class="micro-label d-block text-light opacity-75 mb-1">📈 Canlı Portföy</span>
+                            <span class="fw-bold text-success fs-6 num-tabular">{{ total_portfolio_value|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
-                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
-                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">🎯 Kumbaralar</small>
-                            <span class="fw-bold text-info fs-6">{{ total_savings_amount|currency_tr }} TL</span>
+                        <div class="p-3 hero-glass-card text-center h-100">
+                            <span class="micro-label d-block text-light opacity-75 mb-1">🎯 Kumbaralar</span>
+                            <span class="fw-bold text-info fs-6 num-tabular">{{ total_savings_amount|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
-                        <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
-                            <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">💳 Kart Borcu</small>
-                            <span class="fw-bold text-danger fs-6">-{{ total_unpaid_cc|currency_tr }} TL</span>
+                        <div class="p-3 hero-glass-card text-center h-100">
+                            <span class="micro-label d-block text-light opacity-75 mb-1">💳 Kart Borcu</span>
+                            <span class="fw-bold text-danger fs-6 num-tabular">-{{ total_unpaid_cc|currency_tr }} TL</span>
                         </div>
                     </div>
                 </div>
@@ -85,16 +85,17 @@
 </div>
 
 <!-- DÖNEM SEÇİCİ VE AY BAZLI ÖZET BARI -->
-<div class="card p-3 mb-4 border shadow-sm">
+<!-- DÖNEM SEÇİCİ VE AY BAZLI ÖZET BARI -->
+<div class="card p-3 mb-4 border shadow-xs">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-outline-secondary btn-sm" title="Önceki Ay">
+            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" title="Önceki Ay">
                 <i class="bi bi-chevron-left"></i>
             </a>
-            <span class="fs-5 fw-bold text-dark mb-0">
+            <span class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center">
                 <i class="bi bi-calendar3 me-2 text-primary"></i>{{ selected_month_name }} {{ selected_year }}
             </span>
-            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-outline-secondary btn-sm" title="Sonraki Ay">
+            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" title="Sonraki Ay">
                 <i class="bi bi-chevron-right"></i>
             </a>
             {% if selected_month != today_str[:7].split('-')[1]|int or selected_year != today_str[:4]|int %}
@@ -103,34 +104,34 @@
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
             {% if total_realized_pnl != 0 %}
-            <span class="badge {{ 'bg-success' if total_realized_pnl >= 0 else 'bg-danger' }} py-2 px-3">
+            <span class="badge {{ 'bg-success-subtle' if total_realized_pnl >= 0 else 'bg-danger-subtle' }} py-2 px-3 num-tabular">
                 Toplam Realize Kâr/Zarar: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
             </span>
             {% endif %}
 
             {% if total_income > 0 %}
                 {% if savings_rate >= 30 %}
-                <span class="badge bg-success-subtle text-success border border-success py-2 px-3 fw-bold">
-                    <i class="bi bi-stars me-1"></i>Tasarruf Oranı: %{{ savings_rate }} (Mükemmel)
+                <span class="badge bg-success-subtle py-2 px-3 fw-semibold">
+                    <i class="bi bi-stars me-1 text-success"></i>Tasarruf Oranı: %{{ savings_rate }} (Mükemmel)
                 </span>
                 {% elif savings_rate >= 10 %}
-                <span class="badge bg-primary-subtle text-primary border border-primary py-2 px-3 fw-bold">
-                    <i class="bi bi-hand-thumbs-up me-1"></i>Tasarruf Oranı: %{{ savings_rate }} (Dengeli)
+                <span class="badge bg-primary-subtle py-2 px-3 fw-semibold">
+                    <i class="bi bi-hand-thumbs-up me-1 text-primary"></i>Tasarruf Oranı: %{{ savings_rate }} (Dengeli)
                 </span>
                 {% elif savings_rate >= 0 %}
-                <span class="badge bg-warning-subtle text-warning border border-warning py-2 px-3 fw-bold">
-                    <i class="bi bi-exclamation-triangle me-1"></i>Tasarruf Oranı: %{{ savings_rate }} (Düşük)
+                <span class="badge bg-warning-subtle py-2 px-3 fw-semibold">
+                    <i class="bi bi-exclamation-triangle me-1 text-warning"></i>Tasarruf Oranı: %{{ savings_rate }} (Düşük)
                 </span>
                 {% else %}
-                <span class="badge bg-danger-subtle text-danger border border-danger py-2 px-3 fw-bold">
-                    <i class="bi bi-exclamation-octagon me-1"></i>Bütçe Açığı: %{{ savings_rate|abs }} (Aşım)
+                <span class="badge bg-danger-subtle py-2 px-3 fw-semibold">
+                    <i class="bi bi-exclamation-octagon me-1 text-danger"></i>Bütçe Açığı: %{{ savings_rate|abs }} (Aşım)
                 </span>
                 {% endif %}
             {% endif %}
 
-            <span class="badge bg-light text-dark border py-2 px-3">
-                Bu Ayki Net Tasarruf (Gelir - Gider): 
-                <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }}">
+            <span class="badge bg-secondary-subtle text-body border py-2 px-3 num-tabular">
+                Bu Ayki Net Tasarruf: 
+                <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }} ms-1">
                     {{ '+' if net_savings >= 0 else '' }}{{ net_savings|currency_tr }} TL
                 </b>
             </span>
@@ -142,12 +143,12 @@
 {% if smart_alerts %}
 <div class="mb-3" id="smartAlertsContainer">
     {% for alert in smart_alerts %}
-    <div class="alert alert-{{ alert.type }} alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm rounded-3 border" role="alert">
-        <div class="d-flex align-items-center gap-2 small flex-grow-1 me-2" style="font-size: 0.875rem;">
-            <i class="bi {{ alert.icon }} fs-6 flex-shrink-0"></i>
+    <div class="alert alert-fintech-strip border-start-{{ alert.type }} border-start border-4 alert-dismissible fade show d-flex align-items-center justify-content-between" role="alert">
+        <div class="d-flex align-items-center gap-2 flex-grow-1 me-2" style="font-size: 0.875rem;">
+            <i class="bi {{ alert.icon }} fs-6 flex-shrink-0 text-{{ alert.type }}"></i>
             <div>
                 <strong>{{ alert.title }}:</strong>
-                <span>{{ alert.message }}</span>
+                <span class="text-body-secondary ms-1">{{ alert.message }}</span>
             </div>
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
@@ -210,51 +211,51 @@
         <!-- AYLIK METRİK KARTLARI -->
         <div class="row g-3 mb-4">
             <div class="col-md-3">
-                <div class="card p-3 border-start border-success border-4 h-100">
-                    <span class="text-muted fw-semibold small">Bu Ayki Gelir</span>
-                    <h4 class="fw-bold text-success mt-2 mb-0">{{ total_income|currency_tr }} TL</h4>
-                    <small class="text-muted">{{ selected_month_name }} dönemi</small>
+                <div class="card metric-card p-4 border-start border-success border-4 h-100">
+                    <span class="micro-label">Bu Ayki Gelir</span>
+                    <h4 class="fw-bold text-success mt-2 mb-0 num-tabular">{{ total_income|currency_tr }} TL</h4>
+                    <small class="text-muted mt-1">{{ selected_month_name }} dönemi</small>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card p-3 border-start border-danger border-4 h-100">
-                    <span class="text-muted fw-semibold small">Nakit Harcamalar</span>
-                    <h4 class="fw-bold text-danger mt-2 mb-0">{{ cash_expense|currency_tr }} TL</h4>
-                    <small class="text-muted">Cebinden anında çıkan</small>
+                <div class="card metric-card p-4 border-start border-danger border-4 h-100">
+                    <span class="micro-label">Nakit Harcamalar</span>
+                    <h4 class="fw-bold text-danger mt-2 mb-0 num-tabular">{{ cash_expense|currency_tr }} TL</h4>
+                    <small class="text-muted mt-1">Cebinden anında çıkan</small>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card p-3 border-start border-warning border-4 h-100">
+                <div class="card metric-card p-4 border-start border-warning border-4 h-100">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <span class="text-muted fw-semibold small">Kredi Kartı Ekstre Borcu</span>
-                            <h4 class="fw-bold text-warning mt-2 mb-0">{{ cc_expense|currency_tr }} TL</h4>
-                            <small class="text-muted">{{ selected_month_name }} dönemi ödenmemiş</small>
+                            <span class="micro-label">Kredi Kartı Ekstre Borcu</span>
+                            <h4 class="fw-bold text-warning mt-2 mb-0 num-tabular">{{ cc_expense|currency_tr }} TL</h4>
+                            <small class="text-muted mt-1 d-block">{{ selected_month_name }} dönemi ödenmemiş</small>
                         </div>
                         {% if cc_expense > 0 %}
                         <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
                             <input type="hidden" name="month" value="{{ selected_month }}">
                             <input type="hidden" name="year" value="{{ selected_year }}">
-                            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold" title="Ekstreyi Nakit ile Öde">
+                            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" title="Ekstreyi Nakit ile Öde">
                                 <i class="bi bi-credit-card-2-front me-1"></i>Öde
                             </button>
                         </form>
                         {% else %}
-                        <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
+                        <span class="badge bg-success-subtle text-success mt-1"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card p-3 border-start border-primary border-4 h-100">
-                    <span class="text-muted fw-semibold small">Canlı Portföy Değeri</span>
-                    <h4 class="fw-bold text-primary mt-2 mb-0">{{ total_portfolio_value|currency_tr }} TL</h4>
+                <div class="card metric-card p-4 border-start border-primary border-4 h-100">
+                    <span class="micro-label">Canlı Portföy Değeri</span>
+                    <h4 class="fw-bold text-primary mt-2 mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</h4>
                     <div class="d-flex justify-content-between align-items-center mt-1">
-                        <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
+                        <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
                             {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})
                         </small>
                         {% if total_realized_pnl != 0 %}
-                        <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold">
+                        <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
                             Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                         </small>
                         {% endif %}
@@ -508,44 +509,45 @@
     <div class="tab-pane fade" id="tab-portfolio" role="tabpanel">
         
         <!-- PORTFÖY İSTATİSTİK BANNERI -->
-        <div class="card p-3 mb-4 bg-light border">
+        <div class="card p-4 mb-4 border shadow-xs">
             <div class="row g-3 align-items-center text-center text-md-start">
                 <div class="col-md-3">
-                    <span class="text-muted small d-block">Toplam Portföy Değeri</span>
-                    <h3 class="fw-bold text-primary mb-0">{{ total_portfolio_value|currency_tr }} TL</h3>
+                    <span class="micro-label d-block mb-1">Toplam Portföy Değeri</span>
+                    <h3 class="fw-bold text-primary mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</h3>
                 </div>
                 <div class="col-md-3">
-                    <span class="text-muted small d-block">Toplam Kâr / Zarar</span>
-                    <h4 class="fw-bold mb-0 {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
+                    <span class="micro-label d-block mb-1">Toplam Kâr / Zarar</span>
+                    <h4 class="fw-bold mb-0 num-tabular {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL 
                         <span class="fs-6 fw-normal">(%{{ total_portfolio_pnl_pct }})</span>
                     </h4>
                 </div>
                 <div class="col-md-3">
-                    <span class="text-muted small d-block">Realize Edilen Kâr/Zarar</span>
-                    <h4 class="fw-bold mb-0 {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
+                    <span class="micro-label d-block mb-1">Realize Edilen Kâr/Zarar</span>
+                    <h4 class="fw-bold mb-0 num-tabular {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                     </h4>
                 </div>
                 <div class="col-md-3 text-md-end">
                     <div class="d-flex flex-wrap justify-content-md-end gap-2">
                         <div class="dropdown">
-                            <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="bi bi-file-earmark-excel me-1"></i>Rapor
+                            <button class="btn btn-saas-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-file-earmark-excel me-1 text-success"></i>Rapor
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                 <li><a class="dropdown-item" href="{{ url_for('export_portfolio', format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Excel (.xlsx) İndir</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('export_portfolio', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>CSV İndir</a></li>
                             </ul>
                         </div>
-                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
-                            <i class="bi bi-plus-lg me-1"></i>Varlık Al
+                        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+                            <i class="bi bi-plus-lg me-1 text-success"></i>Varlık Al
                         </button>
-                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
-                            <i class="bi bi-dash-lg me-1"></i>Varlık Sat
+                        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
+                            <i class="bi bi-dash-lg me-1 text-danger"></i>Varlık Sat
                         </button>
                     </div>
                 </div>
+            </div>
         </div>
 
         <!-- ================= PİYASA BENCHMARK & KIYASLAMA KARNESİ ================= -->
@@ -760,8 +762,8 @@
                 <div class="card p-3 shadow-sm mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
-                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-                            <i class="bi bi-gear me-1"></i>Yönet
+                        <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+                            <i class="bi bi-gear me-1 text-primary"></i>Bütçeleri Yönet
                         </button>
                     </div>
                     {% if category_budgets %}
@@ -801,8 +803,8 @@
                         <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark"></i>İşlem Hareketleri</h5>
                         <div class="d-flex align-items-center gap-2">
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="bi bi-file-earmark-excel me-1"></i>Dışa Aktar
+                                <button class="btn btn-sm btn-saas-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-file-earmark-excel me-1 text-success"></i>Dışa Aktar
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Bu Ayı İndir (.xlsx)</a></li>
@@ -812,7 +814,7 @@
                                     <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>Tüm Geçmişi İndir (CSV)</a></li>
                                 </ul>
                             </div>
-                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                            <button class="btn btn-sm btn-cta-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
                                 <i class="bi bi-plus-lg me-1"></i>Yeni İşlem
                             </button>
                         </div>
@@ -969,8 +971,8 @@
                 <div class="card p-3 shadow-sm h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Faturalar & Borçlar</h5>
-                        <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-                            <i class="bi bi-plus-lg me-1"></i>Fatura Ekle
+                        <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+                            <i class="bi bi-plus-lg me-1 text-warning"></i>Fatura Ekle
                         </button>
                     </div>
                     {% if subscriptions %}
@@ -1019,12 +1021,12 @@
                     <form action="{{ url_for('apply_recurring') }}" method="POST" class="d-inline" onsubmit="return confirm('Bu ay için tanımlı tüm düzenli şablonları eklemek istiyor musunuz? (Daha önce eklenenler çift eklenmez)');">
                         <input type="hidden" name="month" value="{{ selected_month }}">
                         <input type="hidden" name="year" value="{{ selected_year }}">
-                        <button type="submit" class="btn btn-sm btn-success">
-                            <i class="bi bi-calendar-check me-1"></i>Bu Ayın Şablonunu Otomatik Ekle
+                        <button type="submit" class="btn btn-sm btn-saas-secondary">
+                            <i class="bi bi-calendar-check me-1 text-success"></i>Bu Ayın Şablonunu Otomatik Ekle
                         </button>
                     </form>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#recurringModal">
-                        <i class="bi bi-plus-lg me-1"></i>Yeni Şablon Ekle
+                    <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#recurringModal">
+                        <i class="bi bi-plus-lg me-1 text-primary"></i>Yeni Şablon Ekle
                     </button>
                 </div>
             </div>
