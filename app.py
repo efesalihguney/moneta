@@ -20,6 +20,19 @@ from db import get_db_connection
 app = Flask(__name__)
 app.secret_key = "super_secret_wealth_tracker_key_change_in_production"
 
+@app.template_filter('currency_tr')
+def currency_tr_filter(value, decimals=2):
+    """Sayıları Türk Lirası standardında (1.234,56) formatlar."""
+    if value is None or value == '':
+        return "0," + ("0" * decimals) if decimals > 0 else "0"
+    try:
+        val = float(value)
+        formatted = f"{val:,.{decimals}f}"
+        return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return str(value)
+
+
 # --- FİŞ / MAKBUZ YÜKLEME AYARLARI ---
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads', 'receipts')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -931,27 +944,31 @@ def dashboard():
         days_left = sub[5]
         sub_title = sub[1]
         sub_amt = float(sub[2])
+        formatted_sub_amt = currency_tr_filter(sub_amt)
         if days_left < 0:
             smart_alerts.append({
                 'type': 'danger',
                 'icon': 'bi-exclamation-octagon-fill',
-                'title': 'Günü Geçmiş Ödeme!',
-                'message': f"'{sub_title}' ({sub_amt:.2f} TL) son ödeme tarihi {abs(days_left)} gün önce geçti."
+                'title': 'Günü Geçmiş Ödeme',
+                'message': f"'{sub_title}' ({formatted_sub_amt} TL) son ödeme tarihi {abs(days_left)} gün önce geçti.",
+                'sub_id': sub[0]
             })
         elif days_left <= 3:
             smart_alerts.append({
                 'type': 'warning',
                 'icon': 'bi-alarm-fill',
-                'title': 'Yaklaşan Fatura / Kart Ödemesi',
-                'message': f"'{sub_title}' ({sub_amt:.2f} TL) için son {days_left} gün kaldı."
+                'title': 'Yaklaşan Fatura',
+                'message': f"'{sub_title}' ({formatted_sub_amt} TL) için son {days_left} gün kaldı.",
+                'sub_id': sub[0]
             })
 
     if cc_expense > 0:
         smart_alerts.append({
-            'type': 'info',
+            'type': 'warning',
             'icon': 'bi-credit-card-2-front-fill',
             'title': 'Ödenmemiş Kredi Kartı Ekstresi',
-            'message': f"{selected_month_name} dönemine ait {cc_expense:.2f} TL tutarında ekstre borcunuz bulunmaktadır."
+            'message': f"{selected_month_name} dönemine ait {currency_tr_filter(cc_expense)} TL tutarında ekstre borcunuz bulunmaktadır.",
+            'action_pay_cc': True
         })
 
     for b in category_budgets:
@@ -960,8 +977,9 @@ def dashboard():
             smart_alerts.append({
                 'type': 'danger',
                 'icon': 'bi-lightning-charge-fill',
-                'title': f"Bütçe Aşımı: {b['name']}",
-                'message': f"Bu ayki bütçe sınırı {over:.2f} TL tutarında aşıldı (%{b['percent']})."
+                'title': f"Bütçe Aşımı ({b['name']})",
+                'message': f"Bu ayki bütçe sınırı {currency_tr_filter(over)} TL tutarında aşıldı (%{b['percent']}).",
+                'cat_id': b['id']
             })
 
     # 10. Düzenli & Tekrarlayan İşlemler (Maaş, Kira vb.)

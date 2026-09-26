@@ -42,7 +42,7 @@
                     <i class="bi bi-shield-check me-1"></i>Toplam Net Servet (Net Worth)
                 </span>
                 <h2 class="display-6 fw-bold mb-1 {{ 'text-success' if total_net_worth >= 0 else 'text-danger' }}">
-                    {{ '+' if total_net_worth > 0 else '' }}{{ "%.2f"|format(total_net_worth) }} TL
+                    {{ '+' if total_net_worth > 0 else '' }}{{ total_net_worth|currency_tr }} TL
                 </h2>
                 <small class="text-light opacity-75">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
             </div>
@@ -57,25 +57,25 @@
                                     <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
                                 </button>
                             </div>
-                            <span class="fw-bold text-white fs-6">{{ "%.2f"|format(cash_balance) }} TL</span>
+                            <span class="fw-bold text-white fs-6">{{ cash_balance|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
                             <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">📈 Canlı Portföy</small>
-                            <span class="fw-bold text-success fs-6">{{ "%.2f"|format(total_portfolio_value) }} TL</span>
+                            <span class="fw-bold text-success fs-6">{{ total_portfolio_value|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
                             <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">🎯 Kumbaralar</small>
-                            <span class="fw-bold text-info fs-6">{{ "%.2f"|format(total_savings_amount) }} TL</span>
+                            <span class="fw-bold text-info fs-6">{{ total_savings_amount|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 rounded bg-white bg-opacity-10 text-center h-100">
                             <small class="d-block text-white opacity-75 mb-1" style="font-size: 0.75rem;">💳 Kart Borcu</small>
-                            <span class="fw-bold text-danger fs-6">-{{ "%.2f"|format(total_unpaid_cc) }} TL</span>
+                            <span class="fw-bold text-danger fs-6">-{{ total_unpaid_cc|currency_tr }} TL</span>
                         </div>
                     </div>
                 </div>
@@ -104,7 +104,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2">
             {% if total_realized_pnl != 0 %}
             <span class="badge {{ 'bg-success' if total_realized_pnl >= 0 else 'bg-danger' }} py-2 px-3">
-                Toplam Realize Kâr/Zarar: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.2f"|format(total_realized_pnl) }} TL
+                Toplam Realize Kâr/Zarar: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
             </span>
             {% endif %}
 
@@ -131,34 +131,45 @@
             <span class="badge bg-light text-dark border py-2 px-3">
                 Bu Ayki Net Tasarruf (Gelir - Gider): 
                 <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }}">
-                    {{ '+' if net_savings >= 0 else '' }}{{ "%.2f"|format(net_savings) }} TL
+                    {{ '+' if net_savings >= 0 else '' }}{{ net_savings|currency_tr }} TL
                 </b>
             </span>
         </div>
     </div>
 </div>
 
-<!-- ================= AKILLI BİLDİRİM VE UYARI MERKEZİ ================= -->
+<!-- ================= AKILLI BİLDİRİM VE UYARI MERKEZİ (SLIM ALERTS) ================= -->
 {% if smart_alerts %}
-<div class="mb-4">
+<div class="mb-3" id="smartAlertsContainer">
     {% for alert in smart_alerts %}
-    <div class="alert alert-{{ alert.type }} d-flex flex-wrap align-items-center justify-content-between p-3 mb-2 shadow-sm rounded-3 border" role="alert">
-        <div class="d-flex align-items-center">
-            <i class="bi {{ alert.icon }} fs-4 me-3"></i>
+    <div class="alert alert-{{ alert.type }} alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm rounded-3 border" role="alert">
+        <div class="d-flex align-items-center gap-2 small flex-grow-1 me-2" style="font-size: 0.875rem;">
+            <i class="bi {{ alert.icon }} fs-6 flex-shrink-0"></i>
             <div>
-                <strong class="d-block">{{ alert.title }}</strong>
-                <span class="small">{{ alert.message }}</span>
+                <strong>{{ alert.title }}:</strong>
+                <span>{{ alert.message }}</span>
             </div>
         </div>
-        {% if alert.action_pay_cc %}
-        <form action="{{ url_for('pay_credit_card') }}" method="POST" class="mt-2 mt-sm-0" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
-            <input type="hidden" name="month" value="{{ selected_month }}">
-            <input type="hidden" name="year" value="{{ selected_year }}">
-            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
-                <i class="bi bi-credit-card-2-front me-1"></i>Hemen Öde
-            </button>
-        </form>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
+            {% if alert.action_pay_cc %}
+            <form action="{{ url_for('pay_credit_card') }}" method="POST" class="d-inline m-0" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                <input type="hidden" name="month" value="{{ selected_month }}">
+                <input type="hidden" name="year" value="{{ selected_year }}">
+                <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold py-0 px-2" style="font-size: 0.78rem;">
+                    <i class="bi bi-credit-card me-1"></i>Öde
+                </button>
+            </form>
+            {% elif alert.sub_id %}
+            <a href="javascript:void(0)" class="btn btn-sm btn-outline-{{ alert.type }} py-0 px-2 switch-to-tab" data-tab="goals-tab" style="font-size: 0.78rem;">
+                <i class="bi bi-arrow-right-circle me-1"></i>Faturalara Git
+            </a>
+            {% elif alert.cat_id %}
+            <a href="javascript:void(0)" class="btn btn-sm btn-outline-danger py-0 px-2 switch-to-tab" data-tab="transactions-tab" style="font-size: 0.78rem;">
+                <i class="bi bi-speedometer2 me-1"></i>Bütçeyi İncele
+            </a>
+            {% endif %}
+            <button type="button" class="btn-close position-static p-2" data-bs-dismiss="alert" aria-label="Kapat" style="font-size: 0.7rem;"></button>
+        </div>
     </div>
     {% endfor %}
 </div>
@@ -201,14 +212,14 @@
             <div class="col-md-3">
                 <div class="card p-3 border-start border-success border-4 h-100">
                     <span class="text-muted fw-semibold small">Bu Ayki Gelir</span>
-                    <h4 class="fw-bold text-success mt-2 mb-0">{{ "%.2f"|format(total_income) }} TL</h4>
+                    <h4 class="fw-bold text-success mt-2 mb-0">{{ total_income|currency_tr }} TL</h4>
                     <small class="text-muted">{{ selected_month_name }} dönemi</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card p-3 border-start border-danger border-4 h-100">
                     <span class="text-muted fw-semibold small">Nakit Harcamalar</span>
-                    <h4 class="fw-bold text-danger mt-2 mb-0">{{ "%.2f"|format(cash_expense) }} TL</h4>
+                    <h4 class="fw-bold text-danger mt-2 mb-0">{{ cash_expense|currency_tr }} TL</h4>
                     <small class="text-muted">Cebinden anında çıkan</small>
                 </div>
             </div>
@@ -217,11 +228,11 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <span class="text-muted fw-semibold small">Kredi Kartı Ekstre Borcu</span>
-                            <h4 class="fw-bold text-warning mt-2 mb-0">{{ "%.2f"|format(cc_expense) }} TL</h4>
+                            <h4 class="fw-bold text-warning mt-2 mb-0">{{ cc_expense|currency_tr }} TL</h4>
                             <small class="text-muted">{{ selected_month_name }} dönemi ödenmemiş</small>
                         </div>
                         {% if cc_expense > 0 %}
-                        <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ '%.2f'|format(cc_expense) }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                        <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
                             <input type="hidden" name="month" value="{{ selected_month }}">
                             <input type="hidden" name="year" value="{{ selected_year }}">
                             <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold" title="Ekstreyi Nakit ile Öde">
@@ -237,14 +248,14 @@
             <div class="col-md-3">
                 <div class="card p-3 border-start border-primary border-4 h-100">
                     <span class="text-muted fw-semibold small">Canlı Portföy Değeri</span>
-                    <h4 class="fw-bold text-primary mt-2 mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h4>
+                    <h4 class="fw-bold text-primary mt-2 mb-0">{{ total_portfolio_value|currency_tr }} TL</h4>
                     <div class="d-flex justify-content-between align-items-center mt-1">
                         <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold">
-                            {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL (%{{ total_portfolio_pnl_pct }})
+                            {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})
                         </small>
                         {% if total_realized_pnl != 0 %}
                         <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold">
-                            Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.0f"|format(total_realized_pnl) }} TL
+                            Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                         </small>
                         {% endif %}
                     </div>
@@ -394,7 +405,7 @@
                                         <span class="fw-bold">{{ item.symbol }}</span>
                                         <small class="text-muted ms-1">({{ item.type }})</small>
                                     </span>
-                                    <span class="fw-semibold">{{ "%.2f"|format(item.cur_val) }} TL</span>
+                                    <span class="fw-semibold">{{ item.cur_val|currency_tr }} TL</span>
                                 </li>
                                 {% endfor %}
                             </ul>
@@ -428,9 +439,9 @@
                                 <span class="fw-bold">{{ b.name }}</span>
                                 <span>
                                     <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
-                                        {{ "%.2f"|format(b.spent) }} TL
+                                        {{ b.spent|currency_tr }} TL
                                     </span> 
-                                    / {{ "%.2f"|format(b.budget) }} TL
+                                    / {{ b.budget|currency_tr }} TL
                                     <span class="text-muted ms-1">(%{{ b.percent }})</span>
                                 </span>
                             </div>
@@ -461,7 +472,7 @@
                                     <small class="text-muted d-block">{{ sub[4].strftime('%d.%m.%Y') }}</small>
                                 </div>
                                 <div class="text-end">
-                                    <span class="fw-bold">{{ "%.2f"|format(sub[2]) }} TL</span>
+                                    <span class="fw-bold">{{ sub[2]|currency_tr }} TL</span>
                                     <span class="badge {{ 'bg-danger' if sub[5] <= 3 else 'bg-warning text-dark' }} ms-1">
                                         {{ sub[5] }} gün
                                     </span>
@@ -476,7 +487,7 @@
                         <div class="border rounded p-2 mb-2 bg-light">
                             <div class="d-flex justify-content-between align-items-center small mb-1">
                                 <span class="fw-bold">{{ g.title }}</span>
-                                <span class="text-primary fw-semibold">%{{ g.percent }} ({{ "%.0f"|format(g.current_amount) }} / {{ "%.0f"|format(g.target_amount) }} TL)</span>
+                                <span class="text-primary fw-semibold">%{{ g.percent }} ({{ g.current_amount|currency_tr(0) }} / {{ g.target_amount|currency_tr(0) }} TL)</span>
                             </div>
                             <div class="progress bg-secondary-subtle rounded-pill" style="height: 8px;">
                                 <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
@@ -501,19 +512,19 @@
             <div class="row g-3 align-items-center text-center text-md-start">
                 <div class="col-md-3">
                     <span class="text-muted small d-block">Toplam Portföy Değeri</span>
-                    <h3 class="fw-bold text-primary mb-0">{{ "%.2f"|format(total_portfolio_value) }} TL</h3>
+                    <h3 class="fw-bold text-primary mb-0">{{ total_portfolio_value|currency_tr }} TL</h3>
                 </div>
                 <div class="col-md-3">
                     <span class="text-muted small d-block">Toplam Kâr / Zarar</span>
                     <h4 class="fw-bold mb-0 {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
-                        {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ "%.2f"|format(total_portfolio_pnl) }} TL 
+                        {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL 
                         <span class="fs-6 fw-normal">(%{{ total_portfolio_pnl_pct }})</span>
                     </h4>
                 </div>
                 <div class="col-md-3">
                     <span class="text-muted small d-block">Realize Edilen Kâr/Zarar</span>
                     <h4 class="fw-bold mb-0 {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
-                        {{ '+' if total_realized_pnl >= 0 else '' }}{{ "%.2f"|format(total_realized_pnl) }} TL
+                        {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                     </h4>
                 </div>
                 <div class="col-md-3 text-md-end">
@@ -657,20 +668,20 @@
                                     <td class="fw-semibold">
                                         {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }}
                                     </td>
-                                    <td class="small">{{ "%.2f"|format(item.avg_cost) }} TL</td>
+                                    <td class="small">{{ item.avg_cost|currency_tr }} TL</td>
                                     <td class="small fw-semibold">
                                         {% if item.type == 'abd_hisse' and item.orig_price %}
                                             <span class="text-primary">${{ "%.2f"|format(item.orig_price) }}</span><br>
-                                            <small class="text-muted">({{ "%.2f"|format(item.live_price) }} TL)</small>
+                                            <small class="text-muted">({{ item.live_price|currency_tr }} TL)</small>
                                         {% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}
-                                            {{ "%.4f"|format(item.live_price) }} TL
+                                            {{ item.live_price|currency_tr(4) }} TL
                                         {% else %}
-                                            {{ "%.2f"|format(item.live_price) }} TL
+                                            {{ item.live_price|currency_tr }} TL
                                         {% endif %}
                                     </td>
-                                    <td class="fw-bold">{{ "%.2f"|format(item.cur_val) }} TL</td>
+                                    <td class="fw-bold">{{ item.cur_val|currency_tr }} TL</td>
                                     <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
-                                        {{ '+' if item.pnl >= 0 else '' }}{{ "%.2f"|format(item.pnl) }} TL<br>
+                                        {{ '+' if item.pnl >= 0 else '' }}{{ item.pnl|currency_tr }} TL<br>
                                         <span class="fw-normal">(%{{ item.pnl_pct }})</span>
                                     </td>
                                     <td class="text-end">
@@ -725,7 +736,7 @@
                                     <span class="fw-bold">{{ item.symbol }}</span>
                                     <small class="text-muted ms-1">({{ "%.2f"|format((item.cur_val / total_portfolio_value) * 100) if total_portfolio_value > 0 else "0.00" }}%)</small>
                                 </span>
-                                <span class="fw-semibold">{{ "%.2f"|format(item.cur_val) }} TL</span>
+                                <span class="fw-semibold">{{ item.cur_val|currency_tr }} TL</span>
                             </li>
                             {% endfor %}
                         </ul>
@@ -760,9 +771,9 @@
                                 <span class="fw-bold">{{ b.name }}</span>
                                 <span>
                                     <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
-                                        {{ "%.2f"|format(b.spent) }} TL
+                                        {{ b.spent|currency_tr }} TL
                                     </span> 
-                                    / {{ "%.2f"|format(b.budget) }} TL
+                                    / {{ b.budget|currency_tr }} TL
                                     <span class="text-muted ms-1">(%{{ b.percent }})</span>
                                 </span>
                             </div>
@@ -772,7 +783,7 @@
                             </div>
                             {% if b.spent > b.budget and b.budget > 0 %}
                             <small class="text-danger d-block mt-1">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Bütçe {{ "%.2f"|format(b.spent - b.budget) }} TL aşıldı!
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Bütçe {{ (b.spent - b.budget)|currency_tr }} TL aşıldı!
                             </small>
                             {% endif %}
                         </div>
@@ -859,7 +870,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
-                                        {{ '+' if t[5] == 'gelir' else '-' }}<span class="tx-amt">{{ "%.2f"|format(t[1]) }}</span> TL
+                                        {{ '+' if t[5] == 'gelir' else '-' }}<span class="tx-amt">{{ t[1]|currency_tr }}</span> TL
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
@@ -930,7 +941,7 @@
                                 <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center small">
-                                <span class="fw-semibold text-muted">{{ "%.2f"|format(g.current_amount) }} / {{ "%.2f"|format(g.target_amount) }} TL</span>
+                                <span class="fw-semibold text-muted">{{ g.current_amount|currency_tr }} / {{ g.target_amount|currency_tr }} TL</span>
                                 <button class="btn btn-sm btn-primary py-1 px-3 deposit-goal-btn" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#depositGoalModal"
@@ -973,7 +984,7 @@
                                     </span>
                                 </div>
                                 <div class="d-flex align-items-center gap-3">
-                                    <span class="fw-bold fs-6">{{ "%.2f"|format(sub[2]) }} TL</span>
+                                    <span class="fw-bold fs-6">{{ sub[2]|currency_tr }} TL</span>
                                     <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" onsubmit="return confirm('Bu ödemeyi silmek istediğinize emin misiniz?');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Ödemeyi Sil">
                                             <i class="bi bi-trash"></i>
@@ -1045,7 +1056,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end fw-bold {{ 'text-success' if rec[3] == 'gelir' else 'text-danger' }}">
-                                    {{ '+' if rec[3] == 'gelir' else '-' }}{{ "%.2f"|format(rec[2]) }} TL
+                                    {{ '+' if rec[3] == 'gelir' else '-' }}{{ rec[2]|currency_tr }} TL
                                 </td>
                                 <td class="text-end">
                                     <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?');">
@@ -1239,7 +1250,7 @@
                                     data-orig-price="{{ item.orig_price or item.live_price }}"
                                     data-currency="{{ item.currency }}"
                                     data-type="{{ item.type }}">
-                                {{ item.symbol }} (Eldeki: {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }} adet | Canlı: {% if item.type == 'abd_hisse' and item.orig_price %}${{ "%.2f"|format(item.orig_price) }} ({{ "%.2f"|format(item.live_price) }} TL){% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}{{ "%.4f"|format(item.live_price) }} TL{% else %}{{ "%.2f"|format(item.live_price) }} TL{% endif %})
+                                {{ item.symbol }} (Eldeki: {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }} adet | Canlı: {% if item.type == 'abd_hisse' and item.orig_price %}${{ "%.2f"|format(item.orig_price) }} ({{ item.live_price|currency_tr }} TL){% elif item.type in ['tefas_fon', 'befas_fon', 'fon'] %}{{ item.live_price|currency_tr(4) }} TL{% else %}{{ item.live_price|currency_tr }} TL{% endif %})
                             </option>
                             {% endfor %}
                         </select>
@@ -1537,7 +1548,7 @@
                                    value="{{ '%.2f'|format(initial_cash_balance or 0.0) }}" required>
                         </div>
                         <small class="text-muted d-block mt-2">
-                            Mevcut konsolide nakit bakiyeniz: <strong class="text-dark">{{ "%.2f"|format(cash_balance) }} TL</strong>
+                            Mevcut konsolide nakit bakiyeniz: <strong class="text-dark">{{ cash_balance|currency_tr }} TL</strong>
                         </small>
                     </div>
                 </div>
