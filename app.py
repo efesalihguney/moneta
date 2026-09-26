@@ -841,6 +841,9 @@ def dashboard():
     total_realized_pnl = float(cursor.fetchone()[0])
 
     # 6. Kümülatif Net Servet (Net Worth) Bileşenleri
+    cursor.execute("SELECT ISNULL(initial_cash_balance, 0) FROM users WHERE id = ?", (user_id,))
+    user_initial_cash = float(cursor.fetchone()[0] or 0.0)
+
     cursor.execute("""
         SELECT ISNULL(SUM(CASE 
             WHEN c.type = 'gelir' THEN t.amount 
@@ -850,7 +853,7 @@ def dashboard():
         JOIN categories c ON t.category_id = c.id
         WHERE t.user_id = ?
     """, (user_id,))
-    cash_balance = float(cursor.fetchone()[0])
+    cash_balance = user_initial_cash + float(cursor.fetchone()[0])
 
     cursor.execute("""
         SELECT ISNULL(SUM(current_amount), 0)
@@ -1016,6 +1019,7 @@ def dashboard():
         net_savings=net_savings,
         total_net_worth=total_net_worth,
         cash_balance=cash_balance,
+        initial_cash_balance=user_initial_cash,
         total_savings_amount=total_savings_amount,
         total_unpaid_cc=total_unpaid_cc,
         category_budgets=category_budgets,
@@ -1352,6 +1356,31 @@ def add_transaction():
     except Exception as e:
         conn.rollback()
         flash(f"Hata: {e}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+@app.route('/update-initial-balance', methods=['POST'])
+@login_required
+def update_initial_balance():
+    user_id = session['user_id']
+    try:
+        raw_val = request.form.get('initial_cash_balance', '0').replace(',', '.')
+        amount = float(raw_val)
+    except (ValueError, TypeError):
+        flash('Geçerli bir nakit tutarı giriniz.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE users SET initial_cash_balance = ? WHERE id = ?", (amount, user_id))
+        conn.commit()
+        flash('Vadesiz başlangıç nakit bakiyeniz başarıyla güncellendi.', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Bakiye güncellenirken hata oluştu: {e}', 'danger')
     finally:
         cursor.close()
         conn.close()
