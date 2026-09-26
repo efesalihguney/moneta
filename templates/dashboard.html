@@ -305,36 +305,10 @@
                     </div>
                     
                     <div id="economyNewsContainer" style="max-height: 380px; overflow-y: auto; padding-right: 2px;">
-                        {% if economy_news %}
-                        <div class="d-flex flex-column gap-2" id="economyNewsList">
-                            {% for item in economy_news %}
-                            <a href="{{ item.link }}" target="_blank" rel="noopener noreferrer" 
-                               class="list-group-item list-group-item-action p-2 rounded-3 border bg-body-tertiary text-decoration-none shadow-none" 
-                               style="transition: all 0.2s ease;">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge {{ item.badge_class }} small" style="font-size: 0.72rem;">
-                                        <i class="bi {{ item.icon }} me-1"></i>{{ item.category }}
-                                    </span>
-                                    <small class="text-muted" style="font-size: 0.75rem;">
-                                        <i class="bi bi-clock me-1"></i>{{ item.time }}
-                                    </small>
-                                </div>
-                                <div class="fw-semibold text-body small mb-1" style="line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                    {{ item.title }}
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
-                                    <span><i class="bi bi-newspaper me-1"></i>{{ item.source }}</span>
-                                    <span class="text-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Habere Git</span>
-                                </div>
-                            </a>
-                            {% endfor %}
+                        <div class="text-center py-5 text-muted small" id="newsLoadingPlaceholder">
+                            <div class="spinner-border spinner-border-sm text-danger mb-2" role="status"></div>
+                            <p class="mb-0">Günün ekonomi başlıkları yükleniyor...</p>
                         </div>
-                        {% else %}
-                        <div class="text-center py-4 text-muted small">
-                            <i class="bi bi-newspaper display-6 d-block mb-2 opacity-50"></i>
-                            Haberler yükleniyor...
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -1152,21 +1126,15 @@
                         <label class="form-label">Açıklama</label>
                         <input type="text" name="description" id="txDescInput" class="form-control" placeholder="Örn: Market alışverişi">
                     </div>
-                    <!-- FİŞ / MAKBUZ YÜKLEME & OCR -->
+                    <!-- FİŞ / MAKBUZ YÜKLEME -->
                     <div class="mb-3">
                         <label class="form-label d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-receipt me-1 text-primary"></i>Fiş / Fatura Görseli (İsteğe Bağlı)</span>
+                            <span><i class="bi bi-paperclip me-1 text-primary"></i>Fiş / Fatura Görseli (İsteğe Bağlı)</span>
                             <small class="text-muted">PNG, JPG, PDF</small>
                         </label>
                         <input type="file" name="receipt" id="receiptFileInput" class="form-control form-control-sm" accept="image/*,.pdf">
                         <div id="receiptPreviewBox" class="mt-2 text-center d-none p-2 border rounded bg-body-tertiary">
-                            <img id="receiptPreviewImg" src="" class="img-fluid rounded shadow-sm mb-2" style="max-height: 150px;">
-                            <div>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnOcrScan">
-                                    <i class="bi bi-magic me-1"></i>Fişi Tara (Tutar ve Tarihi Otomatik Algıla)
-                                </button>
-                                <div id="ocrStatusMsg" class="small mt-1 text-muted"></div>
-                            </div>
+                            <img id="receiptPreviewImg" src="" class="img-fluid rounded shadow-sm" style="max-height: 150px;">
                         </div>
                     </div>
                 </div>
@@ -1602,20 +1570,20 @@
     </div>
 </div>
 
-<!-- DEDİKASYONLU FİŞ & FATURA YÜKLEME / OCR TARAYICI MODALI -->
+<!-- DEDİKASYONLU FİŞ & FATURA YÜKLEME MODALI -->
 <div class="modal fade" id="receiptScannerModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-info-subtle border-bottom">
-                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-camera me-2 text-info"></i>Fiş & Fatura Yükleme (Akıllı OCR Tarayıcı)</h5>
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-paperclip me-2 text-info"></i>Fiş / Fatura Yükle & Kaydet</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add_transaction') }}" method="POST" enctype="multipart/form-data" id="receiptScannerForm">
                 <div class="modal-body p-4">
                     <div class="row g-4">
-                        <!-- SOL: GÖRSEL SEÇİMİ, ÖNİZLEME VE OCR -->
+                        <!-- SOL: GÖRSEL SEÇİMİ VE ÖNİZLEME -->
                         <div class="col-lg-6">
-                            <label class="form-label fw-bold small text-muted text-uppercase mb-2">1. Fiş / Fatura Görseli</label>
+                            <label class="form-label fw-bold small text-muted text-uppercase mb-2">1. Fiş / Fatura Belgesi</label>
                             
                             <!-- DROP ZONE -->
                             <div id="receiptDropZone" class="border border-2 border-dashed rounded-3 p-4 text-center bg-body-tertiary" 
@@ -1629,17 +1597,12 @@
                                 <input type="file" name="receipt" id="scannerModalFileInput" accept="image/*,.pdf" class="d-none" required>
                             </div>
 
-                            <!-- ÖNİZLEME VE OCR AKSİYONU -->
+                            <!-- ÖNİZLEME -->
                             <div id="scannerModalPreviewBox" class="mt-3 p-2 border rounded-3 bg-body-tertiary d-none text-center">
-                                <div class="position-relative d-inline-block w-100 mb-2">
-                                    <img id="scannerModalPreviewImg" src="" class="img-fluid rounded border shadow-sm" style="max-height: 200px; object-fit: contain;">
+                                <img id="scannerModalPreviewImg" src="" class="img-fluid rounded border shadow-sm mb-2" style="max-height: 200px; object-fit: contain;">
+                                <div class="text-success small fw-semibold">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Belge hazırlandı
                                 </div>
-                                <div class="d-grid gap-2">
-                                    <button type="button" class="btn btn-warning fw-bold shadow-sm" id="scannerModalOcrBtn">
-                                        <i class="bi bi-magic me-1"></i>Fişi Tara (Tutar ve Tarihi Otomatik Çek)
-                                    </button>
-                                </div>
-                                <div id="scannerModalOcrStatus" class="small mt-2"></div>
                             </div>
                         </div>
 
@@ -1674,7 +1637,7 @@
                                     <span class="input-group-text fw-bold">₺</span>
                                     <input type="number" step="0.01" name="amount" id="scannerModalAmount" class="form-control fw-bold fs-5 text-danger" placeholder="0.00" required>
                                 </div>
-                                <small class="text-muted" style="font-size: 0.75rem;">OCR taraması tutarı buraya otomatik yazacaktır.</small>
+                                <small class="text-muted" style="font-size: 0.75rem;">Fiş veya faturadaki toplam tutarı girin.</small>
                             </div>
 
                             <div class="row g-2 mb-3">
@@ -1744,64 +1707,6 @@
         </div>
     </div>
 </div>
-
-<!-- 10. TELEGRAM & BİLDİRİM AYARLARI MODALI -->
-<div class="modal fade" id="notificationModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-telegram me-2 text-info"></i>Telegram & Bildirim Entegrasyonu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('update_notification_settings') }}" method="POST">
-                <div class="modal-body">
-                    <p class="small text-muted">
-                        Vadesi gelen faturalar, son ödeme günleri yaklaşan kart ekstreleri ve finansal özetleri kişisel Telegram botunuz üzerinden anlık olarak cebinize alabilirsiniz.
-                    </p>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">Telegram Bot Token</label>
-                        <input type="text" name="telegram_bot_token" class="form-control form-control-sm" value="{{ telegram_bot_token }}" placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz">
-                        <small class="text-muted" style="font-size: 0.75rem;">Telegram'da <code>@BotFather</code> ile saniyeler içinde ücretsiz oluşturabilirsiniz.</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">Telegram Chat ID (Kullanıcı veya Grup ID)</label>
-                        <input type="text" name="telegram_chat_id" class="form-control form-control-sm" value="{{ telegram_chat_id }}" placeholder="Örn: 987654321">
-                        <small class="text-muted" style="font-size: 0.75rem;">Telegram'da <code>@userinfobot</code> botuna mesaj atarak Chat ID numaranızı görebilirsiniz.</small>
-                    </div>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" name="email_notifications" id="emailNotifCheck" {% if email_notifications %}checked{% endif %}>
-                        <label class="form-check-label small" for="emailNotifCheck">Haftalık finansal bültenleri e-posta ile de gönder</label>
-                    </div>
-
-                    <div class="d-flex gap-2 border-top pt-3">
-                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Ayarları Kaydet</button>
-                    </div>
-                </div>
-            </form>
-            
-            {% if telegram_bot_token and telegram_chat_id %}
-            <div class="modal-footer bg-body-tertiary d-flex justify-content-between">
-                <form action="{{ url_for('send_telegram_test') }}" method="POST" class="d-inline">
-                    <button type="submit" class="btn btn-outline-info btn-sm">
-                        <i class="bi bi-send me-1"></i>Test Bildirimi Gönder
-                    </button>
-                </form>
-                <form action="{{ url_for('send_telegram_digest') }}" method="POST" class="d-inline">
-                    <button type="submit" class="btn btn-outline-success btn-sm">
-                        <i class="bi bi-bell me-1"></i>Finansal Özeti Gönder
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Tesseract.js (İstemci Tarafı OCR Tarama Motoru) -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <!-- GİZLİ VERİ BLOKLARI -->
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
@@ -2265,12 +2170,10 @@
             });
         });
 
-        // 10. Fiş / Makbuz Önizleme ve OCR Tarama
+        // 10. Fiş Önizleme
         const receiptInput = document.getElementById('receiptFileInput');
         const receiptPreviewBox = document.getElementById('receiptPreviewBox');
         const receiptPreviewImg = document.getElementById('receiptPreviewImg');
-        const btnOcrScan = document.getElementById('btnOcrScan');
-        const ocrStatusMsg = document.getElementById('ocrStatusMsg');
 
         if (receiptInput) {
             receiptInput.addEventListener('change', function() {
@@ -2281,68 +2184,11 @@
                         reader.onload = function(e) {
                             if (receiptPreviewImg) receiptPreviewImg.src = e.target.result;
                             if (receiptPreviewBox) receiptPreviewBox.classList.remove('d-none');
-                            if (ocrStatusMsg) ocrStatusMsg.textContent = '';
                         };
                         reader.readAsDataURL(file);
                     } else {
                         if (receiptPreviewBox) receiptPreviewBox.classList.add('d-none');
                     }
-                }
-            });
-        }
-
-        if (btnOcrScan && receiptPreviewImg) {
-            btnOcrScan.addEventListener('click', async function() {
-                if (!receiptPreviewImg.src) return;
-                btnOcrScan.disabled = true;
-                if (ocrStatusMsg) {
-                    ocrStatusMsg.className = 'small mt-1 text-primary';
-                    ocrStatusMsg.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Fiş taranıyor, lütfen bekleyin...';
-                }
-
-                try {
-                    if (typeof Tesseract !== 'undefined') {
-                        const worker = await Tesseract.createWorker('tur+eng');
-                        const ret = await worker.recognize(receiptPreviewImg.src);
-                        await worker.terminate();
-                        const text = ret.data.text || '';
-                        
-                        // Tutarı bul
-                        const matches = text.match(/\b\d{1,4}[.,]\d{2}\b/g);
-                        if (matches && matches.length > 0) {
-                            const numbers = matches.map(m => parseFloat(m.replace(',', '.'))).filter(n => !isNaN(n) && n > 0);
-                            if (numbers.length > 0) {
-                                const maxVal = Math.max(...numbers);
-                                const amtInput = document.getElementById('txAmountInput');
-                                if (amtInput) amtInput.value = maxVal.toFixed(2);
-                            }
-                        }
-
-                        // Tarihi bul
-                        const dateMatch = text.match(/\b(\d{2})[./-](\d{2})[./-](\d{4})\b/);
-                        if (dateMatch) {
-                            const d = dateMatch[1];
-                            const m = dateMatch[2];
-                            const y = dateMatch[3];
-                            const dateInput = document.getElementById('txDateInput');
-                            if (dateInput) dateInput.value = `${y}-${m}-${d}`;
-                        }
-
-                        if (ocrStatusMsg) {
-                            ocrStatusMsg.className = 'small mt-1 text-success';
-                            ocrStatusMsg.innerHTML = '<i class="bi bi-check-circle me-1"></i>Fiş bilgileri başarıyla aktarıldı!';
-                        }
-                    } else {
-                        throw new Error('OCR kütüphanesi hazır değil.');
-                    }
-                } catch (err) {
-                    console.error('OCR Error:', err);
-                    if (ocrStatusMsg) {
-                        ocrStatusMsg.className = 'small mt-1 text-warning';
-                        ocrStatusMsg.textContent = 'Görsel başarıyla seçildi. Tutar ve tarihi elle girebilirsiniz.';
-                    }
-                } finally {
-                    btnOcrScan.disabled = false;
                 }
             });
         }
@@ -2378,17 +2224,12 @@
             });
         });
 
-        // 12. Dedike Fiş Tarayıcı Modalı (DropZone + OCR)
+        // 12. Dedike Fiş / Makbuz Yükleme Modalı (DropZone & Önizleme)
         const dropZone = document.getElementById('receiptDropZone');
         const btnSelectReceipt = document.getElementById('btnSelectReceiptFile');
         const scannerFileInput = document.getElementById('scannerModalFileInput');
         const scannerPreviewBox = document.getElementById('scannerModalPreviewBox');
         const scannerPreviewImg = document.getElementById('scannerModalPreviewImg');
-        const scannerOcrBtn = document.getElementById('scannerModalOcrBtn');
-        const scannerOcrStatus = document.getElementById('scannerModalOcrStatus');
-        const scannerAmount = document.getElementById('scannerModalAmount');
-        const scannerDate = document.getElementById('scannerModalDate');
-        const scannerDesc = document.getElementById('scannerModalDesc');
 
         function handleReceiptFileSelect(file) {
             if (!file) return;
@@ -2397,19 +2238,11 @@
                 reader.onload = function(e) {
                     if (scannerPreviewImg) scannerPreviewImg.src = e.target.result;
                     if (scannerPreviewBox) scannerPreviewBox.classList.remove('d-none');
-                    if (scannerOcrStatus) {
-                        scannerOcrStatus.className = 'small mt-2 text-info';
-                        scannerOcrStatus.innerHTML = '<i class="bi bi-info-circle me-1"></i>Görsel yüklendi. <b>"Fişi Tara"</b> butonuna basarak bilgileri otomatik çıkarabilirsiniz.';
-                    }
                 };
                 reader.readAsDataURL(file);
             } else {
                 if (scannerPreviewBox) scannerPreviewBox.classList.remove('d-none');
                 if (scannerPreviewImg) scannerPreviewImg.src = '';
-                if (scannerOcrStatus) {
-                    scannerOcrStatus.className = 'small mt-2 text-secondary';
-                    scannerOcrStatus.textContent = file.name + ' seçildi (PDF belgesi). Tutar ve tarihi elle girebilirsiniz.';
-                }
             }
         }
 
@@ -2451,129 +2284,76 @@
             });
         }
 
-        if (scannerOcrBtn && scannerPreviewImg) {
-            scannerOcrBtn.addEventListener('click', async function() {
-                if (!scannerPreviewImg.src) {
-                    alert('Lütfen önce bir fiş görseli seçin.');
-                    return;
-                }
-                scannerOcrBtn.disabled = true;
-                if (scannerOcrStatus) {
-                    scannerOcrStatus.className = 'small mt-2 text-primary fw-semibold';
-                    scannerOcrStatus.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Fiş taranıyor ve metinler çözümleniyor, lütfen bekleyin...';
-                }
-
-                try {
-                    if (typeof Tesseract !== 'undefined') {
-                        const worker = await Tesseract.createWorker('tur+eng');
-                        const ret = await worker.recognize(scannerPreviewImg.src);
-                        await worker.terminate();
-                        const text = ret.data.text || '';
-
-                        // 1. Tutar tespiti
-                        const matches = text.match(/\b\d{1,4}[.,]\d{2}\b/g);
-                        let foundAmount = null;
-                        if (matches && matches.length > 0) {
-                            const numbers = matches.map(m => parseFloat(m.replace(',', '.'))).filter(n => !isNaN(n) && n > 0 && n < 100000);
-                            if (numbers.length > 0) {
-                                foundAmount = Math.max(...numbers);
-                                if (scannerAmount) scannerAmount.value = foundAmount.toFixed(2);
-                            }
-                        }
-
-                        // 2. Tarih tespiti
-                        const dateMatch = text.match(/\b(\d{2})[./-](\d{2})[./-](\d{4})\b/);
-                        let foundDate = null;
-                        if (dateMatch) {
-                            foundDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
-                            if (scannerDate) scannerDate.value = foundDate;
-                        }
-
-                        // 3. Mağaza / Açıklama tespiti
-                        const lowerText = text.toLowerCase();
-                        const stores = ['migros', 'a101', 'bim', 'şok', 'carrefour', 'shell', 'opet', 'petrol ofisi', 'bp', 'starbucks', 'kahve', 'eczane', 'koçtaş', 'tekzen', 'boyner', 'zara', 'trendyol'];
-                        let matchedStore = null;
-                        for (const s of stores) {
-                            if (lowerText.includes(s)) {
-                                matchedStore = s.charAt(0).toUpperCase() + s.slice(1);
-                                break;
-                            }
-                        }
-                        if (scannerDesc && !scannerDesc.value) {
-                            scannerDesc.value = matchedStore ? `${matchedStore} Alışverişi` : 'Fiş Harcaması';
-                        }
-
-                        if (scannerOcrStatus) {
-                            scannerOcrStatus.className = 'small mt-2 text-success fw-bold';
-                            let msg = '<i class="bi bi-check-circle me-1"></i>';
-                            if (foundAmount) msg += `Tutar: ${foundAmount.toFixed(2)} TL tespit edildi. `;
-                            if (foundDate) msg += `Tarih: ${dateMatch[0]} aktarıldı. `;
-                            if (!foundAmount && !foundDate) msg += 'Görsel tarandı. Eksik alanları tamamlayabilirsiniz.';
-                            scannerOcrStatus.innerHTML = msg;
-                        }
-                    } else {
-                        throw new Error('Tesseract OCR kütüphanesi yüklenemedi.');
-                    }
-                } catch(err) {
-                    console.error('Modal OCR Error:', err);
-                    if (scannerOcrStatus) {
-                        scannerOcrStatus.className = 'small mt-2 text-warning';
-                        scannerOcrStatus.textContent = 'Görsel okunamadı, bilgileri lütfen manuel olarak doldurunuz.';
-                    }
-                } finally {
-                    scannerOcrBtn.disabled = false;
-                }
-            });
-        }
-
-        // 13. Günün Ekonomi Başlıkları Canlı Yenileme
+        // 13. Günün Ekonomi Başlıkları - Asenkron & Ertelenmiş Yükleme (Sayfa Performansını Etkilemez)
         const btnRefreshNews = document.getElementById('btnRefreshEconomyNews');
         const newsContainer = document.getElementById('economyNewsContainer');
 
-        if (btnRefreshNews && newsContainer) {
-            btnRefreshNews.addEventListener('click', async function() {
-                const icon = this.querySelector('i');
-                if (icon) icon.classList.add('spinner-border', 'spinner-border-sm', 'border-0');
-                btnRefreshNews.disabled = true;
+        async function loadEconomyNews(refresh = false) {
+            if (!newsContainer) return;
+            const icon = btnRefreshNews ? btnRefreshNews.querySelector('i') : null;
+            if (icon && refresh) icon.classList.add('spinner-border', 'spinner-border-sm', 'border-0');
+            if (btnRefreshNews) btnRefreshNews.disabled = true;
 
-                try {
-                    const resp = await fetch('/api/economy-news?refresh=1');
-                    const data = await resp.json();
-                    if (data.success && data.news && data.news.length > 0) {
-                        let html = '<div class="d-flex flex-column gap-2" id="economyNewsList">';
-                        data.news.forEach(item => {
-                            html += `
-                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" 
-                               class="list-group-item list-group-item-action p-2 rounded-3 border bg-body-tertiary text-decoration-none shadow-none" 
-                               style="transition: all 0.2s ease;">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="badge ${item.badge_class} small" style="font-size: 0.72rem;">
-                                        <i class="bi ${item.icon} me-1"></i>${item.category}
-                                    </span>
-                                    <small class="text-muted" style="font-size: 0.75rem;">
-                                        <i class="bi bi-clock me-1"></i>${item.time}
-                                    </small>
-                                </div>
-                                <div class="fw-semibold text-body small mb-1" style="line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                    ${item.title}
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
-                                    <span><i class="bi bi-newspaper me-1"></i>${item.source}</span>
-                                    <span class="text-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Habere Git</span>
-                                </div>
-                            </a>`;
-                        });
-                        html += '</div>';
-                        newsContainer.innerHTML = html;
-                    }
-                } catch(err) {
-                    console.error('Haber yenileme hatası:', err);
-                } finally {
-                    if (icon) icon.classList.remove('spinner-border', 'spinner-border-sm', 'border-0');
-                    btnRefreshNews.disabled = false;
+            try {
+                const url = refresh ? '/api/economy-news?refresh=1' : '/api/economy-news';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.success && data.news && data.news.length > 0) {
+                    let html = '<div class="d-flex flex-column gap-2" id="economyNewsList">';
+                    data.news.forEach(item => {
+                        html += `
+                        <a href="${item.link}" target="_blank" rel="noopener noreferrer" 
+                           class="list-group-item list-group-item-action p-2 rounded-3 border bg-body-tertiary text-decoration-none shadow-none" 
+                           style="transition: all 0.2s ease;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge ${item.badge_class} small" style="font-size: 0.72rem;">
+                                    <i class="bi ${item.icon} me-1"></i>${item.category}
+                                </span>
+                                <small class="text-muted" style="font-size: 0.75rem;">
+                                    <i class="bi bi-clock me-1"></i>${item.time}
+                                </small>
+                            </div>
+                            <div class="fw-semibold text-body small mb-1" style="line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                ${item.title}
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
+                                <span><i class="bi bi-newspaper me-1"></i>${item.source}</span>
+                                <span class="text-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Habere Git</span>
+                            </div>
+                        </a>`;
+                    });
+                    html += '</div>';
+                    newsContainer.innerHTML = html;
+                } else {
+                    newsContainer.innerHTML = `
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-newspaper fs-4 d-block mb-1 opacity-50"></i>
+                            Güncel haber akışına ulaşılamadı. Yenilemek için butona tıklayabilirsiniz.
+                        </div>`;
                 }
+            } catch(err) {
+                console.error('Ekonomi haberleri yükleme hatası:', err);
+                newsContainer.innerHTML = `
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-wifi-off fs-4 d-block mb-1 text-warning opacity-75"></i>
+                        Haberler yüklenirken bağlantı gecikmesi yaşandı.
+                    </div>`;
+            } finally {
+                if (icon) icon.classList.remove('spinner-border', 'spinner-border-sm', 'border-0');
+                if (btnRefreshNews) btnRefreshNews.disabled = false;
+            }
+        }
+
+        if (btnRefreshNews) {
+            btnRefreshNews.addEventListener('click', function() {
+                loadEconomyNews(true);
             });
         }
+
+        // Sayfa DOM'u ve diğer kritik bileşenler çizildikten hemen sonra haberleri asenkron olarak arka planda yükle
+        setTimeout(function() {
+            loadEconomyNews(false);
+        }, 150);
     });
 </script>
 {% endblock %}

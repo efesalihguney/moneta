@@ -73,9 +73,15 @@
                 </button>
 
                 {% if session.get('user_id') %}
-                    <!-- TELEGRAM BİLDİRİM BUTONU -->
-                    <button class="btn btn-outline-info btn-sm px-2 py-1 text-light border-info" data-bs-toggle="modal" data-bs-target="#notificationModal" type="button" title="Telegram & Bildirim Ayarları">
-                        <i class="bi bi-telegram text-info"></i>
+                    <!-- UYGULAMA İÇİ BİLDİRİM & UYARI MERKEZİ BUTONU -->
+                    <button class="btn btn-outline-warning btn-sm px-2 py-1 text-light border-warning position-relative me-1" 
+                            data-bs-toggle="modal" data-bs-target="#inAppNotificationModal" type="button" title="Bildirim & Uyarı Merkezi">
+                        <i class="bi bi-bell-fill text-warning"></i>
+                        {% if notification_count and notification_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.65rem;">
+                            {{ notification_count }}
+                        </span>
+                        {% endif %}
                     </button>
                     <!-- YEDEKLEME & GERİ YÜKLEME BUTONU -->
                     <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" data-bs-toggle="modal" data-bs-target="#backupModal" type="button" title="Veri Yedekleme & Geri Yükleme">
@@ -92,6 +98,57 @@
             </div>
         </div>
     </nav>
+
+    {% if session.get('user_id') %}
+    <!-- ================= UYGULAMA İÇİ BİLDİRİM & UYARI MERKEZİ MODALI ================= -->
+    <div class="modal fade" id="inAppNotificationModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow border-0">
+                <div class="modal-header bg-dark text-white border-bottom border-secondary">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-bell-fill me-2 text-warning"></i>Bildirim & Uyarı Merkezi
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3">
+                    {% if notifications %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted small fw-semibold">Aktif Uyarı ve Hatırlatmalar</span>
+                        <span class="badge bg-danger rounded-pill">{{ notifications|length }} Bildirim</span>
+                    </div>
+                    <div class="d-flex flex-column gap-2">
+                        {% for n in notifications %}
+                        <div class="p-3 rounded-3 border bg-body-tertiary border-start border-4 border-{{ n.severity }}">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <span class="badge bg-{{ n.severity }} text-white small" style="font-size: 0.72rem;">
+                                    <i class="bi {{ n.icon }} me-1"></i>{{ n.badge }}
+                                </span>
+                            </div>
+                            <h6 class="fw-bold mb-1 mt-1 text-dark">{{ n.title }}</h6>
+                            <p class="small text-muted mb-2" style="line-height: 1.4;">{{ n.message }}</p>
+                            {% if n.target_tab %}
+                            <button type="button" class="btn btn-sm btn-outline-dark py-0 px-2 switch-to-tab" data-tab="{{ n.target_tab }}" data-bs-dismiss="modal">
+                                İlgili Bölüme Git <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-bell-slash display-5 d-block mb-3 opacity-50 text-success"></i>
+                        <h6 class="fw-bold text-dark">Her Şey Yolunda!</h6>
+                        <small>Şu an için bekleyen acil bir fatura, bütçe aşımı veya kritik uyarı bulunmuyor.</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer bg-body-tertiary py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="container-fluid px-4 mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}

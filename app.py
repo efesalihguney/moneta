@@ -309,6 +309,135 @@ def generate_financial_insights(total_income, total_expense, net_savings, saving
 
     return insights
 
+def get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, savings_goals, total_portfolio_pnl_pct):
+    """Kullanıcının faturalarını, bütçe limitlerini, kart borcunu ve birikimlerini inceleyerek uygulama içi bildirimler üretir."""
+    notifications = []
+    
+    # 1. Yaklaşan / Vadesi Dolmuş Faturalar
+    if subscriptions:
+        for sub in subscriptions:
+            sub_id, sub_name, sub_amount = sub[0], sub[1], float(sub[2])
+            days_left = sub[5]
+            if days_left <= 0:
+                notifications.append({
+                    'id': f'sub_{sub_id}',
+                    'severity': 'danger',
+                    'badge': 'Acil Ödeme',
+                    'icon': 'bi-exclamation-octagon-fill',
+                    'title': f'{sub_name} Vadesi Doldu!',
+                    'message': f'{sub_amount:,.2f} TL tutarındaki {sub_name} faturasının son ödeme günü geldi/geçti.',
+                    'target_tab': 'goals-tab'
+                })
+            elif days_left <= 3:
+                notifications.append({
+                    'id': f'sub_{sub_id}',
+                    'severity': 'danger',
+                    'badge': f'{days_left} Gün Kaldı',
+                    'icon': 'bi-alarm-fill',
+                    'title': f'{sub_name} Yaklaşıyor',
+                    'message': f'{sub_amount:,.2f} TL tutarındaki fatura için son {days_left} gün kaldı.',
+                    'target_tab': 'goals-tab'
+                })
+            elif days_left <= 7:
+                notifications.append({
+                    'id': f'sub_{sub_id}',
+                    'severity': 'warning',
+                    'badge': f'{days_left} Gün Kaldı',
+                    'icon': 'bi-calendar-event',
+                    'title': f'{sub_name} Hatırlatması',
+                    'message': f'{sub_name} ödemesine 1 haftadan az zaman kaldı ({sub_amount:,.2f} TL).',
+                    'target_tab': 'goals-tab'
+                })
+
+    # 2. Bütçe Aşımları ve Kritik Limitler
+    if category_budgets:
+        for b in category_budgets:
+            if b.get('budget', 0) > 0:
+                if b['spent'] > b['budget']:
+                    diff = b['spent'] - b['budget']
+                    notifications.append({
+                        'id': f"cat_over_{b['id']}",
+                        'severity': 'danger',
+                        'badge': 'Bütçe Aşımı',
+                        'icon': 'bi-exclamation-triangle-fill',
+                        'title': f"{b['name']} Limiti Aşıldı!",
+                        'message': f"{b['name']} bütçesi {diff:,.2f} TL aşıldı (%{b['percent']:.0f} harcandı).",
+                        'target_tab': 'transactions-tab'
+                    })
+                elif b['percent'] >= 85:
+                    rem = b['budget'] - b['spent']
+                    notifications.append({
+                        'id': f"cat_warn_{b['id']}",
+                        'severity': 'warning',
+                        'badge': 'Kritik Seviye',
+                        'icon': 'bi-speedometer2',
+                        'title': f"{b['name']} Limite Yaklaştı",
+                        'message': f"Bütçenizin %{b['percent']:.0f}'i kullanıldı, kalan harcama limiti: {rem:,.2f} TL.",
+                        'target_tab': 'transactions-tab'
+                    })
+
+    # 3. Kredi Kartı Ekstre Borcu
+    if total_unpaid_cc > 0:
+        notifications.append({
+            'id': 'cc_unpaid',
+            'severity': 'warning',
+            'badge': 'Kredi Kartı',
+            'icon': 'bi-credit-card-2-front-fill',
+            'title': 'Ödenmemiş Kredi Kartı Ekstresi',
+            'message': f'Toplam {total_unpaid_cc:,.2f} TL ekstre borcunuz bulunmaktadır.',
+            'target_tab': 'overview-tab'
+        })
+
+    # 4. Kumbara Hedefleri
+    if savings_goals:
+        for g in savings_goals:
+            pct = g.get('percent', 0)
+            if pct >= 100:
+                notifications.append({
+                    'id': f"goal_comp_{g['id']}",
+                    'severity': 'success',
+                    'badge': 'Tebrikler',
+                    'icon': 'bi-trophy-fill',
+                    'title': f"🎉 {g['title']} Hedefi Tamamlandı!",
+                    'message': f"{g['title']} kumbaranızda hedef tutara ({g['target_amount']:,.2f} TL) ulaşıldı!",
+                    'target_tab': 'goals-tab'
+                })
+            elif pct >= 80:
+                rem = g['target_amount'] - g['current_amount']
+                notifications.append({
+                    'id': f"goal_near_{g['id']}",
+                    'severity': 'info',
+                    'badge': f'%{pct:.0f} Ulaşıldı',
+                    'icon': 'bi-piggy-bank-fill',
+                    'title': f"{g['title']} Hedefine Çok Az Kaldı",
+                    'message': f"Hedefe ulaşmak için son {rem:,.2f} TL kaldı.",
+                    'target_tab': 'goals-tab'
+                })
+
+    # 5. Portföy Durumu
+    if total_portfolio_pnl_pct >= 10.0:
+        notifications.append({
+            'id': 'port_high',
+            'severity': 'success',
+            'badge': 'Portföy',
+            'icon': 'bi-graph-up-arrow',
+            'title': 'Yüksek Portföy Kârı',
+            'message': f'Yatırımlarınız toplamda +%{total_portfolio_pnl_pct:.1f} getiri sağladı.',
+            'target_tab': 'portfolio-tab'
+        })
+    elif total_portfolio_pnl_pct <= -10.0:
+        notifications.append({
+            'id': 'port_low',
+            'severity': 'warning',
+            'badge': 'Portföy',
+            'icon': 'bi-graph-down-arrow',
+            'title': 'Portföyde Geri Çekilme',
+            'message': f'Yatırımlarınızda %{total_portfolio_pnl_pct:.1f} oranında düzeltme var.',
+            'target_tab': 'portfolio-tab'
+        })
+
+    return notifications
+
 def get_usdtry_rate():
     """USDTRY kurunu döner; önbellek desteklidir."""
     now = time.time()
@@ -858,13 +987,6 @@ def dashboard():
     cursor.execute("SELECT id, name, type, monthly_budget FROM categories WHERE user_id = ? ORDER BY type, name", (user_id,))
     categories = cursor.fetchall()
 
-    # Kullanıcı Bildirim Ayarları
-    cursor.execute("SELECT telegram_bot_token, telegram_chat_id, email_notifications FROM users WHERE id = ?", (user_id,))
-    u_settings = cursor.fetchone()
-    telegram_bot_token = u_settings[0] if u_settings and u_settings[0] else ''
-    telegram_chat_id = u_settings[1] if u_settings and u_settings[1] else ''
-    email_notifications = u_settings[2] if u_settings and u_settings[2] else 0
-
     cursor.close()
     conn.close()
 
@@ -879,6 +1001,10 @@ def dashboard():
         category_budgets, cc_expense, cash_expense, 
         total_portfolio_pnl_pct, benchmark_data
     )
+
+    # 14. Uygulama İçi Bildirim ve Uyarılar
+    notifications = get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, savings_goals, total_portfolio_pnl_pct)
+    notification_count = len(notifications)
 
     return render_template(
         'dashboard.html',
@@ -923,10 +1049,8 @@ def dashboard():
         recurring_transactions=recurring_transactions,
         benchmark_data=benchmark_data,
         ai_insights=ai_insights,
-        telegram_bot_token=telegram_bot_token,
-        telegram_chat_id=telegram_chat_id,
-        email_notifications=email_notifications,
-        economy_news=get_economy_news()
+        notifications=notifications,
+        notification_count=notification_count
     )
 
 # --- EKONOMİ HABERLERİ API ---
@@ -1465,9 +1589,19 @@ def delete_savings_goal(goal_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        cursor.execute("SELECT title, current_amount, status FROM savings_goals WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        goal = cursor.fetchone()
+        if goal:
+            title, amt, status = goal[0], float(goal[1]), goal[2]
+            if status == 'devam_ediyor' and amt > 0:
+                cat_id = get_or_create_category(cursor, user_id, 'Kumbara İadesi', 'gelir')
+                cursor.execute("""
+                    INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+                    VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+                """, (user_id, cat_id, amt, f"Silinen Kumbara İadesi: {title}"))
         cursor.execute("DELETE FROM savings_goals WHERE id = ? AND user_id = ?", (goal_id, user_id))
         conn.commit()
-        flash("Tasarruf hedefi kaldırıldı.", "info")
+        flash("Tasarruf hedefi kaldırıldı ve bakiyesi nakit hesabınıza iade edildi.", "info")
     except Exception as e:
         conn.rollback()
         flash(f"Hata: {e}", "danger")
@@ -1483,9 +1617,19 @@ def complete_savings_goal(goal_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE savings_goals SET status = 'tamamlandi' WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        cursor.execute("SELECT title, current_amount FROM savings_goals WHERE id = ? AND user_id = ?", (goal_id, user_id))
+        goal = cursor.fetchone()
+        if goal:
+            title, amt = goal[0], float(goal[1])
+            cursor.execute("UPDATE savings_goals SET status = 'tamamlandi' WHERE id = ? AND user_id = ?", (goal_id, user_id))
+            if amt > 0:
+                cat_id = get_or_create_category(cursor, user_id, 'Tamamlanan Kumbara', 'gelir')
+                cursor.execute("""
+                    INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+                    VALUES (?, ?, ?, CAST(GETDATE() AS DATE), ?, 'nakit', 1)
+                """, (user_id, cat_id, amt, f"Hedef Tamamlandı (Kumbaradan Nakite): {title}"))
         conn.commit()
-        flash("Tebrikler! Tasarruf hedefini başarıyla tamamladınız.", "success")
+        flash("Tebrikler! Tasarruf hedefini başarıyla tamamladınız ve biriken tutar nakit bakiyenize iade edildi.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Hata: {e}", "danger")
@@ -1613,11 +1757,14 @@ def sell_asset():
         total_amount_tl = quantity * unit_price_tl
         realized_pnl = (unit_price_tl - avg_cost) * quantity
 
-        cursor.execute("""
-            UPDATE portfolio_assets 
-            SET total_quantity = ? 
-            WHERE id = ?
-        """, (new_qty, asset_id))
+        if new_qty <= 0.0001:
+            cursor.execute("DELETE FROM portfolio_assets WHERE id = ?", (asset_id,))
+        else:
+            cursor.execute("""
+                UPDATE portfolio_assets 
+                SET total_quantity = ? 
+                WHERE id = ?
+            """, (new_qty, asset_id))
 
         cursor.execute("""
             INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, realized_pnl, transaction_date)
@@ -1903,126 +2050,6 @@ def backup_restore():
     finally:
         cursor.close()
         conn.close()
-
-    return redirect(url_for('dashboard'))
-
-# --- BİLDİRİM & TELEGRAM ENTEGRASYON AYARLARI ---
-@app.route('/settings/notifications', methods=['POST'])
-@login_required
-def update_notification_settings():
-    user_id = session['user_id']
-    token = request.form.get('telegram_bot_token', '').strip()
-    chat_id = request.form.get('telegram_chat_id', '').strip()
-    email_notif = 1 if request.form.get('email_notifications') else 0
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            UPDATE users 
-            SET telegram_bot_token = ?, telegram_chat_id = ?, email_notifications = ?
-            WHERE id = ?
-        """, (token or None, chat_id or None, email_notif, user_id))
-        conn.commit()
-        flash("Bildirim ayarlarınız başarıyla güncellendi.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Ayar güncelleme hatası: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-    return redirect(url_for('dashboard'))
-
-@app.route('/settings/send_telegram_test', methods=['POST'])
-@login_required
-def send_telegram_test():
-    user_id = session['user_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT telegram_bot_token, telegram_chat_id FROM users WHERE id = ?", (user_id,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not row or not row[0] or not row[1]:
-        flash("Telegram bildirimi göndermek için lütfen önce Bot Token ve Chat ID alanlarını kaydedin.", "warning")
-        return redirect(url_for('dashboard'))
-
-    token, chat_id = row[0], row[1]
-    msg = (
-        "🤖 <b>Wealth Tracker Bildirim Testi</b>\n\n"
-        "✅ <b>Tebrikler!</b> Telegram bildirim entegrasyonunuz başarıyla doğrulandı.\n"
-        "Vadesi gelen faturalar ve finansal özetleriniz artık buraya iletilecektir."
-    )
-    try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        resp = requests.post(url, json={'chat_id': chat_id, 'text': msg, 'parse_mode': 'HTML'}, timeout=8)
-        if resp.status_code == 200:
-            flash("Telegram test bildirimi başarıyla gönderildi!", "success")
-        else:
-            flash(f"Telegram API Hatası: {resp.text}", "danger")
-    except Exception as e:
-        flash(f"Telegram bağlantı hatası: {e}", "danger")
-
-    return redirect(url_for('dashboard'))
-
-@app.route('/settings/send_telegram_digest', methods=['POST'])
-@login_required
-def send_telegram_digest():
-    user_id = session['user_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT telegram_bot_token, telegram_chat_id FROM users WHERE id = ?", (user_id,))
-    row = cursor.fetchone()
-
-    if not row or not row[0] or not row[1]:
-        cursor.close()
-        conn.close()
-        flash("Lütfen önce Bot Token ve Chat ID bilgilerinizi kaydedin.", "warning")
-        return redirect(url_for('dashboard'))
-
-    token, chat_id = row[0], row[1]
-
-    now = datetime.now()
-    cursor.execute("SELECT title, amount, DATEDIFF(day, GETDATE(), next_due_date) FROM subscriptions WHERE user_id = ? AND is_active = 1", (user_id,))
-    upcoming_subs = cursor.fetchall()
-
-    cursor.execute("SELECT SUM(amount) FROM transactions WHERE user_id = ? AND payment_method = 'kredi_karti' AND is_paid = 0", (user_id,))
-    unpaid_cc = cursor.fetchone()[0] or 0.0
-
-    cursor.close()
-    conn.close()
-
-    lines = [
-        "📊 <b>Wealth Tracker - Finansal Özet & Uyarılar</b>",
-        f"📅 <i>Tarih: {now.strftime('%d.%m.%Y %H:%M')}</i>",
-        "------------------------------------"
-    ]
-
-    if unpaid_cc > 0:
-        lines.append(f"💳 <b>Ödenmemiş Kart Ekstresi:</b> {unpaid_cc:,.2f} TL")
-
-    due_soon = [s for s in upcoming_subs if s[2] is not None and s[2] <= 5]
-    if due_soon:
-        lines.append("\n⚠️ <b>Yaklaşan & Vadesi Gelen Ödemeler:</b>")
-        for s in due_soon:
-            status_txt = f"{s[2]} gün kaldı" if s[2] > 0 else ("BUGÜN!" if s[2] == 0 else f"{abs(s[2])} gün gecikti!")
-            lines.append(f"• <b>{s[0]}</b>: {s[1]:,.2f} TL ({status_txt})")
-    else:
-        lines.append("\n✅ Önümüzdeki 5 gün içinde acil ödenecek fatura bulunmuyor.")
-
-    lines.append("\n🔗 <a href='http://127.0.0.1:5000/dashboard'>Wealth Tracker Paneline Git</a>")
-
-    full_text = "\n".join(lines)
-    try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        resp = requests.post(url, json={'chat_id': chat_id, 'text': full_text, 'parse_mode': 'HTML'}, timeout=8)
-        if resp.status_code == 200:
-            flash("Finansal özet Telegram hesabınıza başarıyla iletildi!", "success")
-        else:
-            flash(f"Telegram Hatası: {resp.text}", "danger")
-    except Exception as e:
-        flash(f"Telegram gönderim hatası: {e}", "danger")
 
     return redirect(url_for('dashboard'))
 
