@@ -27,22 +27,29 @@
     </script>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2 mb-2">
+    <!-- WCAG 2.4.1 Skip Link (Bypass Blocks) -->
+    <a href="#main-content" class="visually-hidden-focusable btn btn-primary position-absolute top-0 start-0 m-3 z-3">
+        Ana İçeriğe Atla
+    </a>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2 mb-2" aria-label="Ana Gezinti Menüsü">
         <div class="container-fluid px-4">
             <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
-                <i class="bi bi-wallet2 text-white me-2 fs-5"></i>WealthTracker
+                <i class="bi bi-wallet2 text-white me-2 fs-5" aria-hidden="true"></i>WealthTracker
             </a>
             <div class="navbar-nav ms-auto d-flex flex-row align-items-center gap-2">
                 <!-- TEMA DEĞİŞTİRME BUTONU -->
-                <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" id="themeToggleBtn" type="button" title="Koyu / Açık Tema Değiştir">
-                    <i class="bi bi-moon-stars" id="themeIcon"></i>
+                <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" id="themeToggleBtn" type="button" aria-label="Koyu veya açık tema modunu değiştir" title="Koyu / Açık Tema Değiştir">
+                    <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
                 </button>
 
                 {% if session.get('user_id') %}
                     <!-- UYGULAMA İÇİ BİLDİRİM & UYARI MERKEZİ BUTONU -->
                     <button class="btn btn-outline-warning btn-sm px-2 py-1 text-light border-warning position-relative me-1" 
-                            data-bs-toggle="modal" data-bs-target="#inAppNotificationModal" type="button" title="Bildirim & Uyarı Merkezi">
-                        <i class="bi bi-bell-fill text-warning"></i>
+                            data-bs-toggle="modal" data-bs-target="#inAppNotificationModal" type="button" 
+                            aria-label="Bildirim ve Uyarı Merkezini aç{% if notification_count and notification_count > 0 %}, {{ notification_count }} okunmamış bildirim{% endif %}" 
+                            title="Bildirim & Uyarı Merkezi">
+                        <i class="bi bi-bell-fill text-warning" aria-hidden="true"></i>
                         {% if notification_count and notification_count > 0 %}
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.65rem;">
                             {{ notification_count }}
@@ -50,11 +57,11 @@
                         {% endif %}
                     </button>
                     <!-- YEDEKLEME & GERİ YÜKLEME BUTONU -->
-                    <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" data-bs-toggle="modal" data-bs-target="#backupModal" type="button" title="Veri Yedekleme & Geri Yükleme">
-                        <i class="bi bi-cloud-arrow-down text-light"></i>
+                    <button class="btn btn-outline-secondary btn-sm px-2 py-1 text-light border-secondary" data-bs-toggle="modal" data-bs-target="#backupModal" type="button" aria-label="Veri yedekleme ve geri yükleme penceresini aç" title="Veri Yedekleme & Geri Yükleme">
+                        <i class="bi bi-cloud-arrow-down text-light" aria-hidden="true"></i>
                     </button>
                     <span class="nav-item nav-link text-light py-0 px-2 d-none d-sm-inline">
-                        <i class="bi bi-person-circle me-1 text-info"></i>{{ session.get('first_name') }}
+                        <i class="bi bi-person-circle me-1 text-info" aria-hidden="true"></i>{{ session.get('first_name') }}
                     </span>
                     <a class="nav-link btn btn-outline-danger btn-sm text-light px-3 py-1 ms-1" href="{{ url_for('logout') }}">Çıkış Yap</a>
                 {% else %}
@@ -67,14 +74,14 @@
 
     {% if session.get('user_id') %}
     <!-- ================= UYGULAMA İÇİ BİLDİRİM & UYARI MERKEZİ MODALI ================= -->
-    <div class="modal fade" id="inAppNotificationModal" tabindex="-1">
+    <div class="modal fade" id="inAppNotificationModal" tabindex="-1" aria-labelledby="inAppNotificationModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow border-0">
                 <div class="modal-header bg-dark text-white border-bottom border-secondary">
-                    <h5 class="modal-title fw-bold">
-                        <i class="bi bi-bell-fill me-2 text-warning"></i>Bildirim & Uyarı Merkezi
+                    <h5 class="modal-title fw-bold" id="inAppNotificationModalTitle">
+                        <i class="bi bi-bell-fill me-2 text-warning" aria-hidden="true"></i>Bildirim & Uyarı Merkezi
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
                 </div>
                 <div class="modal-body p-3">
                     {% if notifications %}
@@ -87,14 +94,14 @@
                         <div class="p-3 rounded-3 border bg-body-tertiary border-start border-4 border-{{ n.severity }}">
                             <div class="d-flex justify-content-between align-items-start mb-1">
                                 <span class="badge bg-{{ n.severity }} text-white small" style="font-size: 0.72rem;">
-                                    <i class="bi {{ n.icon }} me-1"></i>{{ n.badge }}
+                                    <i class="bi {{ n.icon }} me-1" aria-hidden="true"></i>{{ n.badge }}
                                 </span>
                             </div>
                             <h6 class="fw-bold mb-1 mt-1 text-dark">{{ n.title }}</h6>
                             <p class="small text-muted mb-2" style="line-height: 1.4;">{{ n.message }}</p>
                             {% if n.target_tab %}
                             <button type="button" class="btn btn-sm btn-outline-dark py-0 px-2 switch-to-tab" data-tab="{{ n.target_tab }}" data-bs-dismiss="modal">
-                                İlgili Bölüme Git <i class="bi bi-arrow-right ms-1"></i>
+                                İlgili Bölüme Git <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
                             </button>
                             {% endif %}
                         </div>
@@ -102,7 +109,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5 text-muted">
-                        <i class="bi bi-bell-slash display-5 d-block mb-3 opacity-50 text-success"></i>
+                        <i class="bi bi-bell-slash display-5 d-block mb-3 opacity-50 text-success" aria-hidden="true"></i>
                         <h6 class="fw-bold text-dark">Her Şey Yolunda!</h6>
                         <small>Şu an için bekleyen acil bir fatura, bütçe aşımı veya kritik uyarı bulunmuyor.</small>
                     </div>
@@ -116,17 +123,18 @@
     </div>
     {% endif %}
 
-    <div class="container-fluid px-4 pt-2 pb-4">
+    <!-- SEMANTİK MAIN KAPSAYICI -->
+    <main id="main-content" class="container-fluid px-4 pt-3 pb-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="mb-3">
+                <div class="mb-3" role="region" aria-label="Sistem Bildirimleri">
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm d-flex align-items-center justify-content-between py-2 px-3 mb-2 rounded-3 border" role="alert">
                         <div class="d-flex align-items-center gap-2 small">
-                            <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else ('bi-exclamation-triangle-fill text-warning' if category == 'warning' else ('bi-x-circle-fill text-danger' if category == 'danger' else 'bi-info-circle-fill text-info')) }} fs-6"></i>
+                            <i class="bi {{ 'bi-check-circle-fill text-success' if category == 'success' else ('bi-exclamation-triangle-fill text-warning' if category == 'warning' else ('bi-x-circle-fill text-danger' if category == 'danger' else 'bi-info-circle-fill text-info')) }} fs-6" aria-hidden="true"></i>
                             <span>{{ message }}</span>
                         </div>
-                        <button type="button" class="btn-close position-static p-2" data-bs-dismiss="alert" aria-label="Kapat" style="font-size: 0.75rem;"></button>
+                        <button type="button" class="btn-close position-static p-2" data-bs-dismiss="alert" aria-label="Bildirimi Kapat" style="font-size: 0.75rem;"></button>
                     </div>
                 {% endfor %}
                 </div>
@@ -134,8 +142,17 @@
         {% endwith %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
+    <!-- SEMANTİK FOOTER ALANI -->
+    <footer class="border-top py-4 mt-5 text-center text-muted small bg-body-tertiary">
+        <div class="container">
+            <p class="mb-1 fw-semibold text-body">WealthTracker &copy; 2026 — Modern Finans & Portföy Yönetim Platformu</p>
+            <span class="text-secondary opacity-75">Web Tasarımı ve Programlama Dersi Bitirme Projesi</span>
+        </div>
+    </footer>
+
+    <!-- BOOTSTRAP JS KÜTÜPHANESİ -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Tema Değiştirme Mantığı
@@ -169,5 +186,7 @@
             }
         });
     </script>
+    <!-- SAYFAYA ÖZEL SCRIPTLERİN YÜKLENDİĞİ GÜVENLİ BLOK -->
+    {% block scripts %}{% endblock %}
 </body>
 </html>

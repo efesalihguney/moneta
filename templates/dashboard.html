@@ -3,47 +3,48 @@
 
 {% block content %}
 <!-- ÜST BAŞLIK VE HIZLI AKSİYONLAR -->
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+<header class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-        <h2 class="fw-bold mb-0">Finans & Varlık Yönetimi</h2>
-        <p class="text-muted mb-0">Nakit akışı, kredi kartı ekstresi, bütçe limitleri ve canlı portföy</p>
+        <h1 class="h2 fw-bold mb-1">Finans & Varlık Yönetimi</h1>
+        <p class="text-muted mb-0 small">Nakit akışı, kredi kartı ekstresi, bütçe limitleri ve canlı portföy</p>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-cta-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
-            <i class="bi bi-plus-circle me-1"></i> Harcama / Gelir Ekle
+    <div class="d-flex gap-2 pb-2 overflow-x-auto text-nowrap modern-scrollbar flex-md-wrap" role="toolbar" aria-label="Hızlı Finansal Aksiyonlar">
+        <button class="btn btn-cta-primary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#transactionModal">
+            <i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Harcama / Gelir Ekle
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#initialBalanceModal">
-            <i class="bi bi-wallet2 me-1 text-success"></i> Nakit Bakiye
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#initialBalanceModal">
+            <i class="bi bi-wallet2 me-1 text-success" aria-hidden="true"></i> Nakit Bakiye
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
-            <i class="bi bi-graph-up-arrow me-1 text-success"></i> Yatırım Al
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+            <i class="bi bi-graph-up-arrow me-1 text-success" aria-hidden="true"></i> Yatırım Al
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
-            <i class="bi bi-graph-down-arrow me-1 text-danger"></i> Yatırım Sat
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#sellAssetModal">
+            <i class="bi bi-graph-down-arrow me-1 text-danger" aria-hidden="true"></i> Yatırım Sat
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-            <i class="bi bi-tags me-1 text-primary"></i> Bütçe Yönetimi
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
+            <i class="bi bi-tags me-1 text-primary" aria-hidden="true"></i> Bütçe Yönetimi
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-            <i class="bi bi-calendar-event me-1 text-warning"></i> Fatura Ekle
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+            <i class="bi bi-calendar-event me-1 text-warning" aria-hidden="true"></i> Fatura Ekle
         </button>
-        <button class="btn btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#goalModal">
-            <i class="bi bi-piggy-bank me-1 text-info"></i> Kumbara Hedefi
+        <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#goalModal">
+            <i class="bi bi-piggy-bank me-1 text-info" aria-hidden="true"></i> Kumbara Hedefi
         </button>
     </div>
-</div>
+</header>
 
 <!-- ================= 1. BÜYÜK RESİM: TOPLAM NET SERVET (NET WORTH HERO CARD) ================= -->
-<div class="card hero-net-worth mb-4 border-0 text-white">
+<section class="card hero-net-worth mb-4 border-0 text-white" aria-labelledby="heroNetWorthTitle">
     <div class="card-body p-4">
         <div class="row align-items-center">
             <div class="col-lg-5 mb-3 mb-lg-0 border-end-lg border-secondary pe-lg-4">
                 <span class="micro-label text-info d-block mb-1">
-                    <i class="bi bi-shield-check me-1"></i>Toplam Net Servet (Net Worth)
+                    <i class="bi bi-shield-check me-1" aria-hidden="true"></i>Toplam Net Servet (Net Worth)
                 </span>
-                <h2 class="display-6 fw-bold mb-1 num-tabular {{ 'text-success' if total_net_worth >= 0 else 'text-danger' }}">
+                <h2 id="heroNetWorthTitle" class="visually-hidden">Toplam Net Servet</h2>
+                <p class="display-6 fw-bold mb-1 num-tabular text-success">
                     {{ '+' if total_net_worth > 0 else '' }}{{ total_net_worth|currency_tr }} TL
-                </h2>
+                </p>
                 <small class="text-light opacity-75">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
             </div>
             <div class="col-lg-7 ps-lg-4">
@@ -51,52 +52,53 @@
                     <div class="col-6 col-sm-3">
                         <div class="p-3 hero-glass-card text-center h-100 position-relative">
                             <div class="d-flex justify-content-center align-items-center gap-1 mb-1">
-                                <span class="micro-label text-light opacity-75">💵 Vadesiz Nakit</span>
+                                <span class="micro-label text-light opacity-75 text-truncate">💵 Vadesiz Nakit</span>
                                 <button type="button" class="btn btn-link p-0 text-white opacity-75 text-decoration-none" 
-                                        data-bs-toggle="modal" data-bs-target="#initialBalanceModal" title="Başlangıç / Mevcut Nakit Bakiyesini Güncelle">
-                                    <i class="bi bi-pencil-square" style="font-size: 0.75rem;"></i>
+                                        data-bs-toggle="modal" data-bs-target="#initialBalanceModal" 
+                                        aria-label="Başlangıç ve mevcut nakit bakiyesini güncelle"
+                                        title="Başlangıç / Mevcut Nakit Bakiyesini Güncelle">
+                                    <i class="bi bi-pencil-square" style="font-size: 0.75rem;" aria-hidden="true"></i>
                                 </button>
                             </div>
-                            <span class="fw-bold text-white fs-6 num-tabular">{{ cash_balance|currency_tr }} TL</span>
+                            <span class="fw-bold text-white fs-6 num-tabular text-nowrap d-block">{{ cash_balance|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1">📈 Canlı Portföy</span>
-                            <span class="fw-bold text-success fs-6 num-tabular">{{ total_portfolio_value|currency_tr }} TL</span>
+                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">📈 Canlı Portföy</span>
+                            <span class="fw-bold text-success fs-6 num-tabular text-nowrap d-block">{{ total_portfolio_value|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1">🎯 Kumbaralar</span>
-                            <span class="fw-bold text-info fs-6 num-tabular">{{ total_savings_amount|currency_tr }} TL</span>
+                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">🎯 Kumbaralar</span>
+                            <span class="fw-bold text-info fs-6 num-tabular text-nowrap d-block">{{ total_savings_amount|currency_tr }} TL</span>
                         </div>
                     </div>
                     <div class="col-6 col-sm-3">
                         <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1">💳 Kart Borcu</span>
-                            <span class="fw-bold text-danger fs-6 num-tabular">-{{ total_unpaid_cc|currency_tr }} TL</span>
+                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">💳 Kart Borcu</span>
+                            <span class="fw-bold text-danger fs-6 num-tabular text-nowrap d-block">-{{ total_unpaid_cc|currency_tr }} TL</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
 <!-- DÖNEM SEÇİCİ VE AY BAZLI ÖZET BARI -->
-<!-- DÖNEM SEÇİCİ VE AY BAZLI ÖZET BARI -->
-<div class="card p-3 mb-4 border shadow-xs">
+<section class="card p-3 mb-4 border shadow-xs" aria-label="Dönem Seçimi ve Aylık Tasarruf Özeti">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" title="Önceki Ay">
-                <i class="bi bi-chevron-left"></i>
+            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" aria-label="Önceki aya git" title="Önceki Ay">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
             </a>
             <span class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center">
-                <i class="bi bi-calendar3 me-2 text-primary"></i>{{ selected_month_name }} {{ selected_year }}
+                <i class="bi bi-calendar3 me-2 text-primary" aria-hidden="true"></i>{{ selected_month_name }} {{ selected_year }}
             </span>
-            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" title="Sonraki Ay">
-                <i class="bi bi-chevron-right"></i>
+            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" aria-label="Sonraki aya git" title="Sonraki Ay">
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
             </a>
             {% if selected_month != today_str[:7].split('-')[1]|int or selected_year != today_str[:4]|int %}
             <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-link text-decoration-none">Bu Aya Dön</a>
@@ -137,7 +139,7 @@
             </span>
         </div>
     </div>
-</div>
+</section>
 
 <!-- ================= AKILLI BİLDİRİM VE UYARI MERKEZİ (SLIM ALERTS) ================= -->
 {% if smart_alerts %}
@@ -177,26 +179,26 @@
 {% endif %}
 
 <!-- ================= 2. MODÜLER VE FERAH SEKME NAVİGASYONU ================= -->
-<ul class="nav nav-pills mb-4 gap-2 card p-2 rounded-3 border shadow-sm flex-row" id="dashboardTab" role="tablist">
+<ul class="nav nav-pills mb-4 gap-2 card p-2 rounded-3 border shadow-sm flex-row" id="dashboardTab" role="tablist" aria-label="Finansal Modül Sekmeleri">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-semibold" id="overview-tab" data-bs-toggle="pill" data-bs-target="#tab-overview" type="button" role="tab">
-            <i class="bi bi-grid-1x2 me-2"></i>Genel Bakış
+        <button class="nav-link active fw-semibold" id="overview-tab" data-bs-toggle="pill" data-bs-target="#tab-overview" type="button" role="tab" aria-controls="tab-overview" aria-selected="true">
+            <i class="bi bi-grid-1x2 me-2" aria-hidden="true"></i>Genel Bakış
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="portfolio-tab" data-bs-toggle="pill" data-bs-target="#tab-portfolio" type="button" role="tab">
-            <i class="bi bi-graph-up-arrow me-2"></i>Yatırımlar & Portföy
+        <button class="nav-link fw-semibold" id="portfolio-tab" data-bs-toggle="pill" data-bs-target="#tab-portfolio" type="button" role="tab" aria-controls="tab-portfolio" aria-selected="false">
+            <i class="bi bi-graph-up-arrow me-2" aria-hidden="true"></i>Yatırımlar & Portföy
             {% if portfolio_items %}<span class="badge bg-primary ms-1">{{ portfolio_items|length }}</span>{% endif %}
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="transactions-tab" data-bs-toggle="pill" data-bs-target="#tab-transactions" type="button" role="tab">
-            <i class="bi bi-receipt me-2"></i>İşlem Geçmişi & Bütçe
+        <button class="nav-link fw-semibold" id="transactions-tab" data-bs-toggle="pill" data-bs-target="#tab-transactions" type="button" role="tab" aria-controls="tab-transactions" aria-selected="false">
+            <i class="bi bi-receipt me-2" aria-hidden="true"></i>İşlem Geçmişi & Bütçe
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link fw-semibold" id="goals-tab" data-bs-toggle="pill" data-bs-target="#tab-goals" type="button" role="tab">
-            <i class="bi bi-piggy-bank me-2"></i>Kumbaralar & Faturalar
+        <button class="nav-link fw-semibold" id="goals-tab" data-bs-toggle="pill" data-bs-target="#tab-goals" type="button" role="tab" aria-controls="tab-goals" aria-selected="false">
+            <i class="bi bi-piggy-bank me-2" aria-hidden="true"></i>Kumbaralar & Faturalar
             {% if subscriptions %}<span class="badge bg-danger ms-1">{{ subscriptions|length }}</span>{% endif %}
         </button>
     </li>
@@ -206,63 +208,67 @@
 <div class="tab-content" id="dashboardTabContent">
 
     <!-- ================= SEKME 1: GENEL BAKIŞ ================= -->
-    <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+    <div class="tab-pane fade show active" id="tab-overview" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+        <h2 class="visually-hidden">Genel Finansal Bakış ve Analizler</h2>
         
         <!-- AYLIK METRİK KARTLARI -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card metric-card p-4 border-start border-success border-4 h-100">
-                    <span class="micro-label">Bu Ayki Gelir</span>
-                    <h4 class="fw-bold text-success mt-2 mb-0 num-tabular">{{ total_income|currency_tr }} TL</h4>
-                    <small class="text-muted mt-1">{{ selected_month_name }} dönemi</small>
+        <section aria-labelledby="monthlyMetricsHeading">
+            <h2 id="monthlyMetricsHeading" class="visually-hidden">Aylık Finansal Metrikler</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card metric-card p-4 border-start border-success border-4 h-100">
+                        <h3 class="micro-label mb-1">Bu Ayki Gelir</h3>
+                        <p class="h4 fw-bold text-success mt-2 mb-0 num-tabular">{{ total_income|currency_tr }} TL</p>
+                        <small class="text-muted mt-1">{{ selected_month_name }} dönemi</small>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card p-4 border-start border-danger border-4 h-100">
-                    <span class="micro-label">Nakit Harcamalar</span>
-                    <h4 class="fw-bold text-danger mt-2 mb-0 num-tabular">{{ cash_expense|currency_tr }} TL</h4>
-                    <small class="text-muted mt-1">Cebinden anında çıkan</small>
+                <div class="col-md-3">
+                    <div class="card metric-card p-4 border-start border-danger border-4 h-100">
+                        <h3 class="micro-label mb-1">Nakit Harcamalar</h3>
+                        <p class="h4 fw-bold text-danger mt-2 mb-0 num-tabular">{{ cash_expense|currency_tr }} TL</p>
+                        <small class="text-muted mt-1">Cebinden anında çıkan</small>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card p-4 border-start border-warning border-4 h-100">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <span class="micro-label">Kredi Kartı Ekstre Borcu</span>
-                            <h4 class="fw-bold text-warning mt-2 mb-0 num-tabular">{{ cc_expense|currency_tr }} TL</h4>
-                            <small class="text-muted mt-1 d-block">{{ selected_month_name }} dönemi ödenmemiş</small>
+                <div class="col-md-3">
+                    <div class="card metric-card p-4 border-start border-warning border-4 h-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h3 class="micro-label mb-1">Kredi Kartı Ekstre Borcu</h3>
+                                <p class="h4 fw-bold text-warning mt-2 mb-0 num-tabular">{{ cc_expense|currency_tr }} TL</p>
+                                <small class="text-muted mt-1 d-block">{{ selected_month_name }} dönemi ödenmemiş</small>
+                            </div>
+                            {% if cc_expense > 0 %}
+                            <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                                <input type="hidden" name="month" value="{{ selected_month }}">
+                                <input type="hidden" name="year" value="{{ selected_year }}">
+                                <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" aria-label="Ekstre borcunu nakit bakiyenizden öde" title="Ekstreyi Nakit ile Öde">
+                                    <i class="bi bi-credit-card-2-front me-1" aria-hidden="true"></i>Öde
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success mt-1"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Borç Yok</span>
+                            {% endif %}
                         </div>
-                        {% if cc_expense > 0 %}
-                        <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
-                            <input type="hidden" name="month" value="{{ selected_month }}">
-                            <input type="hidden" name="year" value="{{ selected_year }}">
-                            <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" title="Ekstreyi Nakit ile Öde">
-                                <i class="bi bi-credit-card-2-front me-1"></i>Öde
-                            </button>
-                        </form>
-                        {% else %}
-                        <span class="badge bg-success-subtle text-success mt-1"><i class="bi bi-check-circle me-1"></i>Borç Yok</span>
-                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card metric-card p-4 border-start border-primary border-4 h-100">
+                        <h3 class="micro-label mb-1">Canlı Portföy Değeri</h3>
+                        <p class="h4 fw-bold text-primary mt-2 mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</p>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
+                                {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})
+                            </small>
+                            {% if total_realized_pnl != 0 %}
+                            <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
+                                Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
+                            </small>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card metric-card p-4 border-start border-primary border-4 h-100">
-                    <span class="micro-label">Canlı Portföy Değeri</span>
-                    <h4 class="fw-bold text-primary mt-2 mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</h4>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                        <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
-                            {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})
-                        </small>
-                        {% if total_realized_pnl != 0 %}
-                        <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
-                            Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
-                        </small>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+        </section>
 
         <!-- ================= AKILLI FİNANSAL ASİSTAN & GÜNÜN EKONOMİ BAŞLIKLARI ================= -->
         <div class="row g-4 mb-4">
@@ -272,20 +278,20 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
-                                <i class="bi bi-robot fs-5"></i>
+                                <i class="bi bi-robot fs-5" aria-hidden="true"></i>
                             </div>
                             <div>
-                                <h6 class="fw-bold mb-0">Akıllı Finansal Asistan Analizi</h6>
+                                <h3 class="h6 fw-bold mb-0">Akıllı Finansal Asistan Analizi</h3>
                                 <small class="text-muted">{{ selected_month_name }} {{ selected_year }} dönemi bütçe ve harcama değerlendirmesi</small>
                             </div>
                         </div>
-                        <span class="badge bg-primary-subtle text-primary fw-semibold"><i class="bi bi-stars me-1"></i>Akıllı Tavsiye</span>
+                        <span class="badge bg-primary-subtle text-primary fw-semibold"><i class="bi bi-stars me-1" aria-hidden="true"></i>Akıllı Tavsiye</span>
                     </div>
                     {% if ai_insights %}
                     <div class="d-flex flex-column gap-2">
                         {% for ins in ai_insights %}
                         <div class="alert alert-{{ ins.type }} d-flex align-items-start p-3 mb-0 rounded-3 border">
-                            <i class="bi {{ ins.icon }} fs-4 me-3 mt-1 flex-shrink-0"></i>
+                            <i class="bi {{ ins.icon }} fs-4 me-3 mt-1 flex-shrink-0" aria-hidden="true"></i>
                             <div>
                                 <strong class="d-block mb-1">{{ ins.title }}</strong>
                                 <span class="small">{{ ins.text }}</span>
@@ -300,49 +306,49 @@
             </div>
 
             <!-- SAĞ KOLON: GÜNÜN EKONOMİ BAŞLIKLARI (PİYASA NABZI) -->
-            <div class="col-lg-5">
+            <aside class="col-lg-5" aria-label="Güncel Ekonomi Haberleri">
                 <div class="card p-3 shadow-sm border h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <div class="p-2 rounded-3 bg-danger bg-opacity-10 text-danger">
-                                <i class="bi bi-newspaper fs-5"></i>
+                                <i class="bi bi-newspaper fs-5" aria-hidden="true"></i>
                             </div>
                             <div>
-                                <h6 class="fw-bold mb-0">Günün Ekonomi Başlıkları</h6>
+                                <h3 class="h6 fw-bold mb-0">Günün Ekonomi Başlıkları</h3>
                                 <small class="text-muted">Piyasa haberleri & canlı finans gündemi</small>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-none d-sm-inline">
-                                <i class="bi bi-broadcast me-1"></i>Canlı
+                                <i class="bi bi-broadcast me-1" aria-hidden="true"></i>Canlı
                             </span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnRefreshEconomyNews" title="Haberleri Yenile">
-                                <i class="bi bi-arrow-clockwise"></i>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnRefreshEconomyNews" aria-label="Günün ekonomi başlıklarını yenile" title="Haberleri Yenile">
+                                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                     
                     <div id="economyNewsContainer" style="max-height: 380px; overflow-y: auto; padding-right: 2px;">
                         <div class="text-center py-5 text-muted small" id="newsLoadingPlaceholder">
-                            <div class="spinner-border spinner-border-sm text-danger mb-2" role="status"></div>
+                            <div class="spinner-border spinner-border-sm text-danger mb-2" role="status" aria-label="Yükleniyor"></div>
                             <p class="mb-0">Günün ekonomi başlıkları yükleniyor...</p>
                         </div>
                     </div>
                 </div>
-            </div>
+            </aside>
         </div>
 
         <!-- FİNANSAL GELİŞİM VE NET SERVET TRENDİ (ÇİZGİ GRAFİK - SON 6 AY) -->
         <div class="card p-3 mb-4 shadow-sm">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                 <div>
-                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Finansal Gelişim & Trend Analizi</h5>
+                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary" aria-hidden="true"></i>Finansal Gelişim & Trend Analizi</h3>
                     <small class="text-muted">Son 6 ayın gelir, gider ve net tasarruf performans grafiği</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-success-subtle text-success"><i class="bi bi-circle-fill me-1 small"></i>Gelir</span>
-                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-circle-fill me-1 small"></i>Gider</span>
-                    <span class="badge bg-primary-subtle text-primary"><i class="bi bi-circle-fill me-1 small"></i>Net Tasarruf</span>
+                    <span class="badge bg-success-subtle text-success"><i class="bi bi-circle-fill me-1 small" aria-hidden="true"></i>Gelir</span>
+                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-circle-fill me-1 small" aria-hidden="true"></i>Gider</span>
+                    <span class="badge bg-primary-subtle text-primary"><i class="bi bi-circle-fill me-1 small" aria-hidden="true"></i>Net Tasarruf</span>
                 </div>
             </div>
             <div style="height: 220px; position: relative;">
@@ -355,7 +361,7 @@
             <div class="col-lg-6">
                 <div class="card p-3 h-100 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart me-2 text-primary"></i>Harcama Analizleri</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-pie-chart me-2 text-primary" aria-hidden="true"></i>Harcama Analizleri</h3>
                         <small class="text-muted">{{ selected_month_name }} Dönemi</small>
                     </div>
                     {% if total_expense > 0 %}
@@ -388,7 +394,7 @@
             <div class="col-lg-6">
                 <div class="card p-3 h-100 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Portföy Varlık Dağılımı</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-pie-chart-fill me-2 text-success" aria-hidden="true"></i>Portföy Varlık Dağılımı</h3>
                         <span class="badge bg-success-subtle text-success">Canlı Değerleme</span>
                     </div>
                     {% if portfolio_items %}
@@ -414,7 +420,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5 text-muted">
-                        <i class="bi bi-wallet2 display-6 d-block mb-2 opacity-50"></i>
+                        <i class="bi bi-wallet2 display-6 d-block mb-2 opacity-50" aria-hidden="true"></i>
                         Portföyünüzde henüz varlık bulunmuyor.<br>
                         <button class="btn btn-sm btn-outline-success mt-2" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
                             + İlk Varlığı Ekle
@@ -430,7 +436,7 @@
             <div class="col-lg-6">
                 <div class="card p-3 h-100 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Durumu</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning" aria-hidden="true"></i>Kategori Bütçe Durumu</h3>
                         <a href="javascript:void(0)" class="small text-decoration-none switch-to-tab" data-tab="transactions-tab">Tümünü Gör</a>
                     </div>
                     {% if category_budgets %}
@@ -461,7 +467,7 @@
             <div class="col-lg-6">
                 <div class="card p-3 h-100 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Ödemeler & Kumbaralar</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger" aria-hidden="true"></i>Yaklaşan Ödemeler & Kumbaralar</h3>
                         <a href="javascript:void(0)" class="small text-decoration-none switch-to-tab" data-tab="goals-tab">Detaylar</a>
                     </div>
                     {% if subscriptions %}
@@ -483,7 +489,7 @@
                         </ul>
                     {% endif %}
                     {% if savings_goals %}
-                        <h6 class="fw-bold text-muted small mt-2 mb-2"><i class="bi bi-piggy-bank me-1 text-info"></i>Tasarruf Kumbarası Hedefleri</h6>
+                        <span class="fw-bold text-muted small mt-2 mb-2 d-block"><i class="bi bi-piggy-bank me-1 text-info" aria-hidden="true"></i>Tasarruf Kumbarası Hedefleri</span>
                         {% for g in savings_goals[:2] %}
                         <div class="border rounded p-2 mb-2 bg-light">
                             <div class="d-flex justify-content-between align-items-center small mb-1">
@@ -506,27 +512,28 @@
     </div>
 
     <!-- ================= SEKME 2: YATIRIMLAR & PORTFÖY ================= -->
-    <div class="tab-pane fade" id="tab-portfolio" role="tabpanel">
+    <div class="tab-pane fade" id="tab-portfolio" role="tabpanel" aria-labelledby="portfolio-tab" tabindex="0">
+        <h2 class="visually-hidden">Yatırım Portföyü ve Piyasa Karşılaştırması</h2>
         
         <!-- PORTFÖY İSTATİSTİK BANNERI -->
         <div class="card p-4 mb-4 border shadow-xs">
             <div class="row g-3 align-items-center text-center text-md-start">
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Toplam Portföy Değeri</span>
-                    <h3 class="fw-bold text-primary mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</h3>
+                    <p class="fs-4 fw-bold text-primary mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</p>
                 </div>
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Toplam Kâr / Zarar</span>
-                    <h4 class="fw-bold mb-0 num-tabular {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
+                    <p class="fs-5 fw-bold mb-0 num-tabular {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL 
                         <span class="fs-6 fw-normal">(%{{ total_portfolio_pnl_pct }})</span>
-                    </h4>
+                    </p>
                 </div>
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Realize Edilen Kâr/Zarar</span>
-                    <h4 class="fw-bold mb-0 num-tabular {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
+                    <p class="fs-5 fw-bold mb-0 num-tabular {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
-                    </h4>
+                    </p>
                 </div>
                 <div class="col-md-3 text-md-end">
                     <div class="d-flex flex-wrap justify-content-md-end gap-2">
@@ -554,10 +561,10 @@
         <div class="card p-3 mb-4 shadow-sm border">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div>
-                    <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info"></i>Piyasa Benchmark & Kıyaslama Karnesi</h5>
+                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info" aria-hidden="true"></i>Piyasa Benchmark & Kıyaslama Karnesi</h3>
                     <small class="text-muted">Portföyünüzün piyasa endeksleri ve emtialara göre göreceli performansı</small>
                 </div>
-                <div class="btn-group btn-group-sm" role="group" id="benchmarkPeriodGroup">
+                <div class="btn-group btn-group-sm" role="group" id="benchmarkPeriodGroup" aria-label="Benchmark Dönem Seçimi">
                     <button type="button" class="btn btn-outline-primary active" data-period="1M">1 Aylık</button>
                     <button type="button" class="btn btn-outline-primary" data-period="3M">3 Aylık</button>
                     <button type="button" class="btn btn-outline-primary" data-period="6M">6 Aylık</button>
@@ -569,9 +576,9 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="p-3 rounded-3 border bg-light h-100">
                         <span class="text-muted small fw-semibold">Portföyünüzün Getirisi</span>
-                        <h4 class="fw-bold my-1 {{ 'text-success' if total_portfolio_pnl_pct >= 0 else 'text-danger' }}">
+                        <p class="fs-4 fw-bold my-1 {{ 'text-success' if total_portfolio_pnl_pct >= 0 else 'text-danger' }}">
                             {{ '+' if total_portfolio_pnl_pct >= 0 else '' }}%{{ total_portfolio_pnl_pct }}
-                        </h4>
+                        </p>
                         <span class="badge bg-primary-subtle text-primary">Sizin Portföyünüz</span>
                     </div>
                 </div>
@@ -579,9 +586,9 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="p-3 rounded-3 border bg-light h-100">
                         <span class="text-muted small fw-semibold">BIST 100 (XU100)</span>
-                        <h4 class="fw-bold my-1" id="bmBistVal">
+                        <p class="fs-4 fw-bold my-1" id="bmBistVal">
                             {{ '+' if benchmark_data['1M']['bist'] >= 0 else '' }}%{{ benchmark_data['1M']['bist'] }}
-                        </h4>
+                        </p>
                         <span class="badge bg-secondary-subtle text-secondary" id="bmBistBadge">BIST Kıyası</span>
                     </div>
                 </div>
@@ -589,9 +596,9 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="p-3 rounded-3 border bg-light h-100">
                         <span class="text-muted small fw-semibold">Dolar / TL (USD/TRY)</span>
-                        <h4 class="fw-bold my-1" id="bmUsdVal">
+                        <p class="fs-4 fw-bold my-1" id="bmUsdVal">
                             {{ '+' if benchmark_data['1M']['usd'] >= 0 else '' }}%{{ benchmark_data['1M']['usd'] }}
-                        </h4>
+                        </p>
                         <span class="badge bg-success-subtle text-success" id="bmUsdBadge">Döviz Kıyası</span>
                     </div>
                 </div>
@@ -599,9 +606,9 @@
                 <div class="col-sm-6 col-lg-3">
                     <div class="p-3 rounded-3 border bg-light h-100">
                         <span class="text-muted small fw-semibold">Gram Altın (TL)</span>
-                        <h4 class="fw-bold my-1" id="bmGoldVal">
+                        <p class="fs-4 fw-bold my-1" id="bmGoldVal">
                             {{ '+' if benchmark_data['1M']['gold'] >= 0 else '' }}%{{ benchmark_data['1M']['gold'] }}
-                        </h4>
+                        </p>
                         <span class="badge bg-warning-subtle text-warning-emphasis" id="bmGoldBadge">Emtia Kıyası</span>
                     </div>
                 </div>
@@ -624,12 +631,12 @@
                 <div class="card p-3 shadow-sm h-100">
                     <div class="row g-2 align-items-center mb-3">
                         <div class="col-md-6">
-                            <h5 class="fw-bold mb-0"><i class="bi bi-graph-up me-2 text-success"></i>Canlı Varlık Portföyü</h5>
+                            <h3 class="h5 fw-bold mb-0"><i class="bi bi-graph-up me-2 text-success" aria-hidden="true"></i>Canlı Varlık Portföyü</h3>
                         </div>
                         <div class="col-md-6 d-flex justify-content-md-end gap-2">
                             <div class="input-group input-group-sm" style="max-width: 250px;">
-                                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                <input type="text" id="assetSearchInput" class="form-control" placeholder="Sembol veya piyasa ara...">
+                                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                                <input type="text" id="assetSearchInput" class="form-control" placeholder="Sembol veya piyasa ara..." aria-label="Portföy içinde varlık ara">
                             </div>
                             <span class="badge bg-success-subtle text-success align-self-center py-2">Otomatik Canlı Fiyat</span>
                         </div>
@@ -697,6 +704,7 @@
                                                 data-price="{{ item.live_price }}"
                                                 data-orig-price="{{ item.orig_price or item.live_price }}"
                                                 data-currency="{{ item.currency }}"
+                                                aria-label="{{ item.symbol }} varlığını sat"
                                                 title="{{ item.symbol }} Sat">
                                             Sat
                                         </button>
@@ -708,11 +716,11 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5 text-muted">
-                        <i class="bi bi-graph-up-arrow display-4 d-block mb-3 opacity-50"></i>
-                        <h5>Henüz portföyünüzde bir yatırım varlığı yok</h5>
+                        <i class="bi bi-graph-up-arrow display-4 d-block mb-3 opacity-50" aria-hidden="true"></i>
+                        <p class="h5 fw-bold">Henüz portföyünüzde bir yatırım varlığı yok</p>
                         <p class="small text-muted mb-3">Borsa İstanbul, ABD Borsaları, TEFAS/BEFAS fonları, Döviz ve Altın ekleyebilirsiniz.</p>
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
-                            <i class="bi bi-plus-lg me-1"></i>İlk Varlığı Satın Al
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>İlk Varlığı Satın Al
                         </button>
                     </div>
                     {% endif %}
@@ -722,7 +730,7 @@
             <!-- PORTFÖY DAĞILIM PASTA GRAFİĞİ -->
             <div class="col-lg-4">
                 <div class="card p-3 shadow-sm h-100">
-                    <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Varlık Dağılımı</h5>
+                    <h3 class="h5 fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-primary" aria-hidden="true"></i>Varlık Dağılımı</h3>
                     {% if portfolio_items %}
                     <div class="text-center my-3">
                         <div style="height: 240px; position: relative;">
@@ -730,7 +738,7 @@
                         </div>
                     </div>
                     <div class="mt-3">
-                        <h6 class="fw-bold small text-muted mb-2">Varlık Ağırlıkları</h6>
+                        <span class="fw-bold small text-muted mb-2 d-block">Varlık Ağırlıkları</span>
                         <ul class="list-group list-group-flush small">
                             {% for item in portfolio_items %}
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
@@ -753,7 +761,8 @@
     </div>
 
     <!-- ================= SEKME 3: İŞLEM GEÇMİŞİ & BÜTÇE ================= -->
-    <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
+    <div class="tab-pane fade" id="tab-transactions" role="tabpanel" aria-labelledby="transactions-tab" tabindex="0">
+        <h2 class="visually-hidden">İşlem Geçmişi ve Bütçe Yönetimi</h2>
         
         <div class="row g-4">
             
@@ -761,9 +770,9 @@
             <div class="col-lg-5">
                 <div class="card p-3 shadow-sm mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>Kategori Bütçe Limitleri</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-warning" aria-hidden="true"></i>Kategori Bütçe Limitleri</h3>
                         <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#categoryManageModal">
-                            <i class="bi bi-gear me-1 text-primary"></i>Bütçeleri Yönet
+                            <i class="bi bi-gear me-1 text-primary" aria-hidden="true"></i>Bütçeleri Yönet
                         </button>
                     </div>
                     {% if category_budgets %}
@@ -785,7 +794,7 @@
                             </div>
                             {% if b.spent > b.budget and b.budget > 0 %}
                             <small class="text-danger d-block mt-1">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Bütçe {{ (b.spent - b.budget)|currency_tr }} TL aşıldı!
+                                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Bütçe {{ (b.spent - b.budget)|currency_tr }} TL aşıldı!
                             </small>
                             {% endif %}
                         </div>
@@ -800,22 +809,22 @@
             <div class="col-lg-7">
                 <div class="card p-3 shadow-sm">
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark"></i>İşlem Hareketleri</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark" aria-hidden="true"></i>İşlem Hareketleri</h3>
                         <div class="d-flex align-items-center gap-2">
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-saas-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="bi bi-file-earmark-excel me-1 text-success"></i>Dışa Aktar
+                                    <i class="bi bi-file-earmark-excel me-1 text-success" aria-hidden="true"></i>Dışa Aktar
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Bu Ayı İndir (.xlsx)</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success"></i>Tüm Geçmişi İndir (.xlsx)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success" aria-hidden="true"></i>Bu Ayı İndir (.xlsx)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='excel') }}"><i class="bi bi-filetype-xlsx me-2 text-success" aria-hidden="true"></i>Tüm Geçmişi İndir (.xlsx)</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>Bu Ayı İndir (CSV)</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary"></i>Tüm Geçmişi İndir (CSV)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', month=selected_month, year=selected_year, format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary" aria-hidden="true"></i>Bu Ayı İndir (CSV)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('export_transactions', format='csv') }}"><i class="bi bi-filetype-csv me-2 text-primary" aria-hidden="true"></i>Tüm Geçmişi İndir (CSV)</a></li>
                                 </ul>
                             </div>
                             <button class="btn btn-sm btn-cta-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">
-                                <i class="bi bi-plus-lg me-1"></i>Yeni İşlem
+                                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Yeni İşlem
                             </button>
                         </div>
                     </div>
@@ -824,12 +833,12 @@
                     <div class="row g-2 align-items-center mb-3">
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                <input type="text" id="txSearchInput" class="form-control" placeholder="Açıklama, kategori veya tutar ara...">
+                                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                                <input type="text" id="txSearchInput" class="form-control" placeholder="Açıklama, kategori veya tutar ara..." aria-label="İşlem geçmişinde ara">
                             </div>
                         </div>
                         <div class="col-md-6 d-flex justify-content-md-end gap-1 flex-wrap">
-                            <div class="btn-group btn-group-sm" role="group" id="txFilterGroup">
+                            <div class="btn-group btn-group-sm" role="group" id="txFilterGroup" aria-label="İşlem türü filtreleri">
                                 <button type="button" class="btn btn-outline-primary active" data-filter="all">Tümü</button>
                                 <button type="button" class="btn btn-outline-success" data-filter="gelir">Gelirler</button>
                                 <button type="button" class="btn btn-outline-danger" data-filter="gider">Giderler</button>
@@ -861,14 +870,14 @@
                                     </td>
                                     <td>
                                         {% if t[6] == 'kredi_karti' %}
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1"></i>Kart</span>
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1" aria-hidden="true"></i>Kart</span>
                                             {% if t[8] == 1 %}
                                                 <span class="badge bg-success-subtle text-success ms-1">Ödendi</span>
                                             {% else %}
                                                 <span class="badge bg-danger-subtle text-danger ms-1">Ekstrede</span>
                                             {% endif %}
                                         {% else %}
-                                            <span class="badge bg-secondary"><i class="bi bi-cash me-1"></i>Nakit</span>
+                                            <span class="badge bg-secondary"><i class="bi bi-cash me-1" aria-hidden="true"></i>Nakit</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
@@ -883,12 +892,13 @@
                                                     data-desc="{{ t[3] or '' }}"
                                                     data-cat="{{ t[7] }}"
                                                     data-method="{{ t[6] }}"
+                                                    aria-label="İşlemi Düzenle: {{ t[4] }} - {{ t[1]|currency_tr }} TL"
                                                     title="İşlemi Düzenle">
-                                                <i class="bi bi-pencil"></i>
+                                                <i class="bi bi-pencil" aria-hidden="true"></i>
                                             </button>
                                             <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="İşlemi Sil">
-                                                    <i class="bi bi-trash"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="İşlemi Sil: {{ t[4] }} - {{ t[1]|currency_tr }} TL" title="İşlemi Sil">
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                                 </button>
                                             </form>
                                         </div>
@@ -908,16 +918,17 @@
     </div>
 
     <!-- ================= SEKME 4: KUMBARALAR & FATURALAR ================= -->
-    <div class="tab-pane fade" id="tab-goals" role="tabpanel">
+    <div class="tab-pane fade" id="tab-goals" role="tabpanel" aria-labelledby="goals-tab" tabindex="0">
+        <h2 class="visually-hidden">Tasarruf Kumbaraları, Faturalar ve Düzenli Şablonlar</h2>
         <div class="row g-4">
             
             <!-- TASARRUF KUMBARASI -->
             <div class="col-lg-6">
                 <div class="card p-3 shadow-sm h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-piggy-bank me-2 text-info"></i>Tasarruf Kumbarası</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-piggy-bank me-2 text-info" aria-hidden="true"></i>Tasarruf Kumbarası</h3>
                         <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#goalModal">
-                            <i class="bi bi-plus-lg me-1"></i>Yeni Hedef
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Yeni Hedef
                         </button>
                     </div>
                     {% if savings_goals %}
@@ -928,13 +939,13 @@
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
                                     <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hedefi tamamlandı olarak işaretlemek istiyor musunuz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Hedefi Tamamla">
-                                            <i class="bi bi-check-lg"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" aria-label="{{ g.title }} hedefini tamamlandı olarak işaretle" title="Hedefi Tamamla">
+                                            <i class="bi bi-check-lg" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                     <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu hedefi silmek istediğinize emin misiniz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Hedefi Sil">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ g.title }} hedefini sil" title="Hedefi Sil">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -949,14 +960,14 @@
                                         data-bs-target="#depositGoalModal"
                                         data-id="{{ g.id }}" 
                                         data-title="{{ g.title }}">
-                                    <i class="bi bi-cash-stack me-1"></i>Para Yatır
+                                    <i class="bi bi-cash-stack me-1" aria-hidden="true"></i>Para Yatır
                                 </button>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
                         <div class="text-center py-5 text-muted">
-                            <i class="bi bi-piggy-bank display-5 d-block mb-2 opacity-50"></i>
+                            <i class="bi bi-piggy-bank display-5 d-block mb-2 opacity-50" aria-hidden="true"></i>
                             Henüz tasarruf hedefi oluşturmadınız.<br>
                             <button class="btn btn-sm btn-info text-white mt-2" data-bs-toggle="modal" data-bs-target="#goalModal">
                                 + İlk Tasarruf Hedefini Ekle
@@ -970,9 +981,9 @@
             <div class="col-lg-6">
                 <div class="card p-3 shadow-sm h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger"></i>Yaklaşan Faturalar & Borçlar</h5>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-danger" aria-hidden="true"></i>Yaklaşan Faturalar & Borçlar</h3>
                         <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
-                            <i class="bi bi-plus-lg me-1 text-warning"></i>Fatura Ekle
+                            <i class="bi bi-plus-lg me-1 text-warning" aria-hidden="true"></i>Fatura Ekle
                         </button>
                     </div>
                     {% if subscriptions %}
@@ -980,7 +991,7 @@
                             {% for sub in subscriptions %}
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
                                 <div>
-                                    <h6 class="fw-bold mb-1">{{ sub[1] }}</h6>
+                                    <span class="fw-bold d-block mb-1">{{ sub[1] }}</span>
                                     <span class="badge {{ 'bg-danger' if sub[5] <= 3 else ('bg-warning text-dark' if sub[5] <= 7 else 'bg-secondary') }}">
                                         {{ sub[5] }} gün kaldı ({{ sub[4].strftime('%d.%m.%Y') }})
                                     </span>
@@ -988,8 +999,8 @@
                                 <div class="d-flex align-items-center gap-3">
                                     <span class="fw-bold fs-6">{{ sub[2]|currency_tr }} TL</span>
                                     <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" onsubmit="return confirm('Bu ödemeyi silmek istediğinize emin misiniz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" title="Ödemeyi Sil">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" aria-label="{{ sub[1] }} ödemesini sil" title="Ödemeyi Sil">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -998,7 +1009,7 @@
                         </ul>
                     {% else %}
                         <div class="text-center py-5 text-muted">
-                            <i class="bi bi-calendar-event display-5 d-block mb-2 opacity-50"></i>
+                            <i class="bi bi-calendar-event display-5 d-block mb-2 opacity-50" aria-hidden="true"></i>
                             Kayıtlı fatura veya abonelik bulunmuyor.<br>
                             <button class="btn btn-sm btn-dark mt-2" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
                                 + Fatura / Ödeme Ekle
@@ -1014,7 +1025,7 @@
         <div class="card p-3 shadow-sm mt-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                 <div>
-                    <h5 class="fw-bold mb-0"><i class="bi bi-arrow-repeat me-2 text-success"></i>Düzenli & Sabit İşlemler (Maaş, Kira vb.)</h5>
+                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-arrow-repeat me-2 text-success" aria-hidden="true"></i>Düzenli & Sabit İşlemler (Maaş, Kira vb.)</h3>
                     <small class="text-muted">Her ay tekrarlanan sabit gelir ve gider şablonlarınız</small>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
@@ -1022,11 +1033,11 @@
                         <input type="hidden" name="month" value="{{ selected_month }}">
                         <input type="hidden" name="year" value="{{ selected_year }}">
                         <button type="submit" class="btn btn-sm btn-saas-secondary">
-                            <i class="bi bi-calendar-check me-1 text-success"></i>Bu Ayın Şablonunu Otomatik Ekle
+                            <i class="bi bi-calendar-check me-1 text-success" aria-hidden="true"></i>Bu Ayın Şablonunu Otomatik Ekle
                         </button>
                     </form>
                     <button class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#recurringModal">
-                        <i class="bi bi-plus-lg me-1 text-primary"></i>Yeni Şablon Ekle
+                        <i class="bi bi-plus-lg me-1 text-primary" aria-hidden="true"></i>Yeni Şablon Ekle
                     </button>
                 </div>
             </div>
@@ -1052,9 +1063,9 @@
                                 </td>
                                 <td>
                                     {% if rec[4] == 'kredi_karti' %}
-                                        <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1"></i>Kredi Kartı</span>
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-credit-card me-1" aria-hidden="true"></i>Kredi Kartı</span>
                                     {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-cash me-1"></i>Nakit</span>
+                                        <span class="badge bg-secondary"><i class="bi bi-cash me-1" aria-hidden="true"></i>Nakit</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end fw-bold {{ 'text-success' if rec[3] == 'gelir' else 'text-danger' }}">
@@ -1062,8 +1073,8 @@
                                 </td>
                                 <td class="text-end">
                                     <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Şablonu Sil">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ rec[1] }} düzenli şablonunu sil" title="Şablonu Sil">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -1089,44 +1100,45 @@
 <!-- ================= MODALLAR ================= -->
 
 <!-- 1. YENİ HARCAMA / GELİR MODAL -->
-<div class="modal fade" id="transactionModal" tabindex="-1">
+<div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold">Yeni Gelir / Harcama Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="transactionModalTitle">Yeni Gelir / Harcama Ekle</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_transaction') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Kategori</label>
-                        <select name="category_id" class="form-select" required>
+                        <label class="form-label" for="txCategorySelect">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
+                        <select name="category_id" id="txCategorySelect" class="form-select" required>
                             {% for cat in categories %}
                                 <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Ödeme Yöntemi</label>
-                        <select name="payment_method" class="form-select" required>
+                        <label class="form-label" for="txPaymentMethodSelect">Ödeme Yöntemi <span class="text-danger" aria-hidden="true">*</span></label>
+                        <select name="payment_method" id="txPaymentMethodSelect" class="form-select" required>
                             <option value="nakit">Nakit / Vadesiz Hesap (Anında Çıkan)</option>
                             <option value="kredi_karti">Kredi Kartı (Ekstreye Yazılacak)</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tutar (TL)</label>
+                        <label class="form-label" for="txAmountInput">Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="number" step="0.01" name="amount" id="txAmountInput" class="form-control" placeholder="0.00" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tarih</label>
+                        <label class="form-label" for="txDateInput">Tarih <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="date" name="transaction_date" id="txDateInput" class="form-control" value="{{ today_str }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Açıklama</label>
+                        <label class="form-label" for="txDescInput">Açıklama</label>
                         <input type="text" name="description" id="txDescInput" class="form-control" placeholder="Örn: Market alışverişi">
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-primary">Kaydet</button>
                 </div>
             </form>
@@ -1135,17 +1147,17 @@
 </div>
 
 <!-- 1.1 İŞLEM DÜZENLEME MODAL -->
-<div class="modal fade" id="editTransactionModal" tabindex="-1">
+<div class="modal fade" id="editTransactionModal" tabindex="-1" aria-labelledby="editTxModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2 text-primary"></i>İşlemi Düzenle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="editTxModalTitle"><i class="bi bi-pencil-square me-2 text-primary" aria-hidden="true"></i>İşlemi Düzenle</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form id="editTransactionForm" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Kategori</label>
+                        <label class="form-label" for="editTxCategory">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="category_id" id="editTxCategory" class="form-select" required>
                             {% for cat in categories %}
                                 <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
@@ -1153,26 +1165,27 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Ödeme Yöntemi</label>
+                        <label class="form-label" for="editTxMethod">Ödeme Yöntemi <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="payment_method" id="editTxMethod" class="form-select" required>
                             <option value="nakit">Nakit / Vadesiz Hesap (Anında Çıkan)</option>
                             <option value="kredi_karti">Kredi Kartı (Ekstreye Yazılacak)</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tutar (TL)</label>
+                        <label class="form-label" for="editTxAmount">Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="number" step="0.01" name="amount" id="editTxAmount" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tarih</label>
+                        <label class="form-label" for="editTxDate">Tarih <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="date" name="transaction_date" id="editTxDate" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Açıklama</label>
+                        <label class="form-label" for="editTxDesc">Açıklama</label>
                         <input type="text" name="description" id="editTxDesc" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-primary">Değişiklikleri Kaydet</button>
                 </div>
             </form>
@@ -1181,17 +1194,17 @@
 </div>
 
 <!-- 2. YATIRIM ALIM MODAL -->
-<div class="modal fade" id="buyAssetModal" tabindex="-1">
+<div class="modal fade" id="buyAssetModal" tabindex="-1" aria-labelledby="buyAssetModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Portföye Varlık / Yatırım Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="buyAssetModalTitle"><i class="bi bi-graph-up-arrow me-2 text-success" aria-hidden="true"></i>Portföye Varlık / Yatırım Ekle</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('buy_asset') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Piyasa / Varlık Türü</label>
+                        <label class="form-label" for="buyAssetType">Piyasa / Varlık Türü <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="asset_type" id="buyAssetType" class="form-select" required>
                             <option value="hisse">Borsa İstanbul (BIST Hissesi - Örn: THYAO, ASELS, EREGL)</option>
                             <option value="abd_hisse">ABD Borsası (Hisse / ETF - Örn: AAPL, MSFT, NVDA, SPY)</option>
@@ -1201,21 +1214,21 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" id="buySymbolLabel">Sembol / Kod</label>
+                        <label class="form-label" for="buySymbolInput" id="buySymbolLabel">Sembol / Kod <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="text" name="symbol" id="buySymbolInput" class="form-control" placeholder="Örn: THYAO, AAPL veya TI2" required>
                         <small class="text-muted" id="buySymbolHelp">BIST için hisse kodu, ABD için ticker (AAPL), TEFAS için fon kodu (TI2) girin.</small>
                     </div>
                     <div class="row">
                         <div class="col-md-5 mb-3">
-                            <label class="form-label">Adet / Lot / Pay</label>
-                            <input type="number" step="any" name="quantity" class="form-control" placeholder="Örn: 10" required>
+                            <label class="form-label" for="buyQuantityInput">Adet / Lot / Pay <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="number" step="any" name="quantity" id="buyQuantityInput" class="form-control" placeholder="Örn: 10" required>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label" id="buyPriceLabel">Birim Alış Fiyatı</label>
-                            <input type="number" step="any" name="unit_price" class="form-control" placeholder="0.00" required>
+                            <label class="form-label" for="buyUnitPriceInput" id="buyPriceLabel">Birim Alış Fiyatı <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="number" step="any" name="unit_price" id="buyUnitPriceInput" class="form-control" placeholder="0.00" required>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Para Birimi</label>
+                            <label class="form-label" for="buyPriceCurrency">Para Birimi <span class="text-danger" aria-hidden="true">*</span></label>
                             <select name="price_currency" id="buyPriceCurrency" class="form-select">
                                 <option value="TRY">TL</option>
                                 <option value="USD">USD ($)</option>
@@ -1224,6 +1237,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-success">Portföye Ekle</button>
                 </div>
             </form>
@@ -1232,18 +1246,18 @@
 </div>
 
 <!-- 3. YATIRIM SATIŞ MODAL -->
-<div class="modal fade" id="sellAssetModal" tabindex="-1">
+<div class="modal fade" id="sellAssetModal" tabindex="-1" aria-labelledby="sellAssetModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-graph-down-arrow me-2"></i>Varlık Satışı Yap</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold text-danger" id="sellAssetModalTitle"><i class="bi bi-graph-down-arrow me-2" aria-hidden="true"></i>Varlık Satışı Yap</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('sell_asset') }}" method="POST">
                 <div class="modal-body">
                     {% if portfolio_items %}
                     <div class="mb-3">
-                        <label class="form-label">Satılacak Varlık</label>
+                        <label class="form-label" for="sellAssetSelect">Satılacak Varlık <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="asset_id" id="sellAssetSelect" class="form-select" required>
                             {% for item in portfolio_items %}
                             <option value="{{ item.id }}" 
@@ -1259,16 +1273,16 @@
                     </div>
                     <div class="row">
                         <div class="col-md-5 mb-3">
-                            <label class="form-label">Satış Adedi</label>
+                            <label class="form-label" for="sellQuantityInput">Satış Adedi <span class="text-danger" aria-hidden="true">*</span></label>
                             <input type="number" step="any" name="quantity" id="sellQuantityInput" class="form-control" placeholder="Adet" required>
                             <small class="text-muted d-block mt-1" id="sellMaxInfo"></small>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label" id="sellPriceLabel">Birim Satış Fiyatı</label>
+                            <label class="form-label" for="sellPriceInput" id="sellPriceLabel">Birim Satış Fiyatı <span class="text-danger" aria-hidden="true">*</span></label>
                             <input type="number" step="any" name="unit_price" id="sellPriceInput" class="form-control" placeholder="Fiyat" required>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label class="form-label">Para Birimi</label>
+                            <label class="form-label" for="sellCurrencySelect">Para Birimi <span class="text-danger" aria-hidden="true">*</span></label>
                             <select name="sell_currency" id="sellCurrencySelect" class="form-select">
                                 <option value="TRY">TL</option>
                                 <option value="USD">USD ($)</option>
@@ -1281,6 +1295,7 @@
                 </div>
                 <div class="modal-footer">
                     {% if portfolio_items %}
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-danger">Satışı Onayla</button>
                     {% else %}
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
@@ -1292,29 +1307,30 @@
 </div>
 
 <!-- 4. FATURA / KART MODAL -->
-<div class="modal fade" id="subscriptionModal" tabindex="-1">
+<div class="modal fade" id="subscriptionModal" tabindex="-1" aria-labelledby="subModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold">Fatura / Kredi Kartı Ödemesi Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="subModalTitle"><i class="bi bi-calendar-check me-2 text-danger" aria-hidden="true"></i>Fatura / Kredi Kartı Ödemesi Ekle</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_subscription') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Ödeme Başlığı</label>
-                        <input type="text" name="title" class="form-control" placeholder="Örn: Elektrik Faturası veya Garanti Bonus" required>
+                        <label class="form-label" for="subTitleInput">Ödeme Başlığı <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="text" name="title" id="subTitleInput" class="form-control" placeholder="Örn: Elektrik Faturası veya Garanti Bonus" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tutar (TL)</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" required>
+                        <label class="form-label" for="subAmountInput">Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="number" step="0.01" name="amount" id="subAmountInput" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Son Ödeme Tarihi</label>
-                        <input type="date" name="next_due_date" class="form-control" required>
+                        <label class="form-label" for="subDueDateInput">Son Ödeme Tarihi <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="date" name="next_due_date" id="subDueDateInput" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-dark">Kaydet</button>
                 </div>
             </form>
@@ -1323,29 +1339,30 @@
 </div>
 
 <!-- 5. TASARRUF HEDEF MODAL -->
-<div class="modal fade" id="goalModal" tabindex="-1">
+<div class="modal fade" id="goalModal" tabindex="-1" aria-labelledby="goalModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold">Yeni Tasarruf Hedefi</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="goalModalTitle"><i class="bi bi-piggy-bank me-2 text-info" aria-hidden="true"></i>Yeni Tasarruf Hedefi</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_savings_goal') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Hedef Adı</label>
-                        <input type="text" name="title" class="form-control" placeholder="Örn: Yeni Bilgisayar, Tatil Fonu" required>
+                        <label class="form-label" for="goalTitleInput">Hedef Adı <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="text" name="title" id="goalTitleInput" class="form-control" placeholder="Örn: Yeni Bilgisayar, Tatil Fonu" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Hedeflenen Tutar (TL)</label>
-                        <input type="number" step="1" name="target_amount" class="form-control" required>
+                        <label class="form-label" for="goalTargetAmountInput">Hedeflenen Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="number" step="1" name="target_amount" id="goalTargetAmountInput" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Hedef Tarih (Opsiyonel)</label>
-                        <input type="date" name="target_date" class="form-control">
+                        <label class="form-label" for="goalTargetDateInput">Hedef Tarih (Opsiyonel)</label>
+                        <input type="date" name="target_date" id="goalTargetDateInput" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-info text-white">Hedef Oluştur</button>
                 </div>
             </form>
@@ -1354,19 +1371,19 @@
 </div>
 
 <!-- 5.1 KUMBARAYA PARA YATIR MODAL (YENİ VE TEMİZ DENEYİM) -->
-<div class="modal fade" id="depositGoalModal" tabindex="-1">
+<div class="modal fade" id="depositGoalModal" tabindex="-1" aria-labelledby="depositGoalModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold text-info"><i class="bi bi-piggy-bank me-2"></i>Kumbaraya Para Ekle</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold text-info" id="depositGoalModalTitle"><i class="bi bi-piggy-bank me-2" aria-hidden="true"></i>Kumbaraya Para Ekle</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('deposit_savings_goal') }}" method="POST">
                 <input type="hidden" name="goal_id" id="depositGoalId">
                 <div class="modal-body">
                     <p class="mb-3">Hedef: <strong id="depositGoalTitle" class="text-primary fs-6"></strong></p>
                     <div class="mb-3">
-                        <label class="form-label">Eklenecek Tutar (TL)</label>
+                        <label class="form-label" for="depositAmountInput">Eklenecek Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="number" step="1" name="amount" id="depositAmountInput" class="form-control" placeholder="Örn: 250" required>
                         <small class="text-muted">Bu tutar nakit bakiyenizden çıkış yapılarak birikiminize eklenecektir.</small>
                     </div>
@@ -1378,6 +1395,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-info text-white">Kumbaraya Yatır</button>
                 </div>
             </form>
@@ -1386,32 +1404,32 @@
 </div>
 
 <!-- 6. KATEGORİ VE BÜTÇE YÖNETİM MODAL -->
-<div class="modal fade" id="categoryManageModal" tabindex="-1">
+<div class="modal fade" id="categoryManageModal" tabindex="-1" aria-labelledby="categoryManageModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-tags me-2 text-primary"></i>Kategori ve Bütçe Yönetimi</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="categoryManageModalTitle"><i class="bi bi-tags me-2 text-primary" aria-hidden="true"></i>Kategori ve Bütçe Yönetimi</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <div class="modal-body">
                 <!-- YENİ KATEGORİ EKLE -->
                 <div class="card p-3 mb-4 bg-light border">
-                    <h6 class="fw-bold mb-3">Yeni Kategori Ekle</h6>
+                    <span class="fw-bold d-block mb-3">Yeni Kategori Ekle</span>
                     <form action="{{ url_for('add_category') }}" method="POST" class="row g-2 align-items-end">
                         <div class="col-md-4">
-                            <label class="form-label small">Kategori Adı</label>
-                            <input type="text" name="name" class="form-control form-control-sm" placeholder="Örn: Sağlık, Spor" required>
+                            <label class="form-label small" for="catNameInput">Kategori Adı <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="text" name="name" id="catNameInput" class="form-control form-control-sm" placeholder="Örn: Sağlık, Spor" required>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small">Kategori Türü</label>
-                            <select name="type" class="form-select form-select-sm">
+                            <label class="form-label small" for="catTypeSelect">Kategori Türü <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select name="type" id="catTypeSelect" class="form-select form-select-sm">
                                 <option value="gider">Gider (Harcama)</option>
                                 <option value="gelir">Gelir</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small">Aylık Bütçe (TL)</label>
-                            <input type="number" step="100" name="monthly_budget" class="form-control form-control-sm" placeholder="0.00">
+                            <label class="form-label small" for="catMonthlyBudgetInput">Aylık Bütçe (TL)</label>
+                            <input type="number" step="100" name="monthly_budget" id="catMonthlyBudgetInput" class="form-control form-control-sm" placeholder="0.00">
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-sm btn-primary w-100">Ekle</button>
@@ -1420,7 +1438,7 @@
                 </div>
 
                 <!-- MEVCUT KATEGORİLER -->
-                <h6 class="fw-bold mb-2">Mevcut Kategoriler ve Bütçeler</h6>
+                <span class="fw-bold d-block mb-2">Mevcut Kategoriler ve Bütçeler</span>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
@@ -1444,9 +1462,10 @@
                                     {% if c[2] == 'gider' %}
                                     <form action="{{ url_for('update_category_budget') }}" method="POST" class="d-flex gap-1 align-items-center">
                                         <input type="hidden" name="category_id" value="{{ c[0] }}">
-                                        <input type="number" step="100" name="monthly_budget" class="form-control form-control-sm" value="{{ c[3]|int }}" style="width: 100px;">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Bütçeyi Güncelle">
-                                            <i class="bi bi-check"></i>
+                                        <label for="catBudget_{{ c[0] }}" class="visually-hidden">{{ c[1] }} Bütçesi</label>
+                                        <input type="number" step="100" name="monthly_budget" id="catBudget_{{ c[0] }}" class="form-control form-control-sm" value="{{ c[3]|int }}" style="width: 100px;">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2" aria-label="{{ c[1] }} bütçesini güncelle" title="Bütçeyi Güncelle">
+                                            <i class="bi bi-check" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                     {% else %}
@@ -1455,8 +1474,8 @@
                                 </td>
                                 <td class="text-end">
                                     <form action="{{ url_for('delete_category', cat_id=c[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Kategoriyi Sil">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ c[1] }} kategorisini sil" title="Kategoriyi Sil">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -1466,36 +1485,39 @@
                     </table>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Kapat</button>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- 7. DÜZENLİ İŞLEM EKLEME MODALI -->
-<div class="modal fade" id="recurringModal" tabindex="-1">
+<div class="modal fade" id="recurringModal" tabindex="-1" aria-labelledby="recurringModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat me-2 text-success"></i>Yeni Düzenli İşlem Şablonu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="recurringModalTitle"><i class="bi bi-arrow-repeat me-2 text-success" aria-hidden="true"></i>Yeni Düzenli İşlem Şablonu</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_recurring') }}" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Şablon Başlığı</label>
-                        <input type="text" name="title" class="form-control" placeholder="Örn: Aylık Maaş, Ev Kirası, İnternet Faturası" required>
+                        <label class="form-label" for="recTitleInput">Şablon Başlığı <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="text" name="title" id="recTitleInput" class="form-control" placeholder="Örn: Aylık Maaş, Ev Kirası, İnternet Faturası" required>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Kategori</label>
-                            <select name="category_id" class="form-select" required>
+                            <label class="form-label" for="recCategorySelect">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select name="category_id" id="recCategorySelect" class="form-select" required>
                                 {% for cat in categories %}
                                     <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">İşlem Türü</label>
-                            <select name="type" class="form-select" required>
+                            <label class="form-label" for="recTypeSelect">İşlem Türü <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select name="type" id="recTypeSelect" class="form-select" required>
                                 <option value="gider">Gider (Harcama)</option>
                                 <option value="gelir">Gelir</option>
                             </select>
@@ -1503,23 +1525,24 @@
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Tutar (TL)</label>
-                            <input type="number" step="0.01" name="amount" class="form-control" placeholder="0.00" required>
+                            <label class="form-label" for="recAmountInput">Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="number" step="0.01" name="amount" id="recAmountInput" class="form-control" placeholder="0.00" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Her Ayın Hangi Günü?</label>
-                            <input type="number" min="1" max="31" name="day_of_month" class="form-control" value="1" required>
+                            <label class="form-label" for="recDayInput">Her Ayın Hangi Günü? <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="number" min="1" max="31" name="day_of_month" id="recDayInput" class="form-control" value="1" required>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Ödeme Yöntemi</label>
-                        <select name="payment_method" class="form-select" required>
+                        <label class="form-label" for="recPaymentMethodSelect">Ödeme Yöntemi <span class="text-danger" aria-hidden="true">*</span></label>
+                        <select name="payment_method" id="recPaymentMethodSelect" class="form-select" required>
                             <option value="nakit">Nakit / Vadesiz Hesap</option>
                             <option value="kredi_karti">Kredi Kartı</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
                     <button type="submit" class="btn btn-success">Şablonu Kaydet</button>
                 </div>
             </form>
@@ -1527,15 +1550,13 @@
     </div>
 </div>
 
-
-
 <!-- 8. BAŞLANGIÇ NAKİT BAKİYESİ GÜNCELLEME MODALI -->
-<div class="modal fade" id="initialBalanceModal" tabindex="-1">
+<div class="modal fade" id="initialBalanceModal" tabindex="-1" aria-labelledby="initialBalanceModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-success-subtle border-bottom">
-                <h5 class="modal-title fw-bold text-success"><i class="bi bi-wallet2 me-2"></i>Vadesiz Nakit / Başlangıç Bakiyesi</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold text-success" id="initialBalanceModalTitle"><i class="bi bi-wallet2 me-2" aria-hidden="true"></i>Vadesiz Nakit / Başlangıç Bakiyesi</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('update_initial_balance') }}" method="POST">
                 <div class="modal-body p-4">
@@ -1543,10 +1564,10 @@
                         Sisteme başlamadan önce banka hesabınızda veya elinizde hazır bulunan nakit paradır. Bu tutar <strong>aylık gelir veya tasarruf oranınızı yapay olarak şişirmeden</strong> net servetinize ve nakit kasanıza doğrudan dahil edilir.
                     </p>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Başlangıç / Mevcut Nakit Tutarı (TL) <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold" for="initialCashBalanceInput">Başlangıç / Mevcut Nakit Tutarı (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text fw-bold">₺</span>
-                            <input type="number" step="0.01" name="initial_cash_balance" class="form-control fw-bold fs-5 text-success" 
+                            <input type="number" step="0.01" name="initial_cash_balance" id="initialCashBalanceInput" class="form-control fw-bold fs-5 text-success" 
                                    value="{{ '%.2f'|format(initial_cash_balance or 0.0) }}" required>
                         </div>
                         <small class="text-muted d-block mt-2">
@@ -1557,7 +1578,7 @@
                 <div class="modal-footer bg-light border-top">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Kapat</button>
                     <button type="submit" class="btn btn-success fw-bold px-4">
-                        <i class="bi bi-check-lg me-1"></i>Bakiyeyi Güncelle
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Bakiyeyi Güncelle
                     </button>
                 </div>
             </form>
@@ -1566,41 +1587,48 @@
 </div>
 
 <!-- 9. VERİ YEDEKLEME & GERİ YÜKLEME MODALI -->
-<div class="modal fade" id="backupModal" tabindex="-1">
+<div class="modal fade" id="backupModal" tabindex="-1" aria-labelledby="backupModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Veri Yedekleme & Geri Yükleme</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title h5 fw-bold" id="backupModalTitle"><i class="bi bi-cloud-arrow-down me-2 text-primary" aria-hidden="true"></i>Veri Yedekleme & Geri Yükleme</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <div class="modal-body">
                 <!-- YEDEK İNDİR -->
                 <div class="p-3 rounded border bg-body-tertiary mb-3">
-                    <h6 class="fw-bold mb-1"><i class="bi bi-download text-success me-2"></i>Tüm Verileri Bilgisayara İndir</h6>
+                    <span class="fw-bold d-block mb-1"><i class="bi bi-download text-success me-2" aria-hidden="true"></i>Tüm Verileri Bilgisayara İndir</span>
                     <p class="small text-muted mb-2">Tüm gelir-giderleriniz, hisse/fon portföyünüz, hedefleriniz ve şablonlarınız tek bir JSON dosyası olarak indirilir.</p>
                     <a href="{{ url_for('backup_download') }}" class="btn btn-success btn-sm fw-semibold">
-                        <i class="bi bi-file-earmark-arrow-down me-1"></i>Yedeği İndir (.json)
+                        <i class="bi bi-file-earmark-arrow-down me-1" aria-hidden="true"></i>Yedeği İndir (.json)
                     </a>
                 </div>
 
                 <!-- YEDEKTEN GERİ YÜKLE -->
                 <div class="p-3 rounded border bg-body-tertiary">
-                    <h6 class="fw-bold mb-1"><i class="bi bi-upload text-primary me-2"></i>Yedekten Geri Yükle / İçe Aktar</h6>
+                    <span class="fw-bold d-block mb-1"><i class="bi bi-upload text-primary me-2" aria-hidden="true"></i>Yedekten Geri Yükle / İçe Aktar</span>
                     <p class="small text-muted mb-2">Daha önce indirdiğiniz bir <code>.json</code> dosyasını seçerek tüm verilerinizi sisteme aktarabilirsiniz.</p>
                     <form action="{{ url_for('backup_restore') }}" method="POST" enctype="multipart/form-data">
                         <div class="input-group input-group-sm mb-2">
-                            <input type="file" name="backup_file" class="form-control" accept=".json" required>
+                            <label class="visually-hidden" for="backupFileInput">Yedek JSON Dosyası Seç</label>
+                            <input type="file" name="backup_file" id="backupFileInput" class="form-control" accept=".json" required aria-label="Yedek JSON Dosyası Seç">
                             <button type="submit" class="btn btn-primary" onclick="return confirm('Seçilen yedek dosyasındaki veriler mevcut hesabınıza eklenecektir. Devam etmek istiyor musunuz?');">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Yükle
+                                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Yükle
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Kapat</button>
+            </div>
         </div>
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <!-- GİZLİ VERİ BLOKLARI -->
 <script id="data-cat-labels" type="application/json">{{ chart_cat_labels|safe }}</script>
 <script id="data-cat-values" type="application/json">{{ chart_cat_values|safe }}</script>
@@ -1743,22 +1771,36 @@
         }
 
         // Nakit vs Kredi Kartı Grafiği
-        if (document.getElementById('paymentMethodChart')) {
-            new Chart(document.getElementById('paymentMethodChart'), {
-                type: 'pie',
-                data: {
-                    labels: ['Nakit', 'Kredi Kartı'],
-                    datasets: [{
-                        data: paymentValues,
-                        backgroundColor: ['#64748b', '#f59e0b']
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+        const paymentChartCanvas = document.getElementById('paymentMethodChart');
+        if (paymentChartCanvas) {
+            const totalPayments = (paymentValues && paymentValues.length) ? (Number(paymentValues[0] || 0) + Number(paymentValues[1] || 0)) : 0;
+            if (totalPayments <= 0) {
+                const parent = paymentChartCanvas.parentElement;
+                if (parent) {
+                    parent.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-credit-card fs-1 d-block mb-2 text-secondary opacity-50" aria-hidden="true"></i>
+                            <small>Ödeme yöntemi verisi bulunmuyor.</small>
+                        </div>
+                    `;
                 }
-            });
+            } else {
+                new Chart(paymentChartCanvas, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Nakit', 'Kredi Kartı'],
+                        datasets: [{
+                            data: paymentValues,
+                            backgroundColor: ['#64748b', '#f59e0b']
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
         }
 
         // Portföy Varlık Dağılımı Grafikleri (Genel Bakış ve Portföy Sekmesi)

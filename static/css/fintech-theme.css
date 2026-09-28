@@ -484,3 +484,30 @@ h1, h2, h3, h4,
     border-color: var(--border-color);
 }
 
+/* ==========================================================================
+   WCAG AA/AAA Contrast Overrides & Utilities
+   ========================================================================== */
+.text-warning {
+    color: #b45309 !important; /* WCAG AA compliant Amber-700 on light backgrounds */
+}
+
+[data-bs-theme="dark"] .text-warning {
+    color: #fcd34d !important; /* High-contrast Amber-300 on dark backgrounds */
+}
+
+/* Modern Horizontal Scrollbar for Mobile Toolbars */
+.modern-scrollbar::-webkit-scrollbar {
+    height: 4px;
+}
+.modern-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.modern-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+.modern-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
