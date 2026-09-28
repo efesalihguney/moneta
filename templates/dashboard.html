@@ -155,7 +155,7 @@
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
             {% if alert.action_pay_cc %}
-            <form action="{{ url_for('pay_credit_card') }}" method="POST" class="d-inline m-0" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+            <form action="{{ url_for('pay_credit_card') }}" method="POST" class="d-inline m-0" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
                 <input type="hidden" name="month" value="{{ selected_month }}">
                 <input type="hidden" name="year" value="{{ selected_year }}">
                 <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold py-0 px-2" style="font-size: 0.78rem;">
@@ -238,7 +238,7 @@
                                 <small class="text-muted mt-1 d-block">{{ selected_month_name }} dönemi ödenmemiş</small>
                             </div>
                             {% if cc_expense > 0 %}
-                            <form action="{{ url_for('pay_credit_card') }}" method="POST" onsubmit="return confirm('{{ cc_expense|currency_tr }} TL tutarındaki ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?');">
+                            <form action="{{ url_for('pay_credit_card') }}" method="POST" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
                                 <input type="hidden" name="month" value="{{ selected_month }}">
                                 <input type="hidden" name="year" value="{{ selected_year }}">
                                 <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" aria-label="Ekstre borcunu nakit bakiyenizden öde" title="Ekstreyi Nakit ile Öde">
@@ -896,7 +896,7 @@
                                                     title="İşlemi Düzenle">
                                                 <i class="bi bi-pencil" aria-hidden="true"></i>
                                             </button>
-                                            <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" onsubmit="return confirm('Bu işlemi silmek istediğinize emin misiniz?');">
+                                            <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" data-confirm="Bu işlemi silmek istediğinize emin misiniz?">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="İşlemi Sil: {{ t[4] }} - {{ t[1]|currency_tr }} TL" title="İşlemi Sil">
                                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                                 </button>
@@ -938,12 +938,12 @@
                                 <span class="fw-bold fs-6">{{ g.title }}</span>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
-                                    <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hedefi tamamlandı olarak işaretlemek istiyor musunuz?');">
+                                    <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" data-confirm="Hedefi tamamlandı olarak işaretlemek istiyor musunuz?">
                                         <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" aria-label="{{ g.title }} hedefini tamamlandı olarak işaretle" title="Hedefi Tamamla">
                                             <i class="bi bi-check-lg" aria-hidden="true"></i>
                                         </button>
                                     </form>
-                                    <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu hedefi silmek istediğinize emin misiniz?');">
+                                    <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" data-confirm="Bu hedefi silmek istediğinize emin misiniz?">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ g.title }} hedefini sil" title="Hedefi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -998,7 +998,7 @@
                                 </div>
                                 <div class="d-flex align-items-center gap-3">
                                     <span class="fw-bold fs-6">{{ sub[2]|currency_tr }} TL</span>
-                                    <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" onsubmit="return confirm('Bu ödemeyi silmek istediğinize emin misiniz?');">
+                                    <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" data-confirm="Bu ödemeyi silmek istediğinize emin misiniz?">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" aria-label="{{ sub[1] }} ödemesini sil" title="Ödemeyi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1029,7 +1029,7 @@
                     <small class="text-muted">Her ay tekrarlanan sabit gelir ve gider şablonlarınız</small>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
-                    <form action="{{ url_for('apply_recurring') }}" method="POST" class="d-inline" onsubmit="return confirm('Bu ay için tanımlı tüm düzenli şablonları eklemek istiyor musunuz? (Daha önce eklenenler çift eklenmez)');">
+                    <form action="{{ url_for('apply_recurring') }}" method="POST" class="d-inline" data-confirm="Bu ay için tanımlı tüm düzenli şablonları eklemek istiyor musunuz? (Daha önce eklenenler çift eklenmez)">
                         <input type="hidden" name="month" value="{{ selected_month }}">
                         <input type="hidden" name="year" value="{{ selected_year }}">
                         <button type="submit" class="btn btn-sm btn-saas-secondary">
@@ -1072,7 +1072,7 @@
                                     {{ '+' if rec[3] == 'gelir' else '-' }}{{ rec[2]|currency_tr }} TL
                                 </td>
                                 <td class="text-end">
-                                    <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?');">
+                                    <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" data-confirm="Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ rec[1] }} düzenli şablonunu sil" title="Şablonu Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1473,7 +1473,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
-                                    <form action="{{ url_for('delete_category', cat_id=c[0]) }}" method="POST" class="d-inline" onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz?');">
+                                    <form action="{{ url_for('delete_category', cat_id=c[0]) }}" method="POST" class="d-inline" data-confirm="Bu kategoriyi silmek istediğinize emin misiniz?">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ c[1] }} kategorisini sil" title="Kategoriyi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1612,7 +1612,7 @@
                         <div class="input-group input-group-sm mb-2">
                             <label class="visually-hidden" for="backupFileInput">Yedek JSON Dosyası Seç</label>
                             <input type="file" name="backup_file" id="backupFileInput" class="form-control" accept=".json" required aria-label="Yedek JSON Dosyası Seç">
-                            <button type="submit" class="btn btn-primary" onclick="return confirm('Seçilen yedek dosyasındaki veriler mevcut hesabınıza eklenecektir. Devam etmek istiyor musunuz?');">
+                            <button type="submit" class="btn btn-primary" data-confirm="Seçilen yedek dosyasındaki veriler mevcut hesabınıza eklenecektir. Devam etmek istiyor musunuz?">
                                 <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Yükle
                             </button>
                         </div>
@@ -2174,6 +2174,27 @@
                 loadEconomyNews(true);
             });
         }
+
+        // Merkezi Onay (Confirmation) Yönetimi: data-confirm özniteliği taşıyan form ve butonlar
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (form && form.hasAttribute('data-confirm')) {
+                const msg = form.getAttribute('data-confirm');
+                if (msg && !window.confirm(msg)) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            const trigger = e.target.closest('[data-confirm]');
+            if (trigger && trigger.tagName !== 'FORM') {
+                const msg = trigger.getAttribute('data-confirm');
+                if (msg && !window.confirm(msg)) {
+                    e.preventDefault();
+                }
+            }
+        });
 
         // Sayfa DOM'u ve diğer kritik bileşenler çizildikten hemen sonra haberleri asenkron olarak arka planda yükle
         setTimeout(function() {
