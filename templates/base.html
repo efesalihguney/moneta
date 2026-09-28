@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Wealth Tracker{% endblock %}</title>
+    <title>{% block title %}Moneta — Kişisel Finans & Varlık Yönetimi{% endblock %}</title>
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
     <script>
         // Sayfa yüklenmeden önce tema ayarını uygula (ekran yanıp sönmesini engeller)
         (function() {
-            const savedTheme = localStorage.getItem('wt_theme') || 'light';
+            const savedTheme = localStorage.getItem('moneta_theme') || localStorage.getItem('wt_theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
     </script>
@@ -34,8 +34,8 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2 mb-2" aria-label="Ana Gezinti Menüsü">
         <div class="container-fluid px-4">
-            <a class="navbar-brand text-primary d-flex align-items-center" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
-                <i class="bi bi-wallet2 text-white me-2 fs-5" aria-hidden="true"></i>WealthTracker
+            <a class="navbar-brand text-primary d-flex align-items-center fw-bold" href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
+                <i class="bi bi-wallet2 text-white me-2 fs-5" aria-hidden="true"></i>Moneta
             </a>
             <div class="navbar-nav ms-auto d-flex flex-row align-items-center gap-2">
                 <!-- TEMA DEĞİŞTİRME BUTONU -->
@@ -147,7 +147,7 @@
     <!-- SEMANTİK FOOTER ALANI -->
     <footer class="border-top py-4 mt-5 text-center text-muted small bg-body-tertiary">
         <div class="container">
-            <p class="mb-1 fw-semibold text-body">WealthTracker &copy; 2026 — Modern Finans & Portföy Yönetim Platformu</p>
+            <p class="mb-1 fw-semibold text-body">Moneta &copy; 2026 — Modern Finans & Portföy Yönetim Platformu</p>
             <span class="text-secondary opacity-75">Web Tasarımı ve Programlama Dersi Bitirme Projesi</span>
         </div>
     </footer>
@@ -177,6 +177,7 @@
                     const activeTheme = document.documentElement.getAttribute('data-bs-theme');
                     const newTheme = activeTheme === 'dark' ? 'light' : 'dark';
                     document.documentElement.setAttribute('data-bs-theme', newTheme);
+                    localStorage.setItem('moneta_theme', newTheme);
                     localStorage.setItem('wt_theme', newTheme);
                     updateIcon(newTheme);
 

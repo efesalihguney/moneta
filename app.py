@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 from db import get_db_connection
 
 app = Flask(__name__)
-app.secret_key = "super_secret_wealth_tracker_key_change_in_production"
+app.secret_key = "super_secret_moneta_key_change_in_production"
 
 @app.template_filter('currency_tr')
 def currency_tr_filter(value, decimals=2):
@@ -2016,7 +2016,7 @@ def backup_download():
     buf = io.BytesIO()
     buf.write(json.dumps(backup_data, ensure_ascii=False, indent=2).encode('utf-8'))
     buf.seek(0)
-    filename = f"wealth_tracker_backup_{datetime.today().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"moneta_backup_{datetime.today().strftime('%Y%m%d_%H%M%S')}.json"
     return send_file(buf, as_attachment=True, download_name=filename, mimetype='application/json')
 
 @app.route('/backup/restore', methods=['POST'])
