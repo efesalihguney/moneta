@@ -34,56 +34,126 @@
 </header>
 
 <!-- ================= 1. BÜYÜK RESİM: TOPLAM NET SERVET (NET WORTH HERO CARD) ================= -->
-<section class="card hero-net-worth mb-4 border-0 text-white" aria-labelledby="heroNetWorthTitle">
-    <div class="card-body p-4">
-        <div class="row align-items-center">
-            <div class="col-lg-5 mb-3 mb-lg-0 border-end-lg border-secondary pe-lg-4">
-                <span class="micro-label text-info d-block mb-1">
-                    <i class="bi bi-shield-check me-1" aria-hidden="true"></i>Toplam Net Servet (Net Worth)
+<script>
+    // Gizlilik tercihini bakiyeler çizilmeden önce uygula (bakiyelerin bir anlığına görünmesini engeller)
+    try {
+        if (localStorage.getItem('moneta_privacy_mode') === 'true') {
+            document.body.classList.add('privacy-mode-active');
+        }
+    } catch (e) { /* localStorage erişilemezse varsayılan: görünür */ }
+</script>
+<section class="net-worth-hero card p-4 mb-4" aria-labelledby="net-worth-title" data-usd-try-rate="{{ '%.4f'|format(usd_try_rate or 34.50) }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3 pb-3 border-bottom border-subtle">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <span id="net-worth-title" class="text-xs uppercase tracking-wider text-muted fw-semibold d-flex align-items-center gap-1">
+                    <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>Konsolide Net Servet
                 </span>
-                <h2 id="heroNetWorthTitle" class="visually-hidden">Toplam Net Servet</h2>
-                <p class="display-6 fw-bold mb-1 num-tabular text-success">
+                <span class="fx-rate-pill" title="TCMB / Piyasa Anlık USD/TRY Kuru">
+                    <i class="bi bi-currency-exchange text-primary" aria-hidden="true"></i>1 $ = {{ (usd_try_rate or 34.50)|currency_tr }} ₺
+                </span>
+            </div>
+            <div class="d-flex flex-wrap align-items-baseline gap-2">
+                <h2 class="display-6 fw-bold mb-0 num-tabular net-worth-amount sensitive-amount" data-amount-try="{{ '%.2f'|format(total_net_worth or 0.0) }}" data-show-plus="true">
                     {{ '+' if total_net_worth > 0 else '' }}{{ total_net_worth|currency_tr }} TL
-                </p>
-                <small class="text-light opacity-75">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
+                </h2>
+                {% if total_realized_pnl != 0 %}
+                <span class="badge {{ 'bg-success-subtle text-success' if total_realized_pnl >= 0 else 'bg-danger-subtle text-danger' }} rounded-pill small py-1 px-2 num-tabular sensitive-amount" data-amount-try="{{ '%.2f'|format(total_realized_pnl or 0.0) }}" data-prefix="Realize: " data-show-plus="true">
+                    Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
+                </span>
+                {% endif %}
             </div>
-            <div class="col-lg-7 ps-lg-4">
-                <div class="row g-2">
-                    <div class="col-6 col-sm-3">
-                        <div class="p-3 hero-glass-card text-center h-100 position-relative">
-                            <div class="d-flex justify-content-center align-items-center gap-1 mb-1">
-                                <span class="micro-label text-light opacity-75 text-truncate">💵 Vadesiz Nakit</span>
-                                <button type="button" class="btn btn-link p-0 text-white opacity-75 text-decoration-none" 
-                                        data-bs-toggle="modal" data-bs-target="#initialBalanceModal" 
-                                        aria-label="Başlangıç ve mevcut nakit bakiyesini güncelle"
-                                        title="Başlangıç / Mevcut Nakit Bakiyesini Güncelle">
-                                    <i class="bi bi-pencil-square" style="font-size: 0.75rem;" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            <span class="fw-bold text-white fs-6 num-tabular text-nowrap d-block">{{ cash_balance|currency_tr }} TL</span>
-                        </div>
-                    </div>
-                    <div class="col-6 col-sm-3">
-                        <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">📈 Canlı Portföy</span>
-                            <span class="fw-bold text-success fs-6 num-tabular text-nowrap d-block">{{ total_portfolio_value|currency_tr }} TL</span>
-                        </div>
-                    </div>
-                    <div class="col-6 col-sm-3">
-                        <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">🎯 Kumbaralar</span>
-                            <span class="fw-bold text-info fs-6 num-tabular text-nowrap d-block">{{ total_savings_amount|currency_tr }} TL</span>
-                        </div>
-                    </div>
-                    <div class="col-6 col-sm-3">
-                        <div class="p-3 hero-glass-card text-center h-100">
-                            <span class="micro-label d-block text-light opacity-75 mb-1 text-truncate">💳 Kart Borcu</span>
-                            <span class="fw-bold text-danger fs-6 num-tabular text-nowrap d-block">-{{ total_unpaid_cc|currency_tr }} TL</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <small class="net-worth-desc d-block mt-1">Tüm varlıklar, nakit bakiyesi, kumbaralar ve borçların konsolide toplamı</small>
         </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 justify-content-start justify-content-md-end net-worth-hero-actions">
+            <div class="currency-switcher" id="currency-switcher-group" role="group" aria-label="Görünüm Para Birimi Seçici">
+                <button type="button" id="btn-currency-try" class="btn-currency active" data-currency="TRY" aria-pressed="true" title="Tutarları Türk Lirası (₺) olarak göster">
+                    ₺ TRY
+                </button>
+                <button type="button" id="btn-currency-usd" class="btn-currency" data-currency="USD" aria-pressed="false" title="Tutarları Amerikan Doları ($) olarak göster">
+                    $ USD
+                </button>
+            </div>
+            <button type="button" id="btn-privacy-toggle" class="btn btn-sm btn-privacy-toggle" aria-pressed="false" aria-label="Bakiyeleri Gizle veya Göster (Alt+P)" title="Gizlilik Modu (Alt+P)">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+                <span class="d-none d-sm-inline ms-1">Bakiyeleri Gizle</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-saas-secondary" data-bs-toggle="modal" data-bs-target="#initialBalanceModal" aria-label="Nakit Bakiyesini Güncelle" title="Nakit Bakiyesini Güncelle">
+                <i class="bi bi-pencil-square me-1 text-primary" aria-hidden="true"></i>Nakit Bakiyesini Düzenle
+            </button>
+            <span id="privacy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+        </div>
+    </div>
+
+    <!-- 4 ALT KART (RESPONSIVE IZGARA & MİKRO ETKİLEŞİMLER) -->
+    <div class="row g-3 mt-1">
+        <!-- Kart 1 (Vadesiz Nakit) -->
+        <a href="#cashflow-section" class="net-worth-subcard text-decoration-none col-12 col-sm-6 col-lg-3" aria-label="Vadesiz Nakit Detaylarına Git">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="subcard-title text-muted fw-semibold">Vadesiz Nakit</span>
+                <span class="subcard-badge text-emerald-600 bg-emerald-50">
+                    <i class="bi bi-wallet2" aria-hidden="true"></i>
+                </span>
+            </div>
+            <div class="mt-auto">
+                <span class="h4 fw-bold num-tabular d-block mb-1 subcard-amount sensitive-amount" data-amount-try="{{ '%.2f'|format(cash_balance or 0.0) }}">{{ cash_balance|currency_tr }} TL</span>
+                <span class="subcard-action text-xs text-muted d-flex align-items-center justify-content-between">
+                    <span>Nakit Akışı</span>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </span>
+            </div>
+        </a>
+
+        <!-- Kart 2 (Yatırım Portföyü) -->
+        <a href="#portfolio-section" class="net-worth-subcard text-decoration-none col-12 col-sm-6 col-lg-3" aria-label="Yatırım Portföyü Detaylarına Git">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="subcard-title text-muted fw-semibold">Portföy Değeri</span>
+                <span class="subcard-badge text-indigo-600 bg-indigo-50">
+                    <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+                </span>
+            </div>
+            <div class="mt-auto">
+                <span class="h4 fw-bold num-tabular d-block mb-1 subcard-amount sensitive-amount" data-amount-try="{{ '%.2f'|format(total_portfolio_value or 0.0) }}">{{ total_portfolio_value|currency_tr }} TL</span>
+                <span class="subcard-action text-xs d-flex align-items-center justify-content-between {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
+                    <span class="fw-semibold sensitive-amount" data-amount-try="{{ '%.2f'|format(total_portfolio_pnl or 0.0) }}" data-show-plus="true" data-suffix=" (%{{ total_portfolio_pnl_pct }})">{{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})</span>
+                    <i class="bi bi-arrow-right text-muted ms-1" aria-hidden="true"></i>
+                </span>
+            </div>
+        </a>
+
+        <!-- Kart 3 (Kumbaralar) -->
+        <a href="#savings-section" class="net-worth-subcard text-decoration-none col-12 col-sm-6 col-lg-3" aria-label="Birikim Kumbaraları Detaylarına Git">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="subcard-title text-muted fw-semibold">Birikim Kumbaraları</span>
+                <span class="subcard-badge text-amber-600 bg-amber-50">
+                    <i class="bi bi-piggy-bank" aria-hidden="true"></i>
+                </span>
+            </div>
+            <div class="mt-auto">
+                <span class="h4 fw-bold num-tabular d-block mb-1 subcard-amount sensitive-amount" data-amount-try="{{ '%.2f'|format(total_savings_amount or 0.0) }}">{{ total_savings_amount|currency_tr }} TL</span>
+                <span class="subcard-action text-xs text-muted d-flex align-items-center justify-content-between">
+                    <span>Hedefleri İncele</span>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </span>
+            </div>
+        </a>
+
+        <!-- Kart 4 (Kredi Kartı Borcu) -->
+        <a href="#debt-section" class="net-worth-subcard text-decoration-none col-12 col-sm-6 col-lg-3" aria-label="Kredi Kartı Ekstre Borçlarına Git">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="subcard-title text-muted fw-semibold">Kredi Kartı Borcu</span>
+                <span class="subcard-badge text-rose-600 bg-rose-50">
+                    <i class="bi bi-credit-card-2-front" aria-hidden="true"></i>
+                </span>
+            </div>
+            <div class="mt-auto">
+                <span class="h4 fw-bold num-tabular d-block mb-1 text-danger subcard-amount sensitive-amount" data-amount-try="{{ '%.2f'|format(-(total_unpaid_cc or 0.0)) }}">-{{ total_unpaid_cc|currency_tr }} TL</span>
+                <span class="subcard-action text-xs text-muted d-flex align-items-center justify-content-between">
+                    <span>Ekstre & Ödeme</span>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </span>
+            </div>
+        </a>
     </div>
 </section>
 
@@ -91,22 +161,22 @@
 <section class="card p-3 mb-4 border shadow-xs" aria-label="Dönem Seçimi ve Aylık Tasarruf Özeti">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" aria-label="Önceki aya git" title="Önceki Ay">
+            <a href="{{ url_for('dashboard', month=prev_month, year=prev_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1 period-nav-link" aria-label="Önceki aya git" title="Önceki Ay">
                 <i class="bi bi-chevron-left" aria-hidden="true"></i>
             </a>
-            <span class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center">
+            <span class="fs-5 fw-bold text-body mb-0 d-flex align-items-center">
                 <i class="bi bi-calendar3 me-2 text-primary" aria-hidden="true"></i>{{ selected_month_name }} {{ selected_year }}
             </span>
-            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1" aria-label="Sonraki aya git" title="Sonraki Ay">
+            <a href="{{ url_for('dashboard', month=next_month, year=next_year) }}" class="btn btn-saas-secondary btn-sm px-2 py-1 period-nav-link" aria-label="Sonraki aya git" title="Sonraki Ay">
                 <i class="bi bi-chevron-right" aria-hidden="true"></i>
             </a>
             {% if selected_month != today_str[:7].split('-')[1]|int or selected_year != today_str[:4]|int %}
-            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-link text-decoration-none">Bu Aya Dön</a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-link text-decoration-none period-nav-link">Bu Aya Dön</a>
             {% endif %}
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
             {% if total_realized_pnl != 0 %}
-            <span class="badge {{ 'bg-success-subtle' if total_realized_pnl >= 0 else 'bg-danger-subtle' }} py-2 px-3 num-tabular">
+            <span class="badge {{ 'bg-success-subtle' if total_realized_pnl >= 0 else 'bg-danger-subtle' }} py-2 px-3 num-tabular sensitive-amount">
                 Toplam Realize Kâr/Zarar: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
             </span>
             {% endif %}
@@ -133,7 +203,7 @@
 
             <span class="badge bg-secondary-subtle text-body border py-2 px-3 num-tabular">
                 Bu Ayki Net Tasarruf: 
-                <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }} ms-1">
+                <b class="{{ 'text-success' if net_savings >= 0 else 'text-danger' }} ms-1 sensitive-amount">
                     {{ '+' if net_savings >= 0 else '' }}{{ net_savings|currency_tr }} TL
                 </b>
             </span>
@@ -150,7 +220,7 @@
             <i class="bi {{ alert.icon }} fs-6 flex-shrink-0 text-{{ alert.type }}"></i>
             <div>
                 <strong>{{ alert.title }}:</strong>
-                <span class="text-body-secondary ms-1">{{ alert.message }}</span>
+                <span class="text-body-secondary ms-1 sensitive-amount">{{ alert.message }}</span>
             </div>
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
@@ -212,55 +282,104 @@
         <h2 class="visually-hidden">Genel Finansal Bakış ve Analizler</h2>
         
         <!-- AYLIK METRİK KARTLARI -->
-        <section aria-labelledby="monthlyMetricsHeading">
+        <section id="cashflow-section" aria-labelledby="monthlyMetricsHeading" tabindex="-1">
             <h2 id="monthlyMetricsHeading" class="visually-hidden">Aylık Finansal Metrikler</h2>
             <div class="row g-3 mb-4">
                 <div class="col-md-3">
                     <div class="card metric-card p-4 border-start border-success border-4 h-100">
                         <h3 class="micro-label mb-1">Bu Ayki Gelir</h3>
-                        <p class="h4 fw-bold text-success mt-2 mb-0 num-tabular">{{ total_income|currency_tr }} TL</p>
+                        <p class="h4 fw-bold text-success mt-2 mb-0 num-tabular sensitive-amount">{{ total_income|currency_tr }} TL</p>
                         <small class="text-muted mt-1">{{ selected_month_name }} dönemi</small>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card metric-card p-4 border-start border-danger border-4 h-100">
                         <h3 class="micro-label mb-1">Nakit Harcamalar</h3>
-                        <p class="h4 fw-bold text-danger mt-2 mb-0 num-tabular">{{ cash_expense|currency_tr }} TL</p>
+                        <p class="h4 fw-bold text-danger mt-2 mb-0 num-tabular sensitive-amount">{{ cash_expense|currency_tr }} TL</p>
                         <small class="text-muted mt-1">Cebinden anında çıkan</small>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card metric-card p-4 border-start border-warning border-4 h-100">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h3 class="micro-label mb-1">Kredi Kartı Ekstre Borcu</h3>
-                                <p class="h4 fw-bold text-warning mt-2 mb-0 num-tabular">{{ cc_expense|currency_tr }} TL</p>
-                                <small class="text-muted mt-1 d-block">{{ selected_month_name }} dönemi ödenmemiş</small>
+                <div class="col-md-3" id="debt-section" tabindex="-1">
+                    <div class="card metric-card p-3 p-xl-4 border-start border-warning border-4 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <h3 class="micro-label mb-1">Kredi Kartı Ekstre Borcu</h3>
+                                    <p class="h4 fw-bold text-warning mt-1 mb-0 num-tabular sensitive-amount">{{ total_unpaid_cc|currency_tr }} TL</p>
+                                </div>
+                                {% if total_unpaid_cc > 0 %}
+                                <form action="{{ url_for('pay_credit_card') }}" method="POST" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
+                                    <input type="hidden" name="month" value="{{ selected_month }}">
+                                    <input type="hidden" name="year" value="{{ selected_year }}">
+                                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" aria-label="Ekstre borcunu nakit bakiyenizden öde" title="Ekstreyi Nakit ile Öde">
+                                        <i class="bi bi-credit-card-2-front me-1" aria-hidden="true"></i>Öde
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success mt-1"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Borç Yok</span>
+                                {% endif %}
                             </div>
-                            {% if cc_expense > 0 %}
-                            <form action="{{ url_for('pay_credit_card') }}" method="POST" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
-                                <input type="hidden" name="month" value="{{ selected_month }}">
-                                <input type="hidden" name="year" value="{{ selected_year }}">
-                                <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" aria-label="Ekstre borcunu nakit bakiyenizden öde" title="Ekstreyi Nakit ile Öde">
-                                    <i class="bi bi-credit-card-2-front me-1" aria-hidden="true"></i>Öde
-                                </button>
-                            </form>
-                            {% else %}
-                            <span class="badge bg-success-subtle text-success mt-1"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Borç Yok</span>
-                            {% endif %}
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">{{ selected_month_name }} ve önceki dönemler</small>
+
+                            <!-- Kredi Kartı Limit Doluluk Oranı (Credit Utilization) Progress Bar -->
+                            <div class="mt-3 pt-2 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="micro-label" style="font-size: 0.7rem;">Limit Doluluk Oranı</span>
+                                    <span class="small fw-bold num-tabular" id="ccUtilizationPctDisplay">%{{ cc_utilization_pct }}</span>
+                                </div>
+                                <div class="progress cc-utilization-bar position-relative" style="height: 8px; background-color: var(--slate-200); border-radius: 9999px; overflow: visible;">
+                                    <!-- %30 İdeal Eşik Çizgisi -->
+                                    <div class="cc-marker" style="position: absolute; left: 30%; top: -3px; bottom: -3px; width: 2px; background-color: #10b981; z-index: 2;" title="İdeal Eşik (%30)" data-bs-toggle="tooltip"></div>
+                                    <!-- %70 Kritik Eşik Çizgisi -->
+                                    <div class="cc-marker" style="position: absolute; left: 70%; top: -3px; bottom: -3px; width: 2px; background-color: #e11d48; z-index: 2;" title="Kritik Risk Eşiği (%70)" data-bs-toggle="tooltip"></div>
+                                    <!-- Dinamik Doluluk Barı -->
+                                    <div class="progress-bar {{ cc_risk_bar_class }}" role="progressbar" style="width: {{ [cc_utilization_pct, 100]|min }}%; border-radius: 9999px;" aria-valuenow="{{ cc_utilization_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1 text-muted" style="font-size: 0.65rem;">
+                                    <span>%0</span>
+                                    <span class="text-success fw-semibold">%30 İdeal</span>
+                                    <span class="text-danger fw-semibold">%70 Risk</span>
+                                    <span>%100</span>
+                                </div>
+                            </div>
+
+                            <!-- Limit ve Kullanılabilir Tutar Metrikleri -->
+                            <div class="mt-2 pt-2 border-top small" style="font-size: 0.75rem;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted">Kullanılabilir Limit:</span>
+                                    <span class="fw-bold text-success sensitive-amount">{{ available_card_limit|currency_tr }} TL</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">Toplam Limit:</span>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="fw-semibold sensitive-amount text-body">{{ credit_card_limit|currency_tr }} TL</span>
+                                        <button type="button" class="btn btn-link p-0 text-primary text-decoration-none" data-bs-toggle="modal" data-bs-target="#editCardLimitModal" title="Kart Limitini Düzenle" aria-label="Kredi kartı limitini düzenle">
+                                            <i class="bi bi-pencil-square" style="font-size: 0.8rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Findeks / FICO Risk Rozeti -->
+                        <div class="mt-2.5 pt-2 border-top">
+                            <span class="badge {{ cc_risk_badge_class }} w-100 d-flex align-items-center justify-content-center gap-1 py-1" style="font-size: 0.72rem; white-space: normal; text-align: center;" title="{{ cc_risk_advice }}" data-bs-toggle="tooltip">
+                                <i class="bi {{ cc_risk_icon }}"></i>
+                                <span>{{ cc_risk_status }}</span>
+                            </span>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card metric-card p-4 border-start border-primary border-4 h-100">
                         <h3 class="micro-label mb-1">Canlı Portföy Değeri</h3>
-                        <p class="h4 fw-bold text-primary mt-2 mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</p>
+                        <p class="h4 fw-bold text-primary mt-2 mb-0 num-tabular sensitive-amount">{{ total_portfolio_value|currency_tr }} TL</p>
                         <div class="d-flex justify-content-between align-items-center mt-1">
-                            <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
+                            <small class="{{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular sensitive-amount">
                                 {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL (%{{ total_portfolio_pnl_pct }})
                             </small>
                             {% if total_realized_pnl != 0 %}
-                            <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular">
+                            <small class="{{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }} fw-semibold num-tabular sensitive-amount">
                                 Realize: {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                             </small>
                             {% endif %}
@@ -270,43 +389,78 @@
             </div>
         </section>
 
-        <!-- ================= AKILLI FİNANSAL ASİSTAN & GÜNÜN EKONOMİ BAŞLIKLARI ================= -->
-        <div class="row g-4 mb-4">
-            <!-- SOL KOLON: AKILLI FİNANSAL ASİSTAN ANALİZİ (AI INSIGHTS) -->
-            <div class="col-lg-7">
-                <div class="card p-3 shadow-sm border h-100">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
-                                <i class="bi bi-robot fs-5" aria-hidden="true"></i>
-                            </div>
-                            <div>
-                                <h3 class="h6 fw-bold mb-0">Akıllı Finansal Asistan Analizi</h3>
-                                <small class="text-muted">{{ selected_month_name }} {{ selected_year }} dönemi bütçe ve harcama değerlendirmesi</small>
-                            </div>
-                        </div>
-                        <span class="badge bg-primary-subtle text-primary fw-semibold"><i class="bi bi-stars me-1" aria-hidden="true"></i>Akıllı Tavsiye</span>
+        <!-- ================= AKILLI FİNANSAL ASİSTAN ANALİZİ (AI INSIGHTS) ================= -->
+        <div class="card p-3 shadow-sm border mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-robot fs-5" aria-hidden="true"></i>
                     </div>
-                    {% if ai_insights %}
-                    <div class="d-flex flex-column gap-2">
-                        {% for ins in ai_insights %}
-                        <div class="alert alert-{{ ins.type }} d-flex align-items-start p-3 mb-0 rounded-3 border">
-                            <i class="bi {{ ins.icon }} fs-4 me-3 mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div>
-                                <strong class="d-block mb-1">{{ ins.title }}</strong>
-                                <span class="small">{{ ins.text }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
+                    <div>
+                        <h3 class="h6 fw-bold mb-0">Akıllı Finansal Asistan Analizi</h3>
+                        <small class="text-muted">{{ selected_month_name }} {{ selected_year }} dönemi bütçe ve harcama değerlendirmesi</small>
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center py-4 mb-0">Henüz finansal içgörü oluşturulabilecek yeterli veri bulunmuyor.</p>
-                    {% endif %}
                 </div>
+                <span class="badge bg-primary-subtle text-primary fw-semibold"><i class="bi bi-stars me-1" aria-hidden="true"></i>Akıllı Tavsiye</span>
             </div>
+            {% if ai_insights %}
+            <div class="row g-2">
+                {% for ins in ai_insights %}
+                <div class="col-12 col-md-6">
+                    <div class="alert alert-{{ ins.type }} d-flex align-items-start p-3 mb-0 rounded-3 border h-100">
+                        <i class="bi {{ ins.icon }} fs-4 me-3 mt-1 flex-shrink-0" aria-hidden="true"></i>
+                        <div>
+                            <strong class="d-block mb-1">{{ ins.title }}</strong>
+                            <span class="small sensitive-amount">{{ ins.text }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4 mb-0">Henüz finansal içgörü oluşturulabilecek yeterli veri bulunmuyor.</p>
+            {% endif %}
+        </div>
+
+        <!-- ================= CANLI PİYASA GÖSTERGELERİ & GÜNÜN EKONOMİ BAŞLIKLARI ================= -->
+        <div class="row g-4 mb-4">
+            <!-- SOL KOLON: CANLI PİYASA GÖSTERGELERİ -->
+            <section class="col-12 col-xl-5" aria-labelledby="market-indicators-title">
+                <div class="card p-3 shadow-sm border h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 rounded-3 bg-success bg-opacity-10 text-success">
+                                <i class="bi bi-activity fs-5" aria-hidden="true"></i>
+                            </div>
+                            <div>
+                                <h3 id="market-indicators-title" class="h6 fw-bold mb-0">Piyasa Göstergeleri <span class="text-muted fw-normal small">(Canlı/15dk)</span></h3>
+                                <small class="text-muted">BIST 100, Nasdaq, gram altın & gümüş</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="market-update-time" class="badge bg-secondary-subtle text-body border d-none d-sm-inline-flex align-items-center">
+                                <i class="bi bi-clock me-1" aria-hidden="true"></i><span>--:--</span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="btn-refresh-market" aria-label="Piyasa göstergelerini yenile" title="Piyasa Verilerini Yenile">
+                                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="market-indicators-grid" class="row g-2" aria-live="polite" aria-busy="true">
+                        {% for _ in range(4) %}
+                        <div class="col-6"><div class="skeleton-shimmer" aria-hidden="true"></div></div>
+                        {% endfor %}
+                        <span class="visually-hidden">Piyasa göstergeleri yükleniyor...</span>
+                    </div>
+                    <small class="text-muted d-block mt-3" style="font-size: 0.72rem;">
+                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Değişimler önceki kapanışa göredir. Borsa verileri ~15 dk gecikmeli olabilir.
+                    </small>
+                </div>
+            </section>
 
             <!-- SAĞ KOLON: GÜNÜN EKONOMİ BAŞLIKLARI (PİYASA NABZI) -->
-            <aside class="col-lg-5" aria-label="Güncel Ekonomi Haberleri">
+            <aside class="col-12 col-xl-7" aria-label="Güncel Ekonomi Haberleri">
                 <div class="card p-3 shadow-sm border h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center gap-2">
@@ -315,7 +469,7 @@
                             </div>
                             <div>
                                 <h3 class="h6 fw-bold mb-0">Günün Ekonomi Başlıkları</h3>
-                                <small class="text-muted">Piyasa haberleri & canlı finans gündemi</small>
+                                <small class="text-muted">Piyasa haberleri &amp; canlı finans gündemi</small>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
@@ -412,7 +566,7 @@
                                         <span class="fw-bold">{{ item.symbol }}</span>
                                         <small class="text-muted ms-1">({{ item.type }})</small>
                                     </span>
-                                    <span class="fw-semibold">{{ item.cur_val|currency_tr }} TL</span>
+                                    <span class="fw-semibold sensitive-amount">{{ item.cur_val|currency_tr }} TL</span>
                                 </li>
                                 {% endfor %}
                             </ul>
@@ -445,10 +599,10 @@
                             <div class="d-flex justify-content-between align-items-center small mb-1">
                                 <span class="fw-bold">{{ b.name }}</span>
                                 <span>
-                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
+                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-body' }} sensitive-amount">
                                         {{ b.spent|currency_tr }} TL
                                     </span> 
-                                    / {{ b.budget|currency_tr }} TL
+                                    / <span class="sensitive-amount">{{ b.budget|currency_tr }} TL</span>
                                     <span class="text-muted ms-1">(%{{ b.percent }})</span>
                                 </span>
                             </div>
@@ -479,7 +633,7 @@
                                     <small class="text-muted d-block">{{ sub[4].strftime('%d.%m.%Y') }}</small>
                                 </div>
                                 <div class="text-end">
-                                    <span class="fw-bold">{{ sub[2]|currency_tr }} TL</span>
+                                    <span class="fw-bold sensitive-amount">{{ sub[2]|currency_tr }} TL</span>
                                     <span class="badge {{ 'bg-danger' if sub[5] <= 3 else 'bg-warning text-dark' }} ms-1">
                                         {{ sub[5] }} gün
                                     </span>
@@ -491,10 +645,10 @@
                     {% if savings_goals %}
                         <span class="fw-bold text-muted small mt-2 mb-2 d-block"><i class="bi bi-piggy-bank me-1 text-info" aria-hidden="true"></i>Tasarruf Kumbarası Hedefleri</span>
                         {% for g in savings_goals[:2] %}
-                        <div class="border rounded p-2 mb-2 bg-light">
+                        <div class="border rounded p-2 mb-2 bg-body-tertiary">
                             <div class="d-flex justify-content-between align-items-center small mb-1">
                                 <span class="fw-bold">{{ g.title }}</span>
-                                <span class="text-primary fw-semibold">%{{ g.percent }} ({{ g.current_amount|currency_tr(0) }} / {{ g.target_amount|currency_tr(0) }} TL)</span>
+                                <span class="text-primary fw-semibold">%{{ g.percent }} (<span class="sensitive-amount">{{ g.current_amount|currency_tr(0) }} TL</span> / <span class="sensitive-amount">{{ g.target_amount|currency_tr(0) }} TL</span>)</span>
                             </div>
                             <div class="progress bg-secondary-subtle rounded-pill" style="height: 8px;">
                                 <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
@@ -516,22 +670,22 @@
         <h2 class="visually-hidden">Yatırım Portföyü ve Piyasa Karşılaştırması</h2>
         
         <!-- PORTFÖY İSTATİSTİK BANNERI -->
-        <div class="card p-4 mb-4 border shadow-xs">
+        <div id="portfolio-section" class="card p-4 mb-4 border shadow-xs" tabindex="-1">
             <div class="row g-3 align-items-center text-center text-md-start">
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Toplam Portföy Değeri</span>
-                    <p class="fs-4 fw-bold text-primary mb-0 num-tabular">{{ total_portfolio_value|currency_tr }} TL</p>
+                    <p class="fs-4 fw-bold text-primary mb-0 num-tabular sensitive-amount">{{ total_portfolio_value|currency_tr }} TL</p>
                 </div>
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Toplam Kâr / Zarar</span>
-                    <p class="fs-5 fw-bold mb-0 num-tabular {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
+                    <p class="fs-5 fw-bold mb-0 num-tabular sensitive-amount {{ 'text-success' if total_portfolio_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_portfolio_pnl >= 0 else '' }}{{ total_portfolio_pnl|currency_tr }} TL 
                         <span class="fs-6 fw-normal">(%{{ total_portfolio_pnl_pct }})</span>
                     </p>
                 </div>
                 <div class="col-md-3">
                     <span class="micro-label d-block mb-1">Realize Edilen Kâr/Zarar</span>
-                    <p class="fs-5 fw-bold mb-0 num-tabular {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
+                    <p class="fs-5 fw-bold mb-0 num-tabular sensitive-amount {{ 'text-success' if total_realized_pnl >= 0 else 'text-danger' }}">
                         {{ '+' if total_realized_pnl >= 0 else '' }}{{ total_realized_pnl|currency_tr }} TL
                     </p>
                 </div>
@@ -561,7 +715,7 @@
         <div class="card p-3 mb-4 shadow-sm border">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div>
-                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info" aria-hidden="true"></i>Piyasa Benchmark & Kıyaslama Karnesi</h3>
+                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info" aria-hidden="true"></i>Piyasa Benchmark &amp; Kıyaslama Karnesi</h3>
                     <small class="text-muted">Portföyünüzün piyasa endeksleri ve emtialara göre göreceli performansı</small>
                 </div>
                 <div class="btn-group btn-group-sm" role="group" id="benchmarkPeriodGroup" aria-label="Benchmark Dönem Seçimi">
@@ -574,7 +728,7 @@
             <div class="row g-3">
                 <!-- Portföyüm -->
                 <div class="col-sm-6 col-lg-3">
-                    <div class="p-3 rounded-3 border bg-light h-100">
+                    <div class="p-3 rounded-3 border bg-body-tertiary h-100">
                         <span class="text-muted small fw-semibold">Portföyünüzün Getirisi</span>
                         <p class="fs-4 fw-bold my-1 {{ 'text-success' if total_portfolio_pnl_pct >= 0 else 'text-danger' }}">
                             {{ '+' if total_portfolio_pnl_pct >= 0 else '' }}%{{ total_portfolio_pnl_pct }}
@@ -584,7 +738,7 @@
                 </div>
                 <!-- BIST 100 -->
                 <div class="col-sm-6 col-lg-3">
-                    <div class="p-3 rounded-3 border bg-light h-100">
+                    <div class="p-3 rounded-3 border bg-body-tertiary h-100">
                         <span class="text-muted small fw-semibold">BIST 100 (XU100)</span>
                         <p class="fs-4 fw-bold my-1" id="bmBistVal">
                             {{ '+' if benchmark_data['1M']['bist'] >= 0 else '' }}%{{ benchmark_data['1M']['bist'] }}
@@ -594,7 +748,7 @@
                 </div>
                 <!-- Dolar/TL -->
                 <div class="col-sm-6 col-lg-3">
-                    <div class="p-3 rounded-3 border bg-light h-100">
+                    <div class="p-3 rounded-3 border bg-body-tertiary h-100">
                         <span class="text-muted small fw-semibold">Dolar / TL (USD/TRY)</span>
                         <p class="fs-4 fw-bold my-1" id="bmUsdVal">
                             {{ '+' if benchmark_data['1M']['usd'] >= 0 else '' }}%{{ benchmark_data['1M']['usd'] }}
@@ -604,7 +758,7 @@
                 </div>
                 <!-- Gram Altın -->
                 <div class="col-sm-6 col-lg-3">
-                    <div class="p-3 rounded-3 border bg-light h-100">
+                    <div class="p-3 rounded-3 border bg-body-tertiary h-100">
                         <span class="text-muted small fw-semibold">Gram Altın (TL)</span>
                         <p class="fs-4 fw-bold my-1" id="bmGoldVal">
                             {{ '+' if benchmark_data['1M']['gold'] >= 0 else '' }}%{{ benchmark_data['1M']['gold'] }}
@@ -613,6 +767,78 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ENFLASYON (TÜFE) & REEL GETİRİ ANALİZİ (FISHER DENKLEMİ) -->
+            <div class="mt-3 pt-3 border-top">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge py-1 px-2 fw-semibold" style="background-color: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.25);">
+                            <i class="bi bi-graph-up me-1"></i>Fisher Denklemi
+                        </span>
+                        <h4 class="h6 fw-bold mb-0 text-body">Enflasyon (TÜFE) &amp; Reel Getiri Analizi</h4>
+                    </div>
+                    <div class="small text-muted" title="Fisher Denklemi: [(1 + (Nominal / 100)) / (1 + (TÜFE / 100)) - 1] × 100" data-bs-toggle="tooltip" data-bs-placement="top">
+                        <i class="bi bi-info-circle me-1 text-primary"></i><span class="d-none d-sm-inline">Fisher Denklemi ile hesaplanır</span>
+                    </div>
+                </div>
+
+                <div class="row g-2 g-md-3">
+                    <!-- 1. Nominal Portföy Getirisi -->
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 border bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                            <span class="text-muted small fw-semibold">1. Nominal Portföy Getirisi</span>
+                            <div class="my-1">
+                                <span class="fs-4 fw-bold {{ 'text-success' if total_portfolio_pnl_pct >= 0 else 'text-danger' }}" id="bmNominalVal">
+                                    {{ '+' if total_portfolio_pnl_pct >= 0 else '' }}%{{ total_portfolio_pnl_pct }}
+                                </span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">Mevcut toplam kâr / zarar oranı</small>
+                        </div>
+                    </div>
+                    <!-- 2. Dönem Enflasyonu (TÜFE) -->
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 border bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small fw-semibold">2. Dönem Enflasyonu (TÜFE)</span>
+                                <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;" id="bmTufePeriodLabel">1 Aylık</span>
+                            </div>
+                            <div class="my-1">
+                                <span class="fs-4 fw-bold text-danger" id="bmTufeVal">
+                                    +{{ benchmark_data['1M']['tufe'] }}%
+                                </span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">Kümülatif resmi TÜFE artışı</small>
+                        </div>
+                    </div>
+                    <!-- 3. Net Reel Getiri (Fisher) -->
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 border bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                            <span class="text-muted small fw-semibold">3. Net Reel Getiri (Fisher)</span>
+                            <div class="my-1">
+                                <span class="fs-4 fw-bold {{ 'text-success' if benchmark_data['1M']['real_return'] > 0 else 'text-danger' }}" id="bmRealVal">
+                                    {{ '+' if benchmark_data['1M']['real_return'] >= 0 else '' }}%{{ benchmark_data['1M']['real_return'] }}
+                                </span>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.75rem;">Enflasyondan arındırılmış net getiri</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alım Gücü Durum Rozeti ve Açıklaması -->
+                <div class="mt-2.5 p-2.5 rounded-3 border d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 bg-body-tertiary" id="bmRealStatusBox">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="badge {{ benchmark_data['1M']['real_status']['badge_class'] }} d-inline-flex align-items-center gap-1.5 py-1 px-2.5" id="bmRealStatusBadge">
+                            <i class="bi {{ benchmark_data['1M']['real_status']['icon'] }}" id="bmRealStatusIcon"></i>
+                            <span id="bmRealStatusText">{{ benchmark_data['1M']['real_status']['label'] }}</span>
+                        </span>
+                        <span class="small text-muted" id="bmRealStatusDesc">{{ benchmark_data['1M']['real_status']['desc'] }}</span>
+                    </div>
+                    <div class="small text-muted fst-italic ms-sm-auto flex-shrink-0" style="font-size: 0.75rem;" title="Fisher Denklemi: Reel Getiri = [(1 + (Nominal / 100)) / (1 + (TÜFE / 100)) - 1] × 100">
+                        <code>[(1+Nom)/(1+TÜFE)-1]</code>
+                    </div>
+                </div>
+            </div>
+
             <div id="benchmarkSummaryText" class="mt-3 small p-2 rounded-2 bg-body-tertiary border">
                 <i class="bi bi-info-circle me-1 text-primary"></i>
                 <span id="bmCommentary">
@@ -644,7 +870,7 @@
                     {% if portfolio_items %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0" id="assetTable">
-                            <thead class="table-light small">
+                            <thead class="table-theme-header small">
                                 <tr>
                                     <th>Piyasa & Varlık</th>
                                     <th>Adet / Lot</th>
@@ -674,11 +900,11 @@
                                             {% endif %}
                                         </div>
                                     </td>
-                                    <td class="fw-semibold">
+                                    <td class="fw-semibold sensitive-amount">
                                         {{ "%.4f"|format(item.qty) if item.type in ['tefas_fon', 'befas_fon', 'fon'] or item.qty < 1 else "%.2f"|format(item.qty) }}
                                     </td>
-                                    <td class="small">{{ item.avg_cost|currency_tr }} TL</td>
-                                    <td class="small fw-semibold">
+                                    <td class="small sensitive-amount">{{ item.avg_cost|currency_tr }} TL</td>
+                                    <td class="small fw-semibold sensitive-amount">
                                         {% if item.type == 'abd_hisse' and item.orig_price %}
                                             <span class="text-primary">${{ "%.2f"|format(item.orig_price) }}</span><br>
                                             <small class="text-muted">({{ item.live_price|currency_tr }} TL)</small>
@@ -688,8 +914,8 @@
                                             {{ item.live_price|currency_tr }} TL
                                         {% endif %}
                                     </td>
-                                    <td class="fw-bold">{{ item.cur_val|currency_tr }} TL</td>
-                                    <td class="text-end small fw-bold {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
+                                    <td class="fw-bold sensitive-amount">{{ item.cur_val|currency_tr }} TL</td>
+                                    <td class="text-end small fw-bold sensitive-amount {{ 'text-success' if item.pnl >= 0 else 'text-danger' }}">
                                         {{ '+' if item.pnl >= 0 else '' }}{{ item.pnl|currency_tr }} TL<br>
                                         <span class="fw-normal">(%{{ item.pnl_pct }})</span>
                                     </td>
@@ -727,32 +953,81 @@
                 </div>
             </div>
 
-            <!-- PORTFÖY DAĞILIM PASTA GRAFİĞİ -->
+            <!-- PORTFÖY VARLIK DAĞILIMI VE KONSANTRASYON RİSKİ ANALİZİ -->
             <div class="col-lg-4">
-                <div class="card p-3 shadow-sm h-100">
-                    <h3 class="h5 fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-primary" aria-hidden="true"></i>Varlık Dağılımı</h3>
+                <div class="card p-3 shadow-sm h-100 border">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h3 class="h5 fw-bold mb-0">
+                                <i class="bi bi-pie-chart-fill me-2 text-primary" aria-hidden="true"></i>Varlık Dağılımı &amp; Risk
+                            </h3>
+                            <small class="text-muted">Ağırlık ve çeşitlendirme analizi</small>
+                        </div>
+                        {% if portfolio_items %}
+                        <div class="btn-group btn-group-sm" role="group" id="allocationModeGroup" aria-label="Varlık Dağılım Modu">
+                            <button type="button" class="btn btn-outline-primary active" data-mode="type">Sınıf Bazlı</button>
+                            <button type="button" class="btn btn-outline-primary" data-mode="symbol">Varlık Bazlı</button>
+                        </div>
+                        {% endif %}
+                    </div>
+
                     {% if portfolio_items %}
-                    <div class="text-center my-3">
-                        <div style="height: 240px; position: relative;">
-                            <canvas id="assetAllocationChartTab"></canvas>
+                    <!-- Chart.js Donut Grafiği -->
+                    <div class="text-center my-2">
+                        <div style="height: 230px; position: relative;">
+                            <canvas id="portfolioAllocationChart"></canvas>
                         </div>
                     </div>
+
+                    <!-- Dinamik Dilim Listesi -->
                     <div class="mt-3">
-                        <span class="fw-bold small text-muted mb-2 d-block">Varlık Ağırlıkları</span>
-                        <ul class="list-group list-group-flush small">
-                            {% for item in portfolio_items %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
-                                <span>
-                                    <span class="fw-bold">{{ item.symbol }}</span>
-                                    <small class="text-muted ms-1">({{ "%.2f"|format((item.cur_val / total_portfolio_value) * 100) if total_portfolio_value > 0 else "0.00" }}%)</small>
-                                </span>
-                                <span class="fw-semibold">{{ item.cur_val|currency_tr }} TL</span>
+                        <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                            <span class="fw-bold small text-muted">Ağırlık Kırılımı</span>
+                            <span class="badge bg-body-secondary text-secondary" style="font-size: 0.7rem;" id="allocationModeLabel">Sınıf Kırılımı</span>
+                        </div>
+                        <ul class="list-group list-group-flush small" id="allocationBreakdownList" style="max-height: 220px; overflow-y: auto;">
+                            {% for item in allocation_by_type %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom bg-transparent allocation-breakdown-item">
+                                <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                    <span class="rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: {{ item.color }};"></span>
+                                    <div class="text-truncate">
+                                        <span class="fw-semibold text-body text-truncate d-block">{{ item.label }}</span>
+                                        <small class="text-muted" style="font-size: 0.72rem;">{{ item.count }} varlık</small>
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    <span class="fw-bold sensitive-amount text-body d-block">{{ item.value|currency_tr }} TL</span>
+                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">%{{ item.pct }}</span>
+                                </div>
                             </li>
                             {% endfor %}
                         </ul>
                     </div>
+
+                    <!-- Konsantrasyon & Çeşitlendirme Rozeti / Tavsiye Kartı -->
+                    <div class="mt-3 p-2.5 rounded-3 border bg-body-tertiary" id="diversificationBox">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-1.5">
+                            <span class="small fw-semibold text-muted">Risk &amp; Çeşitlendirme</span>
+                            <span class="badge {{ diversification.badge_class }} d-inline-flex align-items-center gap-1" id="diversificationBadge">
+                                <i class="bi {{ diversification.icon }}" id="diversificationIcon"></i>
+                                <span id="diversificationStatusText">{{ diversification.status }}</span>
+                            </span>
+                        </div>
+                        <p class="small text-muted mb-0" id="diversificationAdvice" style="font-size: 0.78rem; line-height: 1.35;">
+                            {{ diversification.advice }}
+                        </p>
+                    </div>
+
                     {% else %}
-                    <p class="text-muted text-center py-5 mb-0">Grafik için varlık bulunmuyor.</p>
+                    <!-- Boş Durum (Empty State) -->
+                    <div class="text-center py-5 text-muted my-auto">
+                        <i class="bi bi-pie-chart display-4 d-block mb-3 opacity-50" aria-hidden="true"></i>
+                        <p class="h6 fw-bold">Portföyünüzde henüz varlık bulunmuyor</p>
+                        <p class="small text-muted mb-3">Varlık aldıkça dağılım grafiğiniz ve konsantrasyon analizi burada otomatik oluşacaktır.</p>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#buyAssetModal">
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>İlk Varlığı Ekle
+                        </button>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -781,10 +1056,10 @@
                             <div class="d-flex justify-content-between align-items-center small mb-1">
                                 <span class="fw-bold">{{ b.name }}</span>
                                 <span>
-                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-dark' }}">
+                                    <span class="{{ 'text-danger fw-bold' if b.spent > b.budget and b.budget > 0 else 'text-body' }} sensitive-amount">
                                         {{ b.spent|currency_tr }} TL
                                     </span> 
-                                    / {{ b.budget|currency_tr }} TL
+                                    / <span class="sensitive-amount">{{ b.budget|currency_tr }} TL</span>
                                     <span class="text-muted ms-1">(%{{ b.percent }})</span>
                                 </span>
                             </div>
@@ -794,7 +1069,7 @@
                             </div>
                             {% if b.spent > b.budget and b.budget > 0 %}
                             <small class="text-danger d-block mt-1">
-                                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Bütçe {{ (b.spent - b.budget)|currency_tr }} TL aşıldı!
+                                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Bütçe <span class="sensitive-amount">{{ (b.spent - b.budget)|currency_tr }} TL</span> aşıldı!
                             </small>
                             {% endif %}
                         </div>
@@ -809,7 +1084,7 @@
             <div class="col-lg-7">
                 <div class="card p-3 shadow-sm">
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-dark" aria-hidden="true"></i>İşlem Hareketleri</h3>
+                        <h3 class="h5 fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-body" aria-hidden="true"></i>İşlem Hareketleri</h3>
                         <div class="d-flex align-items-center gap-2">
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-saas-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -851,7 +1126,7 @@
                     {% if recent_transactions %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0" id="txTable">
-                            <thead class="table-light small">
+                            <thead class="table-theme-header small">
                                 <tr>
                                     <th>Tarih</th>
                                     <th>Kategori & Açıklama</th>
@@ -862,7 +1137,7 @@
                             </thead>
                             <tbody>
                                 {% for t in recent_transactions %}
-                                <tr class="tx-row" data-type="{{ t[5] }}" data-method="{{ t[6] }}">
+                                <tr class="tx-row" data-type="{{ t[5] }}" data-method="{{ t[6] }}" data-amount="{{ t[1]|currency_tr }} {{ t[1] }}">
                                     <td class="small text-muted">{{ t[2].strftime('%d.%m.%Y') }}</td>
                                     <td>
                                         <span class="fw-semibold d-block tx-cat">{{ t[4] }}</span>
@@ -880,11 +1155,19 @@
                                             <span class="badge bg-secondary"><i class="bi bi-cash me-1" aria-hidden="true"></i>Nakit</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-end fw-bold {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
+                                    <td class="text-end fw-bold sensitive-amount {{ 'text-success' if t[5] == 'gelir' else 'text-danger' }}">
                                         {{ '+' if t[5] == 'gelir' else '-' }}<span class="tx-amt">{{ t[1]|currency_tr }}</span> TL
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-1">
+                                            {% if t|length > 9 and t[9] %}
+                                            <a href="{{ url_for('get_receipt', filename=t[9]) }}" target="_blank" rel="noopener noreferrer"
+                                               class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                               aria-label="Fiş / Dekont Görüntüle: {{ t[4] }}"
+                                               title="Fiş / Dekont Görüntüle">
+                                                <i class="bi bi-receipt" aria-hidden="true"></i>
+                                            </a>
+                                            {% endif %}
                                             <button class="btn btn-sm btn-outline-primary py-0 px-2 edit-tx-btn"
                                                     data-id="{{ t[0] }}"
                                                     data-amount="{{ t[1] }}"
@@ -923,7 +1206,7 @@
         <div class="row g-4">
             
             <!-- TASARRUF KUMBARASI -->
-            <div class="col-lg-6">
+            <div class="col-lg-6" id="savings-section" tabindex="-1">
                 <div class="card p-3 shadow-sm h-100">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h3 class="h5 fw-bold mb-0"><i class="bi bi-piggy-bank me-2 text-info" aria-hidden="true"></i>Tasarruf Kumbarası</h3>
@@ -933,7 +1216,7 @@
                     </div>
                     {% if savings_goals %}
                         {% for g in savings_goals %}
-                        <div class="border rounded-3 p-3 mb-3 bg-light shadow-sm">
+                        <div class="border rounded-3 p-3 mb-3 bg-body-tertiary shadow-sm">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="fw-bold fs-6">{{ g.title }}</span>
                                 <div class="d-flex align-items-center gap-2">
@@ -954,7 +1237,7 @@
                                 <div class="progress-bar bg-info progress-bar-dynamic" data-width="{{ g.percent }}"></div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center small">
-                                <span class="fw-semibold text-muted">{{ g.current_amount|currency_tr }} / {{ g.target_amount|currency_tr }} TL</span>
+                                <span class="fw-semibold text-muted"><span class="sensitive-amount">{{ g.current_amount|currency_tr }} TL</span> / <span class="sensitive-amount">{{ g.target_amount|currency_tr }} TL</span></span>
                                 <button class="btn btn-sm btn-primary py-1 px-3 deposit-goal-btn" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#depositGoalModal"
@@ -992,12 +1275,22 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
                                 <div>
                                     <span class="fw-bold d-block mb-1">{{ sub[1] }}</span>
-                                    <span class="badge {{ 'bg-danger' if sub[5] <= 3 else ('bg-warning text-dark' if sub[5] <= 7 else 'bg-secondary') }}">
-                                        {{ sub[5] }} gün kaldı ({{ sub[4].strftime('%d.%m.%Y') }})
-                                    </span>
+                                    <div class="d-flex flex-wrap align-items-center gap-1">
+                                        <span class="badge {{ 'bg-danger' if sub[5] <= 3 else ('bg-warning text-dark' if sub[5] <= 7 else 'bg-secondary') }}">
+                                            {{ sub[5] }} gün kaldı ({{ sub[4].strftime('%d.%m.%Y') }})
+                                        </span>
+                                        {% if sub|length > 6 and sub[6] == 'kredi_karti' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border"><i class="bi bi-credit-card me-1" aria-hidden="true"></i>Kredi Kartı</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border"><i class="bi bi-cash me-1" aria-hidden="true"></i>Nakit</span>
+                                        {% endif %}
+                                        {% if sub|length <= 7 or sub[7] %}
+                                        <span class="badge bg-success-subtle text-success border" title="Her yeni ayda otomatik olarak işlemlere yansıtılır"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Otomatik</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 <div class="d-flex align-items-center gap-3">
-                                    <span class="fw-bold fs-6">{{ sub[2]|currency_tr }} TL</span>
+                                    <span class="fw-bold fs-6 sensitive-amount">{{ sub[2]|currency_tr }} TL</span>
                                     <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" data-confirm="Bu ödemeyi silmek istediğinize emin misiniz?">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" aria-label="{{ sub[1] }} ödemesini sil" title="Ödemeyi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
@@ -1011,7 +1304,7 @@
                         <div class="text-center py-5 text-muted">
                             <i class="bi bi-calendar-event display-5 d-block mb-2 opacity-50" aria-hidden="true"></i>
                             Kayıtlı fatura veya abonelik bulunmuyor.<br>
-                            <button class="btn btn-sm btn-dark mt-2" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
+                            <button class="btn btn-sm btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#subscriptionModal">
                                 + Fatura / Ödeme Ekle
                             </button>
                         </div>
@@ -1044,7 +1337,7 @@
             {% if recurring_transactions %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light small">
+                        <thead class="table-theme-header small">
                             <tr>
                                 <th>Her Ayın Günü</th>
                                 <th>Başlık & Kategori</th>
@@ -1068,7 +1361,7 @@
                                         <span class="badge bg-secondary"><i class="bi bi-cash me-1" aria-hidden="true"></i>Nakit</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-end fw-bold {{ 'text-success' if rec[3] == 'gelir' else 'text-danger' }}">
+                                <td class="text-end fw-bold sensitive-amount {{ 'text-success' if rec[3] == 'gelir' else 'text-danger' }}">
                                     {{ '+' if rec[3] == 'gelir' else '-' }}{{ rec[2]|currency_tr }} TL
                                 </td>
                                 <td class="text-end">
@@ -1136,6 +1429,10 @@
                         <label class="form-label" for="txDescInput">Açıklama</label>
                         <input type="text" name="description" id="txDescInput" class="form-control" placeholder="Örn: Market alışverişi">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="txReceiptInput"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Fiş / Dekont Ekle <small class="text-muted">(İsteğe Bağlı - PNG, JPG, PDF)</small></label>
+                        <input type="file" name="receipt" id="txReceiptInput" class="form-control" accept=".png,.jpg,.jpeg,.pdf,.webp,.gif">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
@@ -1183,6 +1480,10 @@
                         <label class="form-label" for="editTxDesc">Açıklama</label>
                         <input type="text" name="description" id="editTxDesc" class="form-control">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="editTxReceipt"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Fiş / Dekont Güncelle <small class="text-muted">(İsteğe Bağlı - PNG, JPG, PDF)</small></label>
+                        <input type="file" name="receipt" id="editTxReceipt" class="form-control" accept=".png,.jpg,.jpeg,.pdf,.webp,.gif">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
@@ -1203,6 +1504,10 @@
             </div>
             <form action="{{ url_for('buy_asset') }}" method="POST">
                 <div class="modal-body">
+                    <div class="p-2.5 px-3 mb-3 rounded-3 border bg-body-tertiary d-flex justify-content-between align-items-center">
+                        <span class="small text-muted fw-semibold"><i class="bi bi-wallet2 me-1.5 text-success" aria-hidden="true"></i>Kullanılabilir Vadesiz Nakit:</span>
+                        <strong class="text-success num-tabular sensitive-amount" id="buyModalAvailableCash" data-available-cash="{{ '%.2f'|format(cash_balance or 0.0) }}" data-amount-try="{{ '%.2f'|format(cash_balance or 0.0) }}">{{ cash_balance|currency_tr }} TL</strong>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label" for="buyAssetType">Piyasa / Varlık Türü <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="asset_type" id="buyAssetType" class="form-select" required>
@@ -1235,10 +1540,26 @@
                             </select>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="buyTransactionDate">İşlem Tarihi</label>
+                        <input type="date" name="transaction_date" id="buyTransactionDate" class="form-control" value="{{ today_str }}">
+                    </div>
+                    <div class="p-2.5 px-3 rounded-3 border bg-body-tertiary">
+                        <input type="hidden" name="use_cash_balance_present" value="1">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="useCashBalanceSwitch" name="use_cash_balance" value="1" checked>
+                            <label class="form-check-label fw-semibold small" for="useCashBalanceSwitch">
+                                Mevcut Vadesiz Nakit Bakiyemden Öde
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-1" id="buyCashSummaryHelp" style="font-size: 0.78rem;">
+                            Alım tutarı Vadesiz Nakit Bakiyenizden düşülür. Yetersiz bakiyede işlem engellenir.
+                        </small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
-                    <button type="submit" class="btn btn-success">Portföye Ekle</button>
+                    <button type="submit" class="btn btn-success" id="buyAssetSubmitBtn">Portföye Ekle</button>
                 </div>
             </form>
         </div>
@@ -1289,6 +1610,13 @@
                             </select>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="sellTransactionDate">İşlem Tarihi</label>
+                        <input type="date" name="transaction_date" id="sellTransactionDate" class="form-control" value="{{ today_str }}">
+                    </div>
+                    <div class="p-2 px-3 rounded-3 border bg-success-subtle text-success small">
+                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Satıştan elde edilen toplam nakit tutarı doğrudan <strong>Vadesiz Nakit Bakiyenize</strong> eklenecektir.
+                    </div>
                     {% else %}
                     <p class="text-muted text-center py-3 mb-0">Portföyünüzde satılabilecek varlık bulunmamaktadır.</p>
                     {% endif %}
@@ -1318,20 +1646,39 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="subTitleInput">Ödeme Başlığı <span class="text-danger" aria-hidden="true">*</span></label>
-                        <input type="text" name="title" id="subTitleInput" class="form-control" placeholder="Örn: Elektrik Faturası veya Garanti Bonus" required>
+                        <input type="text" name="title" id="subTitleInput" class="form-control" placeholder="Örn: Elektrik Faturası, Netflix veya İnternet" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="subAmountInput">Tutar (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="number" step="0.01" name="amount" id="subAmountInput" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="subDueDateInput">Son Ödeme Tarihi <span class="text-danger" aria-hidden="true">*</span></label>
-                        <input type="date" name="next_due_date" id="subDueDateInput" class="form-control" required>
+                        <label class="form-label" for="subPaymentMethodSelect">Ödeme Yöntemi <span class="text-danger" aria-hidden="true">*</span></label>
+                        <select name="payment_method" id="subPaymentMethodSelect" class="form-select" required>
+                            <option value="nakit">Nakit / Otomatik Ödeme (Vadesiz Hesaptan)</option>
+                            <option value="kredi_karti">Kredi Kartı (Aylık Ekstreye Yansıt)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="subDueDateInput">Son Ödeme Tarihi / Ayın Günü <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="date" name="next_due_date" id="subDueDateInput" class="form-control" value="{{ today_str }}" required>
+                    </div>
+                    <div class="p-2.5 px-3 rounded-3 border bg-body-tertiary">
+                        <input type="hidden" name="auto_apply_present" value="1">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="subAutoApplySwitch" name="auto_apply" value="1" checked>
+                            <label class="form-check-label fw-semibold small" for="subAutoApplySwitch">
+                                Her Ay Otomatik İşlemlere Yansıt
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.78rem;">
+                            Açık olduğunda her yeni ayda bu fatura seçtiğiniz ödeme yöntemiyle otomatik olarak giderlerinize işlenir.
+                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
-                    <button type="submit" class="btn btn-dark">Kaydet</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
                 </div>
             </form>
         </div>
@@ -1413,7 +1760,7 @@
             </div>
             <div class="modal-body">
                 <!-- YENİ KATEGORİ EKLE -->
-                <div class="card p-3 mb-4 bg-light border">
+                <div class="card p-3 mb-4 bg-body-tertiary border">
                     <span class="fw-bold d-block mb-3">Yeni Kategori Ekle</span>
                     <form action="{{ url_for('add_category') }}" method="POST" class="row g-2 align-items-end">
                         <div class="col-md-4">
@@ -1441,7 +1788,7 @@
                 <span class="fw-bold d-block mb-2">Mevcut Kategoriler ve Bütçeler</span>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        <thead class="table-light">
+                        <thead class="table-theme-header">
                             <tr>
                                 <th>Kategori Adı</th>
                                 <th>Tür</th>
@@ -1511,7 +1858,7 @@
                             <label class="form-label" for="recCategorySelect">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
                             <select name="category_id" id="recCategorySelect" class="form-select" required>
                                 {% for cat in categories %}
-                                    <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
+                                    <option value="{{ cat[0] }}" data-type="{{ cat[2] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -1564,18 +1911,18 @@
                         Sisteme başlamadan önce banka hesabınızda veya elinizde hazır bulunan nakit paradır. Bu tutar <strong>aylık gelir veya tasarruf oranınızı yapay olarak şişirmeden</strong> net servetinize ve nakit kasanıza doğrudan dahil edilir.
                     </p>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="initialCashBalanceInput">Başlangıç / Mevcut Nakit Tutarı (TL) <span class="text-danger" aria-hidden="true">*</span></label>
+                        <label class="form-label fw-semibold" for="initialCashBalanceInput">Mevcut Vadesiz Nakit Tutarı (TL) <span class="text-danger" aria-hidden="true">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text fw-bold">₺</span>
                             <input type="number" step="0.01" name="initial_cash_balance" id="initialCashBalanceInput" class="form-control fw-bold fs-5 text-success" 
-                                   value="{{ '%.2f'|format(initial_cash_balance or 0.0) }}" required>
+                                   value="{{ '%.2f'|format(cash_balance or 0.0) }}" required>
                         </div>
                         <small class="text-muted d-block mt-2">
-                            Mevcut konsolide nakit bakiyeniz: <strong class="text-dark">{{ cash_balance|currency_tr }} TL</strong>
+                            Mevcut konsolide nakit bakiyeniz: <strong class="text-body sensitive-amount">{{ cash_balance|currency_tr }} TL</strong>
                         </small>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top">
+                <div class="modal-footer bg-body-tertiary border-top">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Kapat</button>
                     <button type="submit" class="btn btn-success fw-bold px-4">
                         <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Bakiyeyi Güncelle
@@ -1626,6 +1973,150 @@
     </div>
 </div>
 
+<!-- 10. KREDİ KARTI LİMİT DÜZENLEME MODALI -->
+<div class="modal fade" id="editCardLimitModal" tabindex="-1" aria-labelledby="editCardLimitModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-warning-subtle border-bottom">
+                <h2 class="modal-title h5 fw-bold text-warning-emphasis" id="editCardLimitModalTitle">
+                    <i class="bi bi-credit-card-2-front me-2" aria-hidden="true"></i>Kredi Kartı Limitini Güncelle
+                </h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
+            </div>
+            <form action="{{ url_for('update_card_limit') }}" method="POST">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Toplam kredi kartı limitinizi tanımlayarak <strong>Findeks / FICO Kredi Notu Doluluk Oranınızı</strong> (Credit Utilization) anlık takip edebilirsiniz. Kart limitinizin <strong>%30'unun altında kalmak</strong> kredi notunuzu olumlu destekler.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="editCardLimitInput">Toplam Kredi Kartı Limiti (TL) <span class="text-danger" aria-hidden="true">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text fw-bold">₺</span>
+                            <input type="number" step="0.01" name="credit_card_limit" id="editCardLimitInput" class="form-control fw-bold fs-5 text-body" 
+                                   value="{{ '%.2f'|format(credit_card_limit or 50000.0) }}" min="1" required>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Mevcut ödenmemiş borcunuz: <strong class="text-warning sensitive-amount">{{ total_unpaid_cc|currency_tr }} TL</strong>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer bg-body-tertiary border-top">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-warning fw-bold px-4 text-dark">
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Limiti Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 11. HIZLI İŞLEM VE KOMUT MERKEZİ MODALI (CTRL+K / N) -->
+<div class="modal fade" id="quickCommandModal" tabindex="-1" aria-labelledby="quickCommandModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
+            <!-- Modal Header -->
+            <div class="modal-header text-white p-3 border-0 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="p-1.5 rounded-3 bg-white bg-opacity-20 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-lightning-charge-fill text-warning fs-5" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h2 class="modal-title h6 fw-bold mb-0 text-white" id="quickCommandModalTitle">Hızlı İşlem &amp; Komut Merkezi</h2>
+                        <small class="text-white-50" style="font-size: 0.72rem;">Kısayol: <kbd class="QuickCommand-kbd bg-dark bg-opacity-50 text-white border-0 py-0 px-1">Ctrl + K</kbd> veya <kbd class="QuickCommand-kbd bg-dark bg-opacity-50 text-white border-0 py-0 px-1">N</kbd></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
+            </div>
+
+            <!-- Quick Action Chips -->
+            <div class="p-3 bg-body-tertiary border-bottom">
+                <span class="micro-label d-block mb-2" style="font-size: 0.68rem;">Hızlı Komutlar</span>
+                <div class="d-flex flex-wrap gap-1.5" role="toolbar" aria-label="Hızlı SaaS Eylemleri">
+                    <button type="button" class="btn btn-sm btn-quick-chip" id="qcActionPortfolio">
+                        <i class="bi bi-pie-chart-fill text-primary me-1"></i>Portföye Git
+                    </button>
+                    <button type="button" class="btn btn-sm btn-quick-chip" id="qcActionPrivacy">
+                        <i class="bi bi-eye-slash-fill text-secondary me-1"></i>Gizlilik Modu <kbd class="ms-1 small">Alt+P</kbd>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-quick-chip" id="qcActionTheme">
+                        <i class="bi bi-moon-stars-fill text-info me-1"></i>Tema Değiştir
+                    </button>
+                    {% if cc_expense > 0 or total_unpaid_cc > 0 %}
+                    <button type="button" class="btn btn-sm btn-quick-chip border-warning" id="qcActionPayCc">
+                        <i class="bi bi-credit-card-2-front text-warning me-1"></i>Ekstre Borcu Öde
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Fast Transaction Form (3 Saniyede Gelir/Gider Ekle) -->
+            <form action="{{ url_for('add_transaction') }}" method="POST" id="quickTransactionForm">
+                <div class="modal-body p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold small text-body">3 Saniyede İşlem Kaydet</span>
+                        <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">Enter ile Gönder</span>
+                    </div>
+
+                    <!-- Tutar (Otomatik Odaklanır) -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="qcAmountInput">Tutar (TL) <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text fw-bold">₺</span>
+                            <input type="number" step="0.01" name="amount" id="qcAmountInput" class="form-control fw-bold fs-4 text-primary" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <!-- Kategori -->
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold" for="qcCategorySelect">Kategori <span class="text-danger">*</span></label>
+                            <select name="category_id" id="qcCategorySelect" class="form-select form-select-sm" required>
+                                {% for cat in categories %}
+                                    <option value="{{ cat[0] }}">[{{ cat[2]|upper }}] {{ cat[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- Ödeme Yöntemi -->
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold" for="qcPaymentMethodSelect">Ödeme Yöntemi <span class="text-danger">*</span></label>
+                            <select name="payment_method" id="qcPaymentMethodSelect" class="form-select form-select-sm" required>
+                                <option value="nakit">Nakit / Vadesiz Hesap</option>
+                                <option value="kredi_karti">Kredi Kartı (Ekstre)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <!-- Tarih -->
+                        <div class="col-sm-6 mb-2 mb-sm-0">
+                            <label class="form-label small fw-semibold" for="qcDateInput">Tarih <span class="text-danger">*</span></label>
+                            <input type="date" name="transaction_date" id="qcDateInput" class="form-control form-control-sm" value="{{ today_str }}" required>
+                        </div>
+                        <!-- Açıklama -->
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold" for="qcDescInput">Açıklama</label>
+                            <input type="text" name="description" id="qcDescInput" class="form-control form-control-sm" placeholder="Örn: Kahve, Market...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-body-tertiary p-3 border-top d-flex justify-content-between align-items-center">
+                    <small class="text-muted d-none d-sm-inline" style="font-size: 0.75rem;">
+                        <kbd class="QuickCommand-kbd">Esc</kbd> ile kapat
+                    </small>
+                    <div class="d-flex gap-2 ms-auto">
+                        <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">İptal</button>
+                        <button type="submit" class="btn btn-sm btn-primary fw-bold px-4">
+                            <i class="bi bi-check-lg me-1"></i>Hızlı Kaydet
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1635,6 +2126,8 @@
 <script id="data-payment-values" type="application/json">{{ chart_payment_values|safe }}</script>
 <script id="data-asset-labels" type="application/json">{{ chart_asset_labels|safe }}</script>
 <script id="data-asset-values" type="application/json">{{ chart_asset_values|safe }}</script>
+<script id="data-allocation-by-type" type="application/json">{{ allocation_by_type_json|safe }}</script>
+<script id="data-allocation-by-symbol" type="application/json">{{ allocation_by_symbol_json|safe }}</script>
 <script id="data-trend-labels" type="application/json">{{ chart_trend_labels|safe }}</script>
 <script id="data-trend-income" type="application/json">{{ chart_trend_income|safe }}</script>
 <script id="data-trend-expense" type="application/json">{{ chart_trend_expense|safe }}</script>
@@ -1665,6 +2158,24 @@
         const trendNet = JSON.parse(document.getElementById('data-trend-net').textContent || "[]");
 
         const isDark = () => document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const chartHeroEl = document.querySelector('.net-worth-hero');
+        const chartFxRate = Math.max(0.0001, parseFloat(chartHeroEl ? chartHeroEl.getAttribute('data-usd-try-rate') : '34.50') || 34.50);
+
+        function formatChartAmount(rawTry, pctSuffix = '') {
+            if (document.body.classList.contains('privacy-mode-active')) {
+                return '******' + (pctSuffix ? ` (${pctSuffix})` : '');
+            }
+            let curr = 'TRY';
+            try { curr = localStorage.getItem('moneta_display_currency') || 'TRY'; } catch (e) { /* yoksay */ }
+            const numVal = Number(rawTry) || 0;
+            if (curr === 'USD') {
+                const usdVal = numVal / chartFxRate;
+                const fmt = usdVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return '$' + fmt + (pctSuffix ? ` (${pctSuffix})` : '');
+            }
+            const fmt = numVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return fmt + ' TL' + (pctSuffix ? ` (${pctSuffix})` : '');
+        }
 
         if (trendLabels.length > 0 && document.getElementById('trendHistoryChart')) {
             window.trendChartInstance = new Chart(document.getElementById('trendHistoryChart'), {
@@ -1712,7 +2223,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString('tr-TR') + ' TL';
+                                    return context.dataset.label + ': ' + formatChartAmount(context.parsed.y);
                                 }
                             }
                         }
@@ -1726,6 +2237,12 @@
                             ticks: {
                                 color: isDark() ? '#94a3b8' : '#64748b',
                                 callback: function(val) {
+                                    if (document.body.classList.contains('privacy-mode-active')) return '******';
+                                    let curr = 'TRY';
+                                    try { curr = localStorage.getItem('moneta_display_currency') || 'TRY'; } catch (e) { /* yoksay */ }
+                                    if (curr === 'USD') {
+                                        return '$' + Math.round(Number(val) / chartFxRate).toLocaleString('tr-TR');
+                                    }
                                     return val.toLocaleString('tr-TR') + ' TL';
                                 }
                             }
@@ -1753,19 +2270,30 @@
 
         // Harcama Kategori Grafiği
         if (catValues.length > 0 && document.getElementById('categoryChart')) {
-            new Chart(document.getElementById('categoryChart'), {
+            window.categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
                 type: 'doughnut',
                 data: {
                     labels: catLabels,
                     datasets: [{
                         data: catValues,
-                        backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
+                        backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'],
+                        borderWidth: 2,
+                        borderColor: isDark() ? '#1e293b' : '#ffffff'
                     }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` ${ctx.label}: ${formatChartAmount(ctx.parsed)}`;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -1785,19 +2313,30 @@
                     `;
                 }
             } else {
-                new Chart(paymentChartCanvas, {
+                window.paymentChartInstance = new Chart(paymentChartCanvas, {
                     type: 'pie',
                     data: {
                         labels: ['Nakit', 'Kredi Kartı'],
                         datasets: [{
                             data: paymentValues,
-                            backgroundColor: ['#64748b', '#f59e0b']
+                            backgroundColor: ['#64748b', '#f59e0b'],
+                            borderWidth: 2,
+                            borderColor: isDark() ? '#1e293b' : '#ffffff'
                         }]
                     },
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ` ${ctx.label}: ${formatChartAmount(ctx.parsed)}`;
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -1807,47 +2346,245 @@
         const assetColors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#64748b'];
 
         if (assetValues.length > 0 && document.getElementById('assetAllocationChart')) {
-            new Chart(document.getElementById('assetAllocationChart'), {
+            window.overviewAssetChartInstance = new Chart(document.getElementById('assetAllocationChart'), {
                 type: 'doughnut',
                 data: {
                     labels: assetLabels,
                     datasets: [{
                         data: assetValues,
-                        backgroundColor: assetColors
+                        backgroundColor: assetColors,
+                        borderWidth: 2,
+                        borderColor: isDark() ? '#1e293b' : '#ffffff'
                     }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-
-        if (assetValues.length > 0 && document.getElementById('assetAllocationChartTab')) {
-            new Chart(document.getElementById('assetAllocationChartTab'), {
-                type: 'doughnut',
-                data: {
-                    labels: assetLabels,
-                    datasets: [{
-                        data: assetValues,
-                        backgroundColor: assetColors
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { 
-                            position: 'bottom',
-                            labels: { boxWidth: 12, font: { size: 11 } }
-                        } 
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` ${ctx.label}: ${formatChartAmount(ctx.parsed)}`;
+                                }
+                            }
+                        }
                     }
                 }
             });
         }
 
-        // 3. Sekmeler Arası Hızlı Geçiş Butonları
+        window.addEventListener('themeChanged', function() {
+            const borderCol = isDark() ? '#1e293b' : '#ffffff';
+            [window.categoryChartInstance, window.paymentChartInstance, window.overviewAssetChartInstance].forEach(function(inst) {
+                if (inst && inst.data && inst.data.datasets && inst.data.datasets[0]) {
+                    inst.data.datasets[0].borderColor = borderCol;
+                    inst.update();
+                }
+            });
+        });
+
+        // Portföy Varlık Dağılımı Donut Grafiği & Sınıf / Varlık Kırılımı Değiştirici
+        const allocationByType = JSON.parse(document.getElementById('data-allocation-by-type')?.textContent || "[]");
+        const allocationBySymbol = JSON.parse(document.getElementById('data-allocation-by-symbol')?.textContent || "[]");
+        const allocCanvas = document.getElementById('portfolioAllocationChart');
+
+        if (allocCanvas && (allocationByType.length > 0 || allocationBySymbol.length > 0)) {
+            let currentAllocMode = 'type';
+
+            function updateAllocationUI(mode) {
+                currentAllocMode = mode;
+                const dataSource = (mode === 'symbol') ? allocationBySymbol : allocationByType;
+
+                // Mod butonları ve etiket güncelle
+                const modeBtns = document.querySelectorAll('#allocationModeGroup button');
+                modeBtns.forEach(btn => {
+                    if (btn.getAttribute('data-mode') === mode) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+
+                const modeLabel = document.getElementById('allocationModeLabel');
+                if (modeLabel) {
+                    modeLabel.textContent = (mode === 'symbol') ? 'Varlık / Sembol Kırılımı' : 'Sınıf Kırılımı';
+                }
+
+                // Chart.js güncelle
+                const labels = dataSource.map(i => i.label);
+                const values = dataSource.map(i => i.value);
+                const bgColors = dataSource.map(i => i.color);
+
+                if (!window.portfolioChartInstance) {
+                    window.portfolioChartInstance = new Chart(allocCanvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: bgColors,
+                                borderWidth: 2,
+                                borderColor: isDark() ? '#1e293b' : '#ffffff',
+                                hoverOffset: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '72%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                                                        callbacks: {
+                                        label: function(ctx) {
+                                            const currentSrc = (currentAllocMode === 'symbol') ? allocationBySymbol : allocationByType;
+                                            const item = currentSrc[ctx.dataIndex];
+                                            if (!item) return '';
+                                            return ` ${item.label}: ${formatChartAmount(item.value, '%' + item.pct)}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    window.portfolioChartInstance.data.labels = labels;
+                    window.portfolioChartInstance.data.datasets[0].data = values;
+                    window.portfolioChartInstance.data.datasets[0].backgroundColor = bgColors;
+                    window.portfolioChartInstance.data.datasets[0].borderColor = isDark() ? '#1e293b' : '#ffffff';
+                    window.portfolioChartInstance.update();
+                }
+
+                // Liste güncelle
+                const listEl = document.getElementById('allocationBreakdownList');
+                if (listEl) {
+                    if (dataSource.length === 0) {
+                        listEl.innerHTML = '<li class="list-group-item text-muted text-center py-2 bg-transparent">Veri bulunmuyor.</li>';
+                    } else {
+                        let html = '';
+                        dataSource.forEach(item => {
+                            const valFmt = Number(item.value).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            const subText = (mode === 'symbol') ? (item.type_name || '') : `${item.count} varlık`;
+                            html += `
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom bg-transparent allocation-breakdown-item">
+                                <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                    <span class="rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: ${item.color};"></span>
+                                    <div class="text-truncate">
+                                        <span class="fw-semibold text-body text-truncate d-block">${item.label}</span>
+                                        <small class="text-muted" style="font-size: 0.72rem;">${subText}</small>
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    <span class="fw-bold sensitive-amount text-body d-block">${valFmt} TL</span>
+                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">%${item.pct}</span>
+                                </div>
+                            </li>`;
+                        });
+                        listEl.innerHTML = html;
+                        if (typeof window.refreshMonetaCurrencyAndPrivacy === 'function') {
+                            window.refreshMonetaCurrencyAndPrivacy();
+                        }
+                    }
+                }
+            }
+
+            // İlk yükleme: 'type' modu
+            updateAllocationUI('type');
+
+            // Mod değiştirme butonları dinleyicisi
+            document.querySelectorAll('#allocationModeGroup button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const mode = this.getAttribute('data-mode');
+                    if (mode && mode !== currentAllocMode) {
+                        updateAllocationUI(mode);
+                    }
+                });
+            });
+
+            // Tema değiştiğinde chart border rengini güncelle
+            window.addEventListener('themeChanged', function() {
+                if (window.portfolioChartInstance) {
+                    window.portfolioChartInstance.data.datasets[0].borderColor = isDark() ? '#1e293b' : '#ffffff';
+                    window.portfolioChartInstance.update();
+                }
+            });
+        }
+
+        // 3. Sekme (Tab) & Dönem (Ay/Yıl) Hafızası (State Persistence) ve Form Enjeksiyonu
+        const TAB_STORAGE_KEY = 'moneta_active_tab';
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSelectedMonth = "{{ selected_month }}";
+        const currentSelectedYear = "{{ selected_year }}";
+
+        function normalizeTabSlug(rawTab) {
+            if (!rawTab) return '';
+            const cleaned = rawTab.replace('#tab-', '').replace('-tab', '').trim().toLowerCase();
+            if (cleaned === 'recurring') return 'goals';
+            if (['overview', 'portfolio', 'transactions', 'goals'].includes(cleaned)) return cleaned;
+            return '';
+        }
+
+        function syncFormsWithState(activeTabSlug) {
+            const slug = activeTabSlug || normalizeTabSlug(sessionStorage.getItem(TAB_STORAGE_KEY)) || 'overview';
+            document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(formEl) {
+                let tabInput = formEl.querySelector('input[name="active_tab"]');
+                if (!tabInput) {
+                    tabInput = document.createElement('input');
+                    tabInput.type = 'hidden';
+                    tabInput.name = 'active_tab';
+                    formEl.appendChild(tabInput);
+                }
+                tabInput.value = slug;
+
+                if (!formEl.querySelector('input[name="month"], select[name="month"]')) {
+                    const mInput = document.createElement('input');
+                    mInput.type = 'hidden';
+                    mInput.name = 'month';
+                    mInput.value = currentSelectedMonth;
+                    formEl.appendChild(mInput);
+                }
+                if (!formEl.querySelector('input[name="year"], select[name="year"]')) {
+                    const yInput = document.createElement('input');
+                    yInput.type = 'hidden';
+                    yInput.name = 'year';
+                    yInput.value = currentSelectedYear;
+                    formEl.appendChild(yInput);
+                }
+            });
+
+            document.querySelectorAll('a.period-nav-link').forEach(function(linkEl) {
+                try {
+                    const urlObj = new URL(linkEl.getAttribute('href'), window.location.origin);
+                    if (slug && slug !== 'overview') {
+                        urlObj.searchParams.set('tab', slug);
+                    } else {
+                        urlObj.searchParams.delete('tab');
+                    }
+                    linkEl.setAttribute('href', urlObj.pathname + urlObj.search);
+                } catch (e) { /* yoksay */ }
+            });
+        }
+
+        const initialTabSlug = normalizeTabSlug(urlParams.get('tab')) || normalizeTabSlug(sessionStorage.getItem(TAB_STORAGE_KEY)) || 'overview';
+        const initialTabBtn = document.getElementById(initialTabSlug + '-tab');
+        if (initialTabBtn && initialTabSlug !== 'overview') {
+            const tabInstance = bootstrap.Tab.getOrCreateInstance(initialTabBtn);
+            tabInstance.show();
+        }
+        try { sessionStorage.setItem(TAB_STORAGE_KEY, initialTabSlug); } catch (e) { /* yoksay */ }
+        syncFormsWithState(initialTabSlug);
+
+        document.querySelectorAll('#dashboardTab button[data-bs-toggle="pill"]').forEach(function(tabBtn) {
+            tabBtn.addEventListener('shown.bs.tab', function(event) {
+                const targetAttr = event.target.getAttribute('data-bs-target') || event.target.id || '';
+                const slug = normalizeTabSlug(targetAttr) || 'overview';
+                try { sessionStorage.setItem(TAB_STORAGE_KEY, slug); } catch (e) { /* yoksay */ }
+                syncFormsWithState(slug);
+            });
+        });
+
+        // 3.0. Sekmeler Arası Hızlı Geçiş Butonları
         document.querySelectorAll('.switch-to-tab').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 const targetTabId = this.getAttribute('data-tab');
@@ -1856,6 +2593,44 @@
                     const tabTrigger = new bootstrap.Tab(triggerEl);
                     tabTrigger.show();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        });
+
+        // 3.1. Akıcı Kaydırma ve Otomatik Sekme Değiştirici (Hero Kartları & Dahili Bağlantılar)
+        document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                const targetSelector = this.getAttribute('href');
+                if (!targetSelector || targetSelector === '#' || targetSelector.startsWith('#!')) return;
+                
+                let targetEl = null;
+                try {
+                    targetEl = document.querySelector(targetSelector);
+                } catch (err) {
+                    return;
+                }
+                
+                if (targetEl) {
+                    e.preventDefault();
+                    
+                    // Eğer hedef öğe inaktif bir sekme içindeyse, önce o sekmeyi göster
+                    const parentPane = targetEl.closest('.tab-pane');
+                    if (parentPane && !parentPane.classList.contains('active')) {
+                        const triggerEl = document.querySelector(`[data-bs-target="#${parentPane.id}"]`) ||
+                                          document.querySelector(`[href="#${parentPane.id}"]`);
+                        if (triggerEl) {
+                            const tabInstance = bootstrap.Tab.getOrCreateInstance(triggerEl);
+                            tabInstance.show();
+                        }
+                    }
+                    
+                    // Hedef öğeye akıcı kaydır ve erişilebilir odak ver
+                    setTimeout(function() {
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        if (targetEl.hasAttribute('tabindex')) {
+                            targetEl.focus({ preventScroll: true });
+                        }
+                    }, 50);
                 }
             });
         });
@@ -1871,7 +2646,7 @@
             rows.forEach(function(row) {
                 const cat = (row.querySelector('.tx-cat')?.textContent || '').toLowerCase();
                 const desc = (row.querySelector('.tx-desc')?.textContent || '').toLowerCase();
-                const amt = (row.querySelector('.tx-amt')?.textContent || '').toLowerCase();
+                const amt = ((row.querySelector('.tx-amt')?.textContent || '') + ' ' + (row.getAttribute('data-amount') || '')).toLowerCase();
                 const type = row.getAttribute('data-type');
                 const method = row.getAttribute('data-method');
 
@@ -1934,12 +2709,60 @@
             });
         });
 
-        // 6. Portföy Alış Modalı Dinamik Alanlar
+        // 6. Portföy Alış Modalı Dinamik Alanlar & Canlı Nakit Bakiye Kontrolü
         const buyAssetTypeEl = document.getElementById('buyAssetType');
         const buyPriceCurrencyEl = document.getElementById('buyPriceCurrency');
         const buySymbolInputEl = document.getElementById('buySymbolInput');
         const buySymbolHelpEl = document.getElementById('buySymbolHelp');
         const buyPriceLabelEl = document.getElementById('buyPriceLabel');
+        const buyQtyInputEl = document.getElementById('buyQuantityInput');
+        const buyUnitPriceInputEl = document.getElementById('buyUnitPriceInput');
+        const useCashSwitchEl = document.getElementById('useCashBalanceSwitch');
+        const buyCashSummaryHelpEl = document.getElementById('buyCashSummaryHelp');
+        const buyAvailableCashEl = document.getElementById('buyModalAvailableCash');
+        const heroSectionEl = document.querySelector('.net-worth-hero');
+        const liveUsdTryRate = parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 34.50;
+
+        function updateBuyModalCostPreview() {
+            if (!buyCashSummaryHelpEl) return;
+            const availCash = parseFloat(buyAvailableCashEl?.getAttribute('data-available-cash')) || 0;
+            const qty = parseFloat(buyQtyInputEl?.value) || 0;
+            const price = parseFloat(buyUnitPriceInputEl?.value) || 0;
+            const curr = buyPriceCurrencyEl?.value || 'TRY';
+            const aType = buyAssetTypeEl?.value || 'hisse';
+            const useCash = useCashSwitchEl ? useCashSwitchEl.checked : true;
+
+            if (!useCash) {
+                buyCashSummaryHelpEl.className = 'text-muted d-block mt-1';
+                buyCashSummaryHelpEl.textContent = 'Bu alım geçmiş bir birikim olarak portföye eklenir; mevcut Vadesiz Nakit Bakiyenizden düşülmez.';
+                return;
+            }
+
+            if (qty > 0 && price > 0) {
+                const unitTl = (aType === 'abd_hisse' && curr === 'USD') ? (price * liveUsdTryRate) : price;
+                const totalTl = qty * unitTl;
+                const totalFmt = totalTl.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if (totalTl > availCash + 0.005) {
+                    const availFmt = availCash.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    buyCashSummaryHelpEl.className = 'text-danger fw-semibold d-block mt-1';
+                    buyCashSummaryHelpEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>Toplam Maliyet: <strong>${totalFmt} TL</strong> — Yetersiz Vadesiz Nakit Bakiye (${availFmt} TL)!`;
+                } else {
+                    const remFmt = (availCash - totalTl).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    buyCashSummaryHelpEl.className = 'text-success fw-semibold d-block mt-1';
+                    buyCashSummaryHelpEl.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Toplam Tutar: <strong>${totalFmt} TL</strong> (Alım sonrası kalan nakit: ${remFmt} TL)`;
+                }
+            } else {
+                buyCashSummaryHelpEl.className = 'text-muted d-block mt-1';
+                buyCashSummaryHelpEl.textContent = 'Alım tutarı Vadesiz Nakit Bakiyenizden düşülür. Yetersiz bakiyede işlem engellenir.';
+            }
+        }
+
+        [buyQtyInputEl, buyUnitPriceInputEl, buyPriceCurrencyEl, useCashSwitchEl].forEach(el => {
+            if (el) {
+                el.addEventListener('input', updateBuyModalCostPreview);
+                el.addEventListener('change', updateBuyModalCostPreview);
+            }
+        });
 
         if (buyAssetTypeEl) {
             buyAssetTypeEl.addEventListener('change', function() {
@@ -1973,6 +2796,7 @@
                     if (buySymbolHelpEl) buySymbolHelpEl.textContent = 'Borsa İstanbul hisse senedi kodu.';
                     if (buyPriceLabelEl) buyPriceLabelEl.textContent = 'Birim Alış Fiyatı (TL)';
                 }
+                updateBuyModalCostPreview();
             });
         }
 
@@ -2083,7 +2907,7 @@
             });
         });
 
-        // 9. Benchmark Dönem Değiştirme
+        // 9. Benchmark Dönem Değiştirme ve Fisher Reel Getiri Güncelleme
         const bmDataEl = document.getElementById('data-benchmark');
         let benchmarkData = {};
         try {
@@ -2101,11 +2925,49 @@
                     const bistEl = document.getElementById('bmBistVal');
                     const usdEl = document.getElementById('bmUsdVal');
                     const goldEl = document.getElementById('bmGoldVal');
+                    const tufeEl = document.getElementById('bmTufeVal');
+                    const tufeLbl = document.getElementById('bmTufePeriodLabel');
+                    const realEl = document.getElementById('bmRealVal');
+                    const realStatusBadge = document.getElementById('bmRealStatusBadge');
+                    const realStatusIcon = document.getElementById('bmRealStatusIcon');
+                    const realStatusText = document.getElementById('bmRealStatusText');
+                    const realStatusDesc = document.getElementById('bmRealStatusDesc');
+                    const commentaryEl = document.getElementById('bmCommentary');
+
                     if (bistEl) bistEl.textContent = (pData.bist >= 0 ? '+' : '') + '%' + pData.bist;
                     if (usdEl) usdEl.textContent = (pData.usd >= 0 ? '+' : '') + '%' + pData.usd;
                     if (goldEl) goldEl.textContent = (pData.gold >= 0 ? '+' : '') + '%' + pData.gold;
+
+                    if (tufeEl && pData.tufe !== undefined) tufeEl.textContent = '+' + pData.tufe + '%';
+                    if (tufeLbl && pData.period_label) tufeLbl.textContent = pData.period_label;
+
+                    if (realEl && pData.real_return !== undefined) {
+                        realEl.textContent = (pData.real_return >= 0 ? '+' : '') + '%' + pData.real_return;
+                        realEl.className = 'fs-4 fw-bold ' + (pData.real_return > 0 ? 'text-success' : 'text-danger');
+                    }
+
+                    if (pData.real_status) {
+                        if (realStatusBadge) realStatusBadge.className = 'badge ' + pData.real_status.badge_class + ' d-inline-flex align-items-center gap-1.5 py-1 px-2.5';
+                        if (realStatusIcon) realStatusIcon.className = 'bi ' + pData.real_status.icon;
+                        if (realStatusText) realStatusText.textContent = pData.real_status.label;
+                        if (realStatusDesc) realStatusDesc.textContent = pData.real_status.desc;
+                    }
+
+                    if (commentaryEl) {
+                        if (pData.nominal_return > pData.bist && pData.nominal_return !== 0) {
+                            commentaryEl.innerHTML = `🚀 <b>Mükemmel:</b> Portföyünüz son ${pData.period_label ? pData.period_label.toLowerCase() : period} döneminde BIST 100 endeksini (%${pData.bist}) geride bırakarak pozitif alfa üretmiştir.`;
+                        } else {
+                            commentaryEl.innerHTML = `💡 Portföyünüz ile BIST 100 (%${pData.bist}), TÜFE (%${pData.tufe}) ve altın getirilerini kıyaslayarak varlık dağılımınızı optimize edebilirsiniz.`;
+                        }
+                    }
                 }
             });
+        });
+
+        // Tooltip'leri etkinleştir
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
 
@@ -2175,20 +3037,277 @@
             });
         }
 
-        // Merkezi Onay (Confirmation) Yönetimi: data-confirm özniteliği taşıyan form ve butonlar
-        document.addEventListener('submit', function (e) {
-            const form = e.target;
-            if (form && form.hasAttribute('data-confirm')) {
-                const msg = form.getAttribute('data-confirm');
-                if (msg && !window.confirm(msg)) {
-                    e.preventDefault();
+        // 14. Gizlilik Modu (DOM Yıldız Maskeleme) & Canlı TRY / USD Para Birimi Değiştirici
+        const PRIVACY_KEY = 'moneta_privacy_mode';
+        const CURRENCY_KEY = 'moneta_display_currency';
+        const btnPrivacy = document.getElementById('btn-privacy-toggle');
+        const privacyStatus = document.getElementById('privacy-status');
+        const btnCurrencyTry = document.getElementById('btn-currency-try');
+        const btnCurrencyUsd = document.getElementById('btn-currency-usd');
+        const fxRateVal = Math.max(0.01, parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 34.50);
+
+        let currentCurrency = 'TRY';
+        try {
+            const savedCurr = localStorage.getItem(CURRENCY_KEY);
+            if (savedCurr === 'USD' || savedCurr === 'TRY') currentCurrency = savedCurr;
+        } catch (e) { /* yoksay */ }
+
+        function formatUsdFromTryString(tryHtml) {
+            // Türkçe para formatlarını ([+-]1.234,56 TL veya 10.000 TL) yakalayıp USD ($123,45) karşılığına çevirir
+            return tryHtml.replace(/([+-]?\s*)(\d{1,3}(?:\.\d{3})*(?:,\d{1,4})?)\s*(?:TL|₺)/g, function(match, signPart, numStr) {
+                const cleanNum = parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+                if (isNaN(cleanNum)) return match;
+                const usdVal = cleanNum / fxRateVal;
+                const decimals = (usdVal > 0 && usdVal < 1) ? 4 : 2;
+                const usdFmt = usdVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+                const cleanSign = (signPart || '').trim();
+                return (cleanSign ? cleanSign : '') + '$' + usdFmt;
+            });
+        }
+
+        function computeElementDisplayHtml(el) {
+            if (!el.hasAttribute('data-try-html')) {
+                el.setAttribute('data-try-html', el.innerHTML.trim());
+            }
+            const tryHtml = el.getAttribute('data-try-html') || '';
+            if (currentCurrency === 'TRY') {
+                return tryHtml;
+            }
+            if (el.hasAttribute('data-amount-try')) {
+                const rawTry = parseFloat(el.getAttribute('data-amount-try')) || 0;
+                const usdVal = rawTry / fxRateVal;
+                const absFmt = Math.abs(usdVal).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const showPlus = el.getAttribute('data-show-plus') === 'true';
+                const sign = usdVal < -0.0001 ? '-' : (usdVal > 0.0001 && showPlus ? '+' : '');
+                const prefix = el.getAttribute('data-prefix') || '';
+                const suffix = el.getAttribute('data-suffix') || '';
+                return `${prefix}${sign}$${absFmt}${suffix}`;
+            }
+            return formatUsdFromTryString(tryHtml);
+        }
+
+        function syncAllSensitiveAmounts() {
+            const isPrivacyActive = document.body.classList.contains('privacy-mode-active');
+            document.querySelectorAll('.sensitive-amount').forEach(function(el) {
+                const targetHtml = computeElementDisplayHtml(el);
+                el.setAttribute('data-original-html', targetHtml);
+                if (isPrivacyActive && !el.classList.contains('is-peeking')) {
+                    el.textContent = '******';
+                    el.setAttribute('data-privacy-masked', '1');
+                } else {
+                    el.innerHTML = targetHtml;
+                    el.setAttribute('data-privacy-masked', '0');
                 }
+            });
+            [window.trendChartInstance, window.categoryChartInstance, window.paymentChartInstance, window.overviewAssetChartInstance, window.portfolioChartInstance].forEach(function(inst) {
+                if (inst && typeof inst.update === 'function') {
+                    inst.update('none');
+                }
+            });
+        }
+
+        window.refreshMonetaCurrencyAndPrivacy = syncAllSensitiveAmounts;
+
+        function applyCurrencyState(curr, persist = true) {
+            currentCurrency = (curr === 'USD') ? 'USD' : 'TRY';
+            if (persist) {
+                try { localStorage.setItem(CURRENCY_KEY, currentCurrency); } catch (e) { /* yoksay */ }
+            }
+            if (btnCurrencyTry && btnCurrencyUsd) {
+                const isUsd = currentCurrency === 'USD';
+                btnCurrencyTry.classList.toggle('active', !isUsd);
+                btnCurrencyTry.setAttribute('aria-pressed', !isUsd ? 'true' : 'false');
+                btnCurrencyUsd.classList.toggle('active', isUsd);
+                btnCurrencyUsd.setAttribute('aria-pressed', isUsd ? 'true' : 'false');
+            }
+            syncAllSensitiveAmounts();
+        }
+
+        function applyPrivacyState(active, announce = false) {
+            document.body.classList.toggle('privacy-mode-active', active);
+            if (btnPrivacy) {
+                btnPrivacy.setAttribute('aria-pressed', active ? 'true' : 'false');
+                const icon = btnPrivacy.querySelector('i');
+                const label = btnPrivacy.querySelector('span');
+                if (icon) icon.className = active ? 'bi bi-eye-slash' : 'bi bi-eye';
+                if (label) label.textContent = active ? 'Bakiyeleri Göster' : 'Bakiyeleri Gizle';
+            }
+            syncAllSensitiveAmounts();
+            if (announce && privacyStatus) {
+                privacyStatus.textContent = active ? 'Gizlilik modu açık, bakiyeler yıldızla gizlendi.' : 'Gizlilik modu kapalı, bakiyeler görünür.';
+            }
+        }
+
+        function togglePrivacy() {
+            const next = !document.body.classList.contains('privacy-mode-active');
+            try { localStorage.setItem(PRIVACY_KEY, next ? 'true' : 'false'); } catch (e) { /* yoksay */ }
+            applyPrivacyState(next, true);
+        }
+
+        // Hover-to-Peek & Focus-to-Peek: Üzerine gelindiğinde gerçek tutarı göster, çekilince yıldızla
+        function setPeekForContainer(container, peeking) {
+            if (!container) return;
+            const targets = container.classList.contains('sensitive-amount')
+                ? [container]
+                : Array.from(container.querySelectorAll('.sensitive-amount'));
+            const isPrivacyActive = document.body.classList.contains('privacy-mode-active');
+            targets.forEach(function(el) {
+                if (peeking) {
+                    el.classList.add('is-peeking');
+                    const orig = el.getAttribute('data-original-html');
+                    if (orig !== null) el.innerHTML = orig;
+                    el.setAttribute('data-privacy-masked', '0');
+                } else {
+                    el.classList.remove('is-peeking');
+                    if (isPrivacyActive) {
+                        el.textContent = '******';
+                        el.setAttribute('data-privacy-masked', '1');
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('mouseover', function(e) {
+            if (!document.body.classList.contains('privacy-mode-active')) return;
+            const target = e.target.closest('.sensitive-amount, .net-worth-subcard, tr');
+            if (target) setPeekForContainer(target, true);
+        });
+
+        document.addEventListener('mouseout', function(e) {
+            if (!document.body.classList.contains('privacy-mode-active')) return;
+            const target = e.target.closest('.sensitive-amount, .net-worth-subcard, tr');
+            if (target && !target.contains(e.relatedTarget)) {
+                setPeekForContainer(target, false);
             }
         });
 
+        document.addEventListener('focusin', function(e) {
+            if (!document.body.classList.contains('privacy-mode-active')) return;
+            const target = e.target.closest('.sensitive-amount, .net-worth-subcard, tr');
+            if (target) setPeekForContainer(target, true);
+        });
+
+        document.addEventListener('focusout', function(e) {
+            if (!document.body.classList.contains('privacy-mode-active')) return;
+            const target = e.target.closest('.sensitive-amount, .net-worth-subcard, tr');
+            if (target && !target.contains(e.relatedTarget)) {
+                setPeekForContainer(target, false);
+            }
+        });
+
+        let storedPrivacy = false;
+        try { storedPrivacy = localStorage.getItem(PRIVACY_KEY) === 'true'; } catch (e) { /* yoksay */ }
+        applyCurrencyState(currentCurrency, false);
+        applyPrivacyState(storedPrivacy);
+
+        if (btnPrivacy) btnPrivacy.addEventListener('click', togglePrivacy);
+        if (btnCurrencyTry) btnCurrencyTry.addEventListener('click', () => applyCurrencyState('TRY', true));
+        if (btnCurrencyUsd) btnCurrencyUsd.addEventListener('click', () => applyCurrencyState('USD', true));
+
+        document.addEventListener('keydown', function(e) {
+            // e.code klavye düzeninden bağımsızdır (TR-Q / TR-F / US)
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'KeyP' || e.key === 'p' || e.key === 'P')) {
+                e.preventDefault();
+                togglePrivacy();
+            }
+        });
+
+        // 15. Canlı Piyasa Göstergeleri - Asenkron Yükleme, Skeleton Loader & 5 dk Otomatik Yenileme
+        const marketGrid = document.getElementById('market-indicators-grid');
+        const btnRefreshMarket = document.getElementById('btn-refresh-market');
+        const marketTimeEl = document.querySelector('#market-update-time span');
+        const MARKET_ICONS = { XU100: 'bi-bar-chart-line', IXIC: 'bi-globe-americas', GAU_TRY: 'bi-gem', XAG_TRY: 'bi-coin' };
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function renderMarketSkeleton() {
+            if (!marketGrid) return;
+            marketGrid.setAttribute('aria-busy', 'true');
+            marketGrid.innerHTML = '<div class="col-6"><div class="skeleton-shimmer" aria-hidden="true"></div></div>'.repeat(4) +
+                '<span class="visually-hidden">Piyasa göstergeleri yükleniyor...</span>';
+        }
+
+        function renderMarketItems(items) {
+            marketGrid.innerHTML = items.map(item => {
+                const pct = item.change_pct;
+                const hasPct = item.available && pct !== null && pct !== undefined;
+                let badgeCls = 'market-badge-flat', arrow = 'bi-dash', sign = '', dirText = 'değişim yok';
+                if (hasPct && pct > 0) { badgeCls = 'market-badge-up'; arrow = 'bi-arrow-up-right'; sign = '+'; dirText = 'yükseliş'; }
+                else if (hasPct && pct < 0) { badgeCls = 'market-badge-down'; arrow = 'bi-arrow-down-right'; sign = '-'; dirText = 'düşüş'; }
+                const pctText = hasPct ? `${sign}%${Math.abs(pct).toFixed(2).replace('.', ',')}` : '—';
+                const price = escapeHtml(item.price_fmt);
+                const priceText = !item.available ? 'Veri yok' : (item.currency === '$' ? `$${price}` : `${price} ${escapeHtml(item.currency)}`);
+                const icon = MARKET_ICONS[item.code] || 'bi-graph-up';
+                return `
+                <div class="col-6">
+                    <div class="market-tile" role="group" aria-label="${escapeHtml(item.name)}: ${priceText}, günlük ${hasPct ? pctText + ' ' + dirText : 'veri yok'}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="market-tile-name text-truncate"><i class="bi ${icon} me-1 text-muted" aria-hidden="true"></i>${escapeHtml(item.name)}</span>
+                            <span class="market-tile-code">${escapeHtml(item.code)}</span>
+                        </div>
+                        <div class="market-tile-price text-truncate mb-1" aria-hidden="true">${priceText}</div>
+                        <span class="${badgeCls}" aria-hidden="true"><i class="bi ${arrow}"></i>${pctText}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderMarketError(message) {
+            marketGrid.innerHTML = `
+                <div class="col-12">
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-wifi-off fs-4 d-block mb-1 text-warning opacity-75" aria-hidden="true"></i>
+                        ${escapeHtml(message || 'Piyasa verilerine şu anda ulaşılamıyor.')}
+                    </div>
+                </div>`;
+        }
+
+        let marketLoading = false;
+        async function loadMarketSummary(refresh = false) {
+            if (!marketGrid || marketLoading) return;
+            marketLoading = true;
+            const icon = btnRefreshMarket ? btnRefreshMarket.querySelector('i') : null;
+            if (btnRefreshMarket) btnRefreshMarket.disabled = true;
+            if (icon) icon.classList.add('spinner-border', 'spinner-border-sm', 'border-0');
+            if (refresh) renderMarketSkeleton();
+
+            try {
+                const resp = await fetch(refresh ? '/api/market-summary?refresh=1' : '/api/market-summary');
+                const data = await resp.json();
+                if ((data.status === 'success' || data.status === 'stale') && Array.isArray(data.items) && data.items.length) {
+                    renderMarketItems(data.items);
+                    if (marketTimeEl) marketTimeEl.textContent = data.last_updated || '--:--';
+                    const badge = document.getElementById('market-update-time');
+                    if (badge) badge.title = data.status === 'stale' ? 'Bağlantı sorunu: son başarılı veri gösteriliyor' : 'Son güncelleme';
+                } else {
+                    renderMarketError(data.message);
+                }
+            } catch (err) {
+                console.error('Piyasa göstergeleri yükleme hatası:', err);
+                renderMarketError('Piyasa verileri yüklenirken bağlantı gecikmesi yaşandı.');
+            } finally {
+                marketGrid.setAttribute('aria-busy', 'false');
+                if (icon) icon.classList.remove('spinner-border', 'spinner-border-sm', 'border-0');
+                if (btnRefreshMarket) btnRefreshMarket.disabled = false;
+                marketLoading = false;
+            }
+        }
+
+        if (btnRefreshMarket) {
+            btnRefreshMarket.addEventListener('click', function() { loadMarketSummary(true); });
+        }
+        // Sekme görünürken 5 dakikada bir sessizce yenile (sunucu önbelleğiyle senkron)
+        setInterval(function() {
+            if (document.visibilityState === 'visible') loadMarketSummary(false);
+        }, 300000);
+
+        // Merkezi Onay (Confirmation) Yönetimi: form submit onayları base.html'de çift tıklama kilidinden önce işlenir;
+        // burada yalnızca form dışı (link / normal buton) data-confirm tetikleyicileri kontrol edilir.
         document.addEventListener('click', function (e) {
             const trigger = e.target.closest('[data-confirm]');
-            if (trigger && trigger.tagName !== 'FORM') {
+            if (trigger && trigger.tagName !== 'FORM' && trigger.type !== 'submit') {
                 const msg = trigger.getAttribute('data-confirm');
                 if (msg && !window.confirm(msg)) {
                     e.preventDefault();
@@ -2196,8 +3315,114 @@
             }
         });
 
+        // Düzenli İşlem Modalı: Kategori seçildiğinde İşlem Türünü (Gelir/Gider) otomatik senkronize et
+        const recCatSelect = document.getElementById('recCategorySelect');
+        const recTypeSelect = document.getElementById('recTypeSelect');
+        if (recCatSelect && recTypeSelect) {
+            const syncRecType = function () {
+                const opt = recCatSelect.options[recCatSelect.selectedIndex];
+                const catType = opt ? opt.getAttribute('data-type') : null;
+                if (catType === 'gelir' || catType === 'gider') {
+                    recTypeSelect.value = catType;
+                }
+            };
+            recCatSelect.addEventListener('change', syncRecType);
+            syncRecType();
+        }
+
+        // 16. Hızlı İşlem ve Komut Modalı (Ctrl+K / N) Entegrasyonu
+        const qcModalEl = document.getElementById('quickCommandModal');
+
+        if (qcModalEl) {
+            // Modal açıldığında otomatik olarak Tutar inputuna odaklan
+            qcModalEl.addEventListener('shown.bs.modal', function () {
+                const amtInput = document.getElementById('qcAmountInput');
+                if (amtInput) {
+                    amtInput.focus();
+                    amtInput.select();
+                }
+            });
+
+            // Hızlı Eylem Chipleri (Quick Actions)
+            const qcPortfolioBtn = document.getElementById('qcActionPortfolio');
+            if (qcPortfolioBtn) {
+                qcPortfolioBtn.addEventListener('click', function() {
+                    const modalInst = bootstrap.Modal.getInstance(qcModalEl);
+                    if (modalInst) modalInst.hide();
+                    const triggerEl = document.getElementById('portfolio-tab');
+                    if (triggerEl) {
+                        const tabTrigger = new bootstrap.Tab(triggerEl);
+                        tabTrigger.show();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            }
+
+            const qcPrivacyBtn = document.getElementById('qcActionPrivacy');
+            if (qcPrivacyBtn) {
+                qcPrivacyBtn.addEventListener('click', function() {
+                    const modalInst = bootstrap.Modal.getInstance(qcModalEl);
+                    if (modalInst) modalInst.hide();
+                    if (btnPrivacy) btnPrivacy.click();
+                });
+            }
+
+            const qcThemeBtn = document.getElementById('qcActionTheme');
+            if (qcThemeBtn) {
+                qcThemeBtn.addEventListener('click', function() {
+                    const modalInst = bootstrap.Modal.getInstance(qcModalEl);
+                    if (modalInst) modalInst.hide();
+                    const themeBtn = document.getElementById('themeToggleBtn');
+                    if (themeBtn) themeBtn.click();
+                });
+            }
+
+            const qcPayCcBtn = document.getElementById('qcActionPayCc');
+            if (qcPayCcBtn) {
+                qcPayCcBtn.addEventListener('click', function() {
+                    const modalInst = bootstrap.Modal.getInstance(qcModalEl);
+                    if (modalInst) modalInst.hide();
+                    const debtSec = document.getElementById('debt-section');
+                    if (debtSec) {
+                        debtSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        debtSec.focus();
+                    }
+                });
+            }
+        }
+
+        // Global Klavye Kısayolları: Ctrl + K (veya Cmd + K) ve N tuşu
+        document.addEventListener('keydown', function(e) {
+            // 1. Ctrl + K / Cmd + K: Hızlı İşlem Modalını Aç / Kapat
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.code === 'KeyK')) {
+                e.preventDefault();
+                if (qcModalEl) {
+                    const modalInst = bootstrap.Modal.getInstance(qcModalEl) || new bootstrap.Modal(qcModalEl);
+                    if (qcModalEl.classList.contains('show')) {
+                        modalInst.hide();
+                    } else {
+                        modalInst.show();
+                    }
+                }
+            }
+            // 2. N tuşu: Kullanıcı herhangi bir form alanında değilken tek tuşla Hızlı İşlem
+            else if ((e.key === 'n' || e.key === 'N' || e.code === 'KeyN') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const activeEl = document.activeElement;
+                const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+                const isEditable = activeEl ? activeEl.isContentEditable : false;
+                if (tag !== 'input' && tag !== 'textarea' && tag !== 'select' && !isEditable) {
+                    if (!document.querySelector('.modal.show') && qcModalEl) {
+                        e.preventDefault();
+                        const modalInst = bootstrap.Modal.getInstance(qcModalEl) || new bootstrap.Modal(qcModalEl);
+                        modalInst.show();
+                    }
+                }
+            }
+        });
+
         // Sayfa DOM'u ve diğer kritik bileşenler çizildikten hemen sonra haberleri asenkron olarak arka planda yükle
         setTimeout(function() {
+            loadMarketSummary(false);
             loadEconomyNews(false);
         }, 150);
     });

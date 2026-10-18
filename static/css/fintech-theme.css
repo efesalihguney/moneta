@@ -116,6 +116,10 @@
 /* ==========================================================================
    Global Base Styles & Typography
    ========================================================================== */
+html {
+    scroll-behavior: smooth;
+}
+
 html, body {
     font-family: var(--font-sans);
     background-color: var(--bg-body);
@@ -123,6 +127,11 @@ html, body {
     transition: background-color 0.25s ease, color 0.25s ease;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+[id$="-section"],
+.scroll-target {
+    scroll-margin-top: 80px;
 }
 
 /* Tabular numbers for financial precision across the UI */
@@ -171,14 +180,191 @@ h1, h2, h3, h4,
     box-shadow: var(--shadow-card-hover) !important;
 }
 
-/* Net Worth Hero Card & Glassmorphism */
+/* ==========================================================================
+   Net Worth Hero Card & Subcards (Light & Dark Theme)
+   ========================================================================== */
+.net-worth-hero,
 .hero-net-worth {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #eef2ff 100%) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
     border-radius: var(--radius-lg) !important;
-    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.3) !important;
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
+    color: var(--slate-900) !important;
 }
 
+.net-worth-hero .net-worth-label,
+.net-worth-hero .micro-label {
+    color: var(--slate-600) !important;
+}
+
+.net-worth-hero .net-worth-amount {
+    color: var(--slate-900) !important;
+}
+
+.net-worth-hero .net-worth-desc {
+    color: var(--slate-600) !important;
+}
+
+/* Koyu Tema: Net Worth Hero */
+[data-bs-theme="dark"] .net-worth-hero,
+[data-bs-theme="dark"] .hero-net-worth {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0b0f19 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.5) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .net-worth-hero .net-worth-label,
+[data-bs-theme="dark"] .net-worth-hero .micro-label {
+    color: var(--slate-300) !important;
+}
+
+[data-bs-theme="dark"] .net-worth-hero .net-worth-amount {
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .net-worth-hero .net-worth-desc {
+    color: var(--slate-400) !important;
+}
+
+/* ==========================================================================
+   Net Worth Subcard (4 Alt Mini Kart & Mikro Etkileşimler)
+   ========================================================================== */
+.net-worth-subcard {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    color: var(--text-main) !important;
+    text-decoration: none !important;
+    cursor: pointer;
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.net-worth-subcard:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    border-color: #cbd5e1 !important;
+    color: var(--text-main) !important;
+}
+
+.net-worth-subcard:focus-visible {
+    outline: 2px solid #6366f1 !important;
+    outline-offset: 2px !important;
+}
+
+/* Koyu Tema: Net Worth Subcard */
+[data-bs-theme="dark"] .net-worth-subcard {
+    background: rgba(30, 41, 59, 0.7) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-bs-theme="dark"] .net-worth-subcard:hover {
+    background: rgba(30, 41, 59, 0.95) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .net-worth-subcard:focus-visible {
+    outline: 2px solid #818cf8 !important;
+    outline-offset: 2px !important;
+}
+
+/* Subcard Responsive Grid Sizing */
+.net-worth-hero .row {
+    --bs-gutter-x: 0;
+    gap: 1rem;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.net-worth-hero .row > .net-worth-subcard {
+    flex: 1 1 calc(25% - 0.75rem);
+    width: calc(25% - 0.75rem);
+    max-width: calc(25% - 0.75rem);
+}
+
+@media (max-width: 991.98px) {
+    .net-worth-hero .row > .net-worth-subcard {
+        flex: 1 1 calc(50% - 0.5rem);
+        width: calc(50% - 0.5rem);
+        max-width: calc(50% - 0.5rem);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .net-worth-hero .row > .net-worth-subcard {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Subcard Icon Badge & Typography Utilities */
+.subcard-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.net-worth-subcard:hover .subcard-badge {
+    transform: scale(1.08);
+}
+
+.subcard-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.subcard-amount {
+    color: var(--slate-900);
+}
+
+[data-bs-theme="dark"] .subcard-amount {
+    color: #ffffff;
+}
+
+/* Color Badges (Emerald, Indigo, Amber, Rose) */
+.text-emerald-600 { color: #059669 !important; }
+.bg-emerald-50 { background-color: #ecfdf5 !important; border: 1px solid rgba(5, 150, 105, 0.15); }
+.text-indigo-600 { color: #4f46e5 !important; }
+.bg-indigo-50 { background-color: #eef2ff !important; border: 1px solid rgba(79, 70, 229, 0.15); }
+.text-amber-600 { color: #d97706 !important; }
+.bg-amber-50 { background-color: #fffbeb !important; border: 1px solid rgba(217, 119, 6, 0.15); }
+.text-rose-600 { color: #e11d48 !important; }
+.bg-rose-50 { background-color: #fff1f2 !important; border: 1px solid rgba(225, 29, 72, 0.15); }
+
+[data-bs-theme="dark"] .text-emerald-600 { color: #34d399 !important; }
+[data-bs-theme="dark"] .bg-emerald-50 { background-color: rgba(5, 150, 105, 0.18) !important; border-color: rgba(5, 150, 105, 0.3) !important; }
+[data-bs-theme="dark"] .text-indigo-600 { color: #a5b4fc !important; }
+[data-bs-theme="dark"] .bg-indigo-50 { background-color: rgba(79, 70, 229, 0.18) !important; border-color: rgba(79, 70, 229, 0.3) !important; }
+[data-bs-theme="dark"] .text-amber-600 { color: #fbbf24 !important; }
+[data-bs-theme="dark"] .bg-amber-50 { background-color: rgba(217, 119, 6, 0.18) !important; border-color: rgba(217, 119, 6, 0.3) !important; }
+[data-bs-theme="dark"] .text-rose-600 { color: #fb7185 !important; }
+[data-bs-theme="dark"] .bg-rose-50 { background-color: rgba(225, 29, 72, 0.18) !important; border-color: rgba(225, 29, 72, 0.3) !important; }
+
+/* Micro-Typography utilities */
+.text-xs { font-size: 0.75rem !important; }
+.tracking-wider { letter-spacing: 0.05em !important; }
+
+/* Legacy glass card compatibility */
 .hero-glass-card {
     background: rgba(255, 255, 255, 0.05) !important;
     backdrop-filter: blur(12px) !important;
@@ -381,15 +567,29 @@ h1, h2, h3, h4,
     margin-bottom: 0;
 }
 
-.table th {
+.table th,
+.table-theme-header th {
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
+    background-color: var(--bg-card-subtle);
     border-bottom: 1px solid var(--border-color);
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
+}
+
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] .table-light > th,
+[data-bs-theme="dark"] .table-light > td,
+[data-bs-theme="dark"] .table-theme-header,
+[data-bs-theme="dark"] .table-theme-header > tr > th {
+    --bs-table-bg: #1e2738 !important;
+    --bs-table-color: #cbd5e1 !important;
+    background-color: #1e2738 !important;
+    color: #cbd5e1 !important;
+    border-color: var(--border-color) !important;
 }
 
 .table td {
@@ -432,8 +632,20 @@ h1, h2, h3, h4,
 }
 
 .modal-footer {
+    background-color: var(--bg-card-subtle);
     border-top: 1px solid var(--border-color);
     padding: 1rem 1.5rem;
+}
+
+@media (max-width: 575.98px) {
+    .net-worth-hero-actions {
+        width: 100%;
+        justify-content: flex-start !important;
+    }
+    .net-worth-hero-actions .btn,
+    .net-worth-hero-actions .currency-switcher {
+        font-size: 0.78rem;
+    }
 }
 
 /* ==========================================================================
@@ -511,3 +723,380 @@ h1, h2, h3, h4,
     scrollbar-color: var(--border-color) transparent;
 }
 
+/* ==========================================================================
+   Gizlilik / Bakiye Maskeleme Modu (Privacy Mode - Kusursuz Yıldız Maskeleme)
+   ========================================================================== */
+.sensitive-amount {
+    position: relative;
+    transition: opacity 0.15s ease;
+}
+
+body.privacy-mode-active .sensitive-amount {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: pointer;
+    letter-spacing: 1.5px;
+}
+
+body.privacy-mode-active .sensitive-amount.is-peeking {
+    letter-spacing: normal;
+}
+
+/* JS henüz maskelemeden önceki ilk milisaniye için güvenlik zırhı (FOUC önleme) */
+body.privacy-mode-active .sensitive-amount:not([data-privacy-masked="1"]):not(.is-peeking) {
+    font-size: 0 !important;
+    color: transparent !important;
+}
+
+body.privacy-mode-active .sensitive-amount:not([data-privacy-masked="1"]):not(.is-peeking)::after {
+    content: "******";
+    font-size: 1rem !important;
+    color: var(--text-main);
+    letter-spacing: 2px;
+}
+
+[data-bs-theme="dark"] body.privacy-mode-active .net-worth-hero .sensitive-amount:not([data-privacy-masked="1"]):not(.is-peeking)::after {
+    color: #ffffff !important;
+}
+
+.btn-privacy-toggle {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--slate-700) !important;
+    font-weight: 600;
+}
+
+.btn-privacy-toggle:hover {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+}
+
+.btn-privacy-toggle:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.btn-privacy-toggle[aria-pressed="true"] {
+    background: var(--primary-subtle) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary-text) !important;
+}
+
+[data-bs-theme="dark"] .btn-privacy-toggle {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: var(--slate-300) !important;
+}
+
+[data-bs-theme="dark"] .btn-privacy-toggle:hover,
+[data-bs-theme="dark"] .btn-privacy-toggle[aria-pressed="true"] {
+    border-color: #818cf8 !important;
+    color: #c7d2fe !important;
+}
+
+/* ==========================================================================
+   Para Birimi Değiştirici (TRY / USD Segmented Switcher)
+   ========================================================================== */
+.currency-switcher {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    box-shadow: var(--shadow-xs);
+}
+
+.currency-switcher .btn-currency {
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.22rem 0.65rem;
+    color: var(--slate-600);
+    background: transparent;
+    transition: all 0.18s ease;
+}
+
+.currency-switcher .btn-currency:hover {
+    color: var(--primary);
+}
+
+.currency-switcher .btn-currency.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
+}
+
+[data-bs-theme="dark"] .currency-switcher {
+    background: rgba(30, 41, 59, 0.75);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .currency-switcher .btn-currency {
+    color: var(--slate-300);
+}
+
+[data-bs-theme="dark"] .currency-switcher .btn-currency.active {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+.fx-rate-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+[data-bs-theme="dark"] .fx-rate-pill {
+    background: rgba(30, 41, 59, 0.65);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--slate-300);
+}
+
+/* ==========================================================================
+   Canlı Piyasa Göstergeleri Widget'ı
+   ========================================================================== */
+.market-tile {
+    background: var(--bg-card-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1rem;
+    height: 100%;
+    transition: border-color 0.2s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.market-tile:hover {
+    border-color: var(--slate-300);
+    transform: translateY(-1px);
+}
+
+[data-bs-theme="dark"] .market-tile:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.market-tile-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.market-tile-code {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.market-tile-price {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-main);
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.market-badge-up,
+.market-badge-down,
+.market-badge-flat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.market-badge-up   { background: var(--success-subtle); color: var(--success-text); }
+.market-badge-down { background: var(--danger-subtle);  color: var(--danger-text); }
+.market-badge-flat { background: var(--slate-100);      color: var(--slate-600); }
+
+[data-bs-theme="dark"] .market-badge-flat {
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--slate-300);
+}
+
+/* Skeleton Loader (Shimmer) */
+.skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    min-height: 88px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(90deg, var(--slate-100) 0%, var(--slate-200) 40%, var(--slate-100) 80%);
+    background-size: 200% 100%;
+    animation: moneta-shimmer 1.4s ease-in-out infinite;
+}
+
+[data-bs-theme="dark"] .skeleton-shimmer {
+    background: linear-gradient(90deg, #1e2738 0%, #2a3548 40%, #1e2738 80%);
+    background-size: 200% 100%;
+}
+
+@keyframes moneta-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer { animation: none; }
+    .sensitive-amount,
+    .market-tile { transition: none; }
+}
+
+/* ==========================================================================
+   Portföy Varlık Dağılımı (Asset Allocation) & Çeşitlendirme Analizi
+   ========================================================================== */
+.allocation-breakdown-item {
+    border-radius: var(--radius-sm, 6px);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.allocation-breakdown-item:hover {
+    background-color: rgba(99, 102, 241, 0.04) !important;
+}
+
+[data-bs-theme="dark"] .allocation-breakdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+#allocationModeGroup .btn {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    letter-spacing: 0.02em;
+}
+
+#allocationModeGroup .btn.active {
+    background-color: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+[data-bs-theme="dark"] #allocationModeGroup .btn.active {
+    background-color: #6366f1;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+}
+
+/* ==========================================================================
+   Fisher Reel Getiri & Enflasyon Kıyaslama Modülü
+   ========================================================================== */
+#bmRealStatusBox {
+    border-left: 3px solid #6366f1 !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-bs-theme="dark"] #bmRealStatusBox {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-left-color: #818cf8 !important;
+}
+
+.gap-1\.5 {
+    gap: 0.375rem !important;
+}
+
+.fs-7 {
+    font-size: 0.8125rem !important;
+}
+
+/* ==========================================================================
+   Hızlı İşlem & Komut Modalı (Ctrl+K / N) Stilleri
+   ========================================================================== */
+.btn-quick-command {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius-md, 8px);
+    color: #ffffff;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-quick-command:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.btn-quick-command:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.QuickCommand-kbd {
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+}
+
+[data-bs-theme="dark"] .QuickCommand-kbd {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Quick Action Chips */
+.btn-quick-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full, 9999px);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.75rem;
+    transition: all 0.15s ease;
+}
+
+.btn-quick-chip:hover {
+    background: var(--slate-100);
+    border-color: var(--slate-300);
+    color: var(--text-main);
+    transform: translateY(-1px);
+}
+
+[data-bs-theme="dark"] .btn-quick-chip {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--slate-200);
+}
+
+[data-bs-theme="dark"] .btn-quick-chip:hover {
+    background: rgba(51, 65, 85, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   Kredi Kartı Limit Doluluk (Credit Utilization) Barı & Eşik Çizgileri
+   ========================================================================== */
+.cc-utilization-bar {
+    background-color: var(--slate-200) !important;
+}
+
+[data-bs-theme="dark"] .cc-utilization-bar {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.cc-marker {
+    pointer-events: auto;
+    cursor: help;
+    transition: transform 0.15s ease;
+}
+
+.cc-marker:hover {
+    transform: scaleY(1.4);
+}

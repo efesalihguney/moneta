@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}500 — Sistem Hatası | Moneta{% endblock %}
+
+{% block content %}
+<div class="container py-5 my-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6 text-center">
+            <div class="card border-0 shadow-sm p-4 p-md-5 rounded-4 bg-body">
+                <div class="mb-3">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fs-6 fw-semibold">
+                        <i class="bi bi-shield-lock-fill me-1" aria-hidden="true"></i>Güvenli İzolasyon: 500
+                    </span>
+                </div>
+                <h1 class="display-1 fw-bold text-danger mb-2" style="letter-spacing: -2px;">500</h1>
+                <h2 class="h4 fw-bold text-body mb-3">İşleminiz Güvenli Şekilde Durduruldu</h2>
+                <p class="text-muted mb-4" style="line-height: 1.6;">
+                    Beklenmeyen bir sistem durumu algılandı. Finansal veri bütünlüğünüzü korumak için işlem güvenli şekilde durduruldu 
+                    ve sistem kayıtlarına işlendi.
+                </p>
+                <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary px-4 py-2 d-inline-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-speedometer2" aria-hidden="true"></i>Ana Panele Dön
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary px-4 py-2 d-inline-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>Güvenli Çıkış Yap
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
