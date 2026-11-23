@@ -12,6 +12,16 @@
 
 ---
 
+## 📸 Arayüz ve Kullanım Galerisi
+
+| Genel Bakış & Nakit Akışı (Açık Tema) | Genel Bakış & Canlı Piyasa (Karanlık Tema) |
+| :---: | :---: |
+| ![Genel Bakış & Nakit Akışı - Açık Tema](docs/screenshots/01-dashboard-light.png) | ![Genel Bakış & Canlı Piyasa - Karanlık Tema](docs/screenshots/02-dashboard-dark.png) |
+| **Yatırım Portföyü & Varlık Dağılım Grafikleri** | **Gizlilik Modu (`******`) & `$ USD` Görünümü** |
+| ![Yatırım Portföyü & Varlık Dağılım Grafikleri](docs/screenshots/03-portfolio-analytics.png) | ![Gizlilik Modu & USD Görünümü](docs/screenshots/04-privacy-mode.png) |
+
+---
+
 ## 📑 İçindekiler
 1. [Proje Vizyonu ve Temel Yetenekler](#1-proje-vizyonu-ve-temel-yetenekler)
 2. [Sistem Mimarisi ve Veritabanı ER Diyagramı](#2-sistem-mimarisi-ve-veritabanı-er-diyagramı)
