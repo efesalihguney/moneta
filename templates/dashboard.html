@@ -42,7 +42,7 @@
         }
     } catch (e) { /* localStorage erişilemezse varsayılan: görünür */ }
 </script>
-<section class="net-worth-hero card p-4 mb-4" aria-labelledby="net-worth-title" data-usd-try-rate="{{ '%.4f'|format(usd_try_rate or 34.50) }}">
+<section class="net-worth-hero card p-4 mb-4" aria-labelledby="net-worth-title" data-usd-try-rate="{{ '%.4f'|format(usd_try_rate or 50.60) }}">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3 pb-3 border-bottom border-subtle">
         <div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
@@ -50,7 +50,7 @@
                     <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>Konsolide Net Servet
                 </span>
                 <span class="fx-rate-pill" title="TCMB / Piyasa Anlık USD/TRY Kuru">
-                    <i class="bi bi-currency-exchange text-primary" aria-hidden="true"></i>1 $ = {{ (usd_try_rate or 34.50)|currency_tr }} ₺
+                    <i class="bi bi-currency-exchange text-primary" aria-hidden="true"></i>1 $ = {{ (usd_try_rate or 50.60)|currency_tr }} ₺
                 </span>
             </div>
             <div class="d-flex flex-wrap align-items-baseline gap-2">
@@ -226,6 +226,7 @@
         <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
             {% if alert.action_pay_cc %}
             <form action="{{ url_for('pay_credit_card') }}" method="POST" class="d-inline m-0" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="month" value="{{ selected_month }}">
                 <input type="hidden" name="year" value="{{ selected_year }}">
                 <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold py-0 px-2" style="font-size: 0.78rem;">
@@ -309,6 +310,7 @@
                                 </div>
                                 {% if total_unpaid_cc > 0 %}
                                 <form action="{{ url_for('pay_credit_card') }}" method="POST" data-confirm="Kredi kartı ekstre borcunu nakit bakiyenizden ödemek istediğinize emin misiniz?">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="month" value="{{ selected_month }}">
                                     <input type="hidden" name="year" value="{{ selected_year }}">
                                     <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-2 py-1 mt-1" aria-label="Ekstre borcunu nakit bakiyenizden öde" title="Ekstreyi Nakit ile Öde">
@@ -1180,6 +1182,7 @@
                                                 <i class="bi bi-pencil" aria-hidden="true"></i>
                                             </button>
                                             <form action="{{ url_for('delete_transaction', tx_id=t[0]) }}" method="POST" data-confirm="Bu işlemi silmek istediğinize emin misiniz?">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="İşlemi Sil: {{ t[4] }} - {{ t[1]|currency_tr }} TL" title="İşlemi Sil">
                                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                                 </button>
@@ -1222,11 +1225,13 @@
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="small fw-semibold text-primary">%{{ g.percent }}</span>
                                     <form action="{{ url_for('complete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" data-confirm="Hedefi tamamlandı olarak işaretlemek istiyor musunuz?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" aria-label="{{ g.title }} hedefini tamamlandı olarak işaretle" title="Hedefi Tamamla">
                                             <i class="bi bi-check-lg" aria-hidden="true"></i>
                                         </button>
                                     </form>
                                     <form action="{{ url_for('delete_savings_goal', goal_id=g.id) }}" method="POST" class="d-inline" data-confirm="Bu hedefi silmek istediğinize emin misiniz?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ g.title }} hedefini sil" title="Hedefi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1292,6 +1297,7 @@
                                 <div class="d-flex align-items-center gap-3">
                                     <span class="fw-bold fs-6 sensitive-amount">{{ sub[2]|currency_tr }} TL</span>
                                     <form action="{{ url_for('delete_subscription', sub_id=sub[0]) }}" method="POST" data-confirm="Bu ödemeyi silmek istediğinize emin misiniz?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" aria-label="{{ sub[1] }} ödemesini sil" title="Ödemeyi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1323,6 +1329,7 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <form action="{{ url_for('apply_recurring') }}" method="POST" class="d-inline" data-confirm="Bu ay için tanımlı tüm düzenli şablonları eklemek istiyor musunuz? (Daha önce eklenenler çift eklenmez)">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="month" value="{{ selected_month }}">
                         <input type="hidden" name="year" value="{{ selected_year }}">
                         <button type="submit" class="btn btn-sm btn-saas-secondary">
@@ -1366,6 +1373,7 @@
                                 </td>
                                 <td class="text-end">
                                     <form action="{{ url_for('delete_recurring', rec_id=rec[0]) }}" method="POST" class="d-inline" data-confirm="Bu düzenli işlem şablonunu silmek istediğinize emin misiniz?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ rec[1] }} düzenli şablonunu sil" title="Şablonu Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1401,6 +1409,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_transaction') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="txCategorySelect">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
@@ -1452,6 +1461,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form id="editTransactionForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="editTxCategory">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
@@ -1503,6 +1513,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('buy_asset') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="p-2.5 px-3 mb-3 rounded-3 border bg-body-tertiary d-flex justify-content-between align-items-center">
                         <span class="small text-muted fw-semibold"><i class="bi bi-wallet2 me-1.5 text-success" aria-hidden="true"></i>Kullanılabilir Vadesiz Nakit:</span>
@@ -1575,6 +1586,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('sell_asset') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     {% if portfolio_items %}
                     <div class="mb-3">
@@ -1643,6 +1655,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_subscription') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="subTitleInput">Ödeme Başlığı <span class="text-danger" aria-hidden="true">*</span></label>
@@ -1694,6 +1707,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_savings_goal') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="goalTitleInput">Hedef Adı <span class="text-danger" aria-hidden="true">*</span></label>
@@ -1726,6 +1740,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('deposit_savings_goal') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="goal_id" id="depositGoalId">
                 <div class="modal-body">
                     <p class="mb-3">Hedef: <strong id="depositGoalTitle" class="text-primary fs-6"></strong></p>
@@ -1763,6 +1778,7 @@
                 <div class="card p-3 mb-4 bg-body-tertiary border">
                     <span class="fw-bold d-block mb-3">Yeni Kategori Ekle</span>
                     <form action="{{ url_for('add_category') }}" method="POST" class="row g-2 align-items-end">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="col-md-4">
                             <label class="form-label small" for="catNameInput">Kategori Adı <span class="text-danger" aria-hidden="true">*</span></label>
                             <input type="text" name="name" id="catNameInput" class="form-control form-control-sm" placeholder="Örn: Sağlık, Spor" required>
@@ -1808,6 +1824,7 @@
                                 <td>
                                     {% if c[2] == 'gider' %}
                                     <form action="{{ url_for('update_category_budget') }}" method="POST" class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="category_id" value="{{ c[0] }}">
                                         <label for="catBudget_{{ c[0] }}" class="visually-hidden">{{ c[1] }} Bütçesi</label>
                                         <input type="number" step="100" name="monthly_budget" id="catBudget_{{ c[0] }}" class="form-control form-control-sm" value="{{ c[3]|int }}" style="width: 100px;">
@@ -1821,6 +1838,7 @@
                                 </td>
                                 <td class="text-end">
                                     <form action="{{ url_for('delete_category', cat_id=c[0]) }}" method="POST" class="d-inline" data-confirm="Bu kategoriyi silmek istediğinize emin misiniz?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" aria-label="{{ c[1] }} kategorisini sil" title="Kategoriyi Sil">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -1848,6 +1866,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('add_recurring') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="recTitleInput">Şablon Başlığı <span class="text-danger" aria-hidden="true">*</span></label>
@@ -1906,6 +1925,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('update_initial_balance') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">
                         Sisteme başlamadan önce banka hesabınızda veya elinizde hazır bulunan nakit paradır. Bu tutar <strong>aylık gelir veya tasarruf oranınızı yapay olarak şişirmeden</strong> net servetinize ve nakit kasanıza doğrudan dahil edilir.
@@ -1956,10 +1976,18 @@
                     <span class="fw-bold d-block mb-1"><i class="bi bi-upload text-primary me-2" aria-hidden="true"></i>Yedekten Geri Yükle / İçe Aktar</span>
                     <p class="small text-muted mb-2">Daha önce indirdiğiniz bir <code>.json</code> dosyasını seçerek tüm verilerinizi sisteme aktarabilirsiniz.</p>
                     <form action="{{ url_for('backup_restore') }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold mb-1" for="restoreModeSelect">Geri Yükleme Modu</label>
+                            <select name="restore_mode" id="restoreModeSelect" class="form-select form-select-sm">
+                                <option value="merge" selected>Birleştir (Tekrar eden kayıtları atla)</option>
+                                <option value="replace">Temiz Geri Yükle (Mevcut verileri sıfırlayıp yedekten kur)</option>
+                            </select>
+                        </div>
                         <div class="input-group input-group-sm mb-2">
                             <label class="visually-hidden" for="backupFileInput">Yedek JSON Dosyası Seç</label>
                             <input type="file" name="backup_file" id="backupFileInput" class="form-control" accept=".json" required aria-label="Yedek JSON Dosyası Seç">
-                            <button type="submit" class="btn btn-primary" data-confirm="Seçilen yedek dosyasındaki veriler mevcut hesabınıza eklenecektir. Devam etmek istiyor musunuz?">
+                            <button type="submit" class="btn btn-primary" data-confirm="Seçilen yedek dosyası hesabınıza uygulanacaktır. Devam etmek istiyor musunuz?">
                                 <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Yükle
                             </button>
                         </div>
@@ -1984,6 +2012,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Pencereyi Kapat"></button>
             </div>
             <form action="{{ url_for('update_card_limit') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">
                         Toplam kredi kartı limitinizi tanımlayarak <strong>Findeks / FICO Kredi Notu Doluluk Oranınızı</strong> (Credit Utilization) anlık takip edebilirsiniz. Kart limitinizin <strong>%30'unun altında kalmak</strong> kredi notunuzu olumlu destekler.
@@ -2052,6 +2081,7 @@
 
             <!-- Fast Transaction Form (3 Saniyede Gelir/Gider Ekle) -->
             <form action="{{ url_for('add_transaction') }}" method="POST" id="quickTransactionForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold small text-body">3 Saniyede İşlem Kaydet</span>
@@ -2137,6 +2167,14 @@
 <!-- JAVASCRIPT KONTROLLERİ -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function safeHttpUrl(url) {
+            const raw = String(url ?? '').trim();
+            return (raw.startsWith('https://') || raw.startsWith('http://')) ? raw : '#';
+        }
+
         // 1. İlerleme çubuklarını (Progress Bar) dinamik genişliğe ayarla
         document.querySelectorAll('.progress-bar-dynamic').forEach(function (bar) {
             const rawVal = parseFloat(bar.getAttribute('data-width')) || 0;
@@ -2159,7 +2197,7 @@
 
         const isDark = () => document.documentElement.getAttribute('data-bs-theme') === 'dark';
         const chartHeroEl = document.querySelector('.net-worth-hero');
-        const chartFxRate = Math.max(0.0001, parseFloat(chartHeroEl ? chartHeroEl.getAttribute('data-usd-try-rate') : '34.50') || 34.50);
+        const chartFxRate = Math.max(0.0001, parseFloat(chartHeroEl ? chartHeroEl.getAttribute('data-usd-try-rate') : '50.60') || 50.60);
 
         function formatChartAmount(rawTry, pctSuffix = '') {
             if (document.body.classList.contains('privacy-mode-active')) {
@@ -2469,15 +2507,15 @@
                             html += `
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom bg-transparent allocation-breakdown-item">
                                 <div class="d-flex align-items-center gap-2 text-truncate me-2">
-                                    <span class="rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: ${item.color};"></span>
+                                    <span class="rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: ${escapeHtml(item.color)};"></span>
                                     <div class="text-truncate">
-                                        <span class="fw-semibold text-body text-truncate d-block">${item.label}</span>
-                                        <small class="text-muted" style="font-size: 0.72rem;">${subText}</small>
+                                        <span class="fw-semibold text-body text-truncate d-block">${escapeHtml(item.label)}</span>
+                                        <small class="text-muted" style="font-size: 0.72rem;">${escapeHtml(subText)}</small>
                                     </div>
                                 </div>
                                 <div class="text-end flex-shrink-0">
-                                    <span class="fw-bold sensitive-amount text-body d-block">${valFmt} TL</span>
-                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">%${item.pct}</span>
+                                    <span class="fw-bold sensitive-amount text-body d-block">${escapeHtml(valFmt)} TL</span>
+                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">%${escapeHtml(item.pct)}</span>
                                 </div>
                             </li>`;
                         });
@@ -2721,7 +2759,7 @@
         const buyCashSummaryHelpEl = document.getElementById('buyCashSummaryHelp');
         const buyAvailableCashEl = document.getElementById('buyModalAvailableCash');
         const heroSectionEl = document.querySelector('.net-worth-hero');
-        const liveUsdTryRate = parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 34.50;
+        const liveUsdTryRate = parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 50.60;
 
         function updateBuyModalCostPreview() {
             if (!buyCashSummaryHelpEl) return;
@@ -2989,22 +3027,22 @@
                     let html = '<div class="d-flex flex-column gap-2" id="economyNewsList">';
                     data.news.forEach(item => {
                         html += `
-                        <a href="${item.link}" target="_blank" rel="noopener noreferrer" 
+                        <a href="${escapeHtml(safeHttpUrl(item.link))}" target="_blank" rel="noopener noreferrer" 
                            class="list-group-item list-group-item-action p-2 rounded-3 border bg-body-tertiary text-decoration-none shadow-none" 
                            style="transition: all 0.2s ease;">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="badge ${item.badge_class} small" style="font-size: 0.72rem;">
-                                    <i class="bi ${item.icon} me-1"></i>${item.category}
+                                <span class="badge ${escapeHtml(item.badge_class)} small" style="font-size: 0.72rem;">
+                                    <i class="bi ${escapeHtml(item.icon)} me-1"></i>${escapeHtml(item.category)}
                                 </span>
                                 <small class="text-muted" style="font-size: 0.75rem;">
-                                    <i class="bi bi-clock me-1"></i>${item.time}
+                                    <i class="bi bi-clock me-1"></i>${escapeHtml(item.time)}
                                 </small>
                             </div>
                             <div class="fw-semibold text-body small mb-1" style="line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                ${item.title}
+                                ${escapeHtml(item.title)}
                             </div>
                             <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.72rem;">
-                                <span><i class="bi bi-newspaper me-1"></i>${item.source}</span>
+                                <span><i class="bi bi-newspaper me-1"></i>${escapeHtml(item.source)}</span>
                                 <span class="text-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Habere Git</span>
                             </div>
                         </a>`;
@@ -3044,7 +3082,7 @@
         const privacyStatus = document.getElementById('privacy-status');
         const btnCurrencyTry = document.getElementById('btn-currency-try');
         const btnCurrencyUsd = document.getElementById('btn-currency-usd');
-        const fxRateVal = Math.max(0.01, parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 34.50);
+        const fxRateVal = Math.max(0.01, parseFloat(heroSectionEl?.getAttribute('data-usd-try-rate')) || 50.60);
 
         let currentCurrency = 'TRY';
         try {
@@ -3217,10 +3255,6 @@
         const btnRefreshMarket = document.getElementById('btn-refresh-market');
         const marketTimeEl = document.querySelector('#market-update-time span');
         const MARKET_ICONS = { XU100: 'bi-bar-chart-line', IXIC: 'bi-globe-americas', GAU_TRY: 'bi-gem', XAG_TRY: 'bi-coin' };
-
-        function escapeHtml(str) {
-            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
 
         function renderMarketSkeleton() {
             if (!marketGrid) return;

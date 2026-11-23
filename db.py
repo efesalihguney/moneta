@@ -23,6 +23,7 @@ def get_db_connection(database=None, autocommit=False):
             Config._resolved_driver = None
 
     last_err = None
+    conn_timeout = 8 if Config.DB_USER else 3
     drivers_to_try = [Config.DB_DRIVER, '{ODBC Driver 18 for SQL Server}', '{SQL Server}']
     seen_drivers = []
     for d in drivers_to_try:
@@ -36,7 +37,7 @@ def get_db_connection(database=None, autocommit=False):
                     conn_str = Config.get_fallback_connection_string(server=srv, database=database)
                 else:
                     conn_str = Config.get_connection_string(driver=drv, server=srv, database=database)
-                conn = pyodbc.connect(conn_str, timeout=3, autocommit=autocommit)
+                conn = pyodbc.connect(conn_str, timeout=conn_timeout, autocommit=autocommit)
                 Config._resolved_server = srv
                 Config._resolved_driver = drv
                 return conn

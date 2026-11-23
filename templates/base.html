@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Moneta — Kişisel Finans & Varlık Yönetimi{% endblock %}</title>
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -217,6 +218,18 @@
                 // 2. Form HTML5 doğrulamasını kontrol et
                 if (form.checkValidity && !form.checkValidity()) {
                     return;
+                }
+
+                // 2.5 POST formlarında CSRF belirtecini garanti altına al
+                if ((form.method || '').toUpperCase() === 'POST' && !form.querySelector('input[name="csrf_token"]')) {
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    if (csrfMeta && csrfMeta.content) {
+                        const csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = 'csrf_token';
+                        csrfInput.value = csrfMeta.content;
+                        form.appendChild(csrfInput);
+                    }
                 }
 
                 // 3. Onay ve doğrulama geçildikten sonra submit butonlarını kilitle

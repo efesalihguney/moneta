@@ -6,7 +6,7 @@
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3%20Dark%2FLight-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 [![Chart.js](https://img.shields.io/badge/Chart.js-4.x-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
 [![WCAG](https://img.shields.io/badge/WCAG-2.1%20AA%2FAAA-10B981?style=for-the-badge)](https://www.w3.org/WAI/WCAG21/quickref/)
-[![Pytest](https://img.shields.io/badge/Tests-36%2F36%20Passing-22C55E?style=for-the-badge&logo=pytest&logoColor=white)](#6-otomatik-test-paketi-pytest)
+[![Pytest](https://img.shields.io/badge/Tests-44%2F44%20Passing-22C55E?style=for-the-badge&logo=pytest&logoColor=white)](#6-otomatik-test-paketi-pytest)
 
 **Moneta**, bireysel yatırımcıların nakit akışını, kredi kartı borç/limit sağlığını, birikim hedeflerini (kumbara), düzenli fatura/abonelik otomasyonunu ve çoklu varlık yatırım portföylerini (**BIST 100**, **ABD Borsaları**, **TEFAS/BEFAS Fonları**, **Gram Altın/Gümüş**, **Döviz** ve **Kripto**) tek bir merkezi finansal karar destek ekranında yönetmelerini sağlayan kurumsal düzeyde bir **FinTech Web Uygulamasıdır**.
 
@@ -269,7 +269,7 @@ Tarayıcınızda `http://127.0.0.1:5000` adresine giderek uygulamayı kullanmaya
 
 ## 6. Otomatik Test Paketi (`Pytest`)
 
-Moneta; Fisher denklemi, WAC/Realized PnL hesaplamaları, kredi kartı doluluk eşikleri, portföy konsantrasyon riski, MSSQL View/SP entegrasyonu, SQL Arithmetic Overflow koruması, çift yönlü veri tutarlılığı ve dış API kesinti (`Offline Fallback`) senaryolarını kapsayan **36 adet otomatik birim ve entegrasyon testine** sahiptir:
+Moneta; Fisher denklemi, WAC/Realized PnL hesaplamaları, kredi kartı doluluk eşikleri, portföy konsantrasyon riski, MSSQL View/SP entegrasyonu, SQL Arithmetic Overflow koruması, CSRF/oturum/dosya güvenliği, çift yönlü veri tutarlılığı ve dış API kesinti (`Offline Fallback`) senaryolarını kapsayan **44 adet otomatik birim ve entegrasyon testine** sahiptir:
 
 ```powershell
 pytest tests/ -v
@@ -285,6 +285,7 @@ moneta/
 ├── config.py                       # Ortam değişkenleri (.env) ve MSSQL bağlantı yapılandırması
 ├── db.py                           # ODBC bağlantı yöneticisi ve sürücü fallback mekanizması
 ├── init_db.py                      # Tek komutla sıfırdan veritabanı, tablo, View ve SP kurulum aracı
+├── seed_demo_data.py               # Zengin demo verisi (BIST, ABD, Altın, faturalar, kumbaralar) yükleyici
 ├── schema.sql                      # Tüm veritabanı mimarisini içeren çalıştırılabilir T-SQL betiği
 ├── run_prod.py                     # Waitress tabanlı Production WSGI sunucu başlatıcısı
 ├── requirements.txt                # Python bağımlılık listesi
@@ -297,6 +298,7 @@ moneta/
 │   ├── dashboard.html              # 4 sekmeli ana finansal kontrol paneli ve Chart.js görselleştirmeleri
 │   ├── login.html                  # Kurumsal kullanıcı giriş ekranı
 │   ├── register.html               # Yeni kullanıcı kayıt ekranı
+│   ├── 403.html                    # Özel 403 Güvenlik / CSRF Doğrulama ekranı
 │   ├── 404.html                    # Özel 404 Sayfa Bulunamadı ekranı
 │   └── 500.html                    # Özel 500 Güvenli Hata İzolasyonu ekranı
 ├── static/

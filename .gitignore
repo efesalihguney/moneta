@@ -7,5 +7,7 @@ __pycache__/
 .pytest_cache/
 .vscode/
 .idea/
+uploads/receipts/*
+!uploads/receipts/.gitkeep
 static/uploads/receipts/*
 !static/uploads/receipts/.gitkeep

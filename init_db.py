@@ -326,7 +326,22 @@ def ensure_tables_and_objects():
         conn.commit()
         print("[OK] Kurumsal SQL View (vw_user_financial_summary) ve Stored Procedure (sp_get_user_budget_health) oluşturuldu.")
 
-        # 5. İlk Kurulum (Zero-User) Kontrolü — Mevcut kullanıcılara KESİNLİKLE dokunmaz
+        ensure_default_seed_data(cursor=cursor, conn=conn)
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def ensure_default_seed_data(cursor=None, conn=None):
+    """İlk kurulum (Zero-User) kontrolü: Hiç kullanıcı yoksa varsayılan kullanıcı ve kategorileri oluşturur."""
+    own_conn = False
+    if conn is None or cursor is None:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        own_conn = True
+
+    try:
         cursor.execute("SELECT COUNT(*) FROM users")
         user_count = cursor.fetchone()[0]
         if user_count == 0:
@@ -360,10 +375,10 @@ def ensure_tables_and_objects():
             print("[OK] İlk kurulum tespit edildi: Varsayılan başlangıç kullanıcısı (efoss13 / 123456) ve temel kategoriler oluşturuldu.")
         else:
             print(f"[OK] Mevcut kullanıcı verileri korundu ({user_count} aktif kullanıcı kayıtlı).")
-
     finally:
-        cursor.close()
-        conn.close()
+        if own_conn:
+            cursor.close()
+            conn.close()
 
 
 if __name__ == "__main__":

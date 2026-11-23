@@ -13,6 +13,7 @@
                 <p class="text-muted small mb-0">Yeni Bir Hesap Oluşturun</p>
             </div>
             <form action="{{ url_for('register') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label" for="regFirstName">Ad</label>
@@ -33,7 +34,8 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label" for="regPassword">Şifre</label>
-                    <input type="password" name="password" id="regPassword" class="form-control" required autocomplete="new-password">
+                    <input type="password" name="password" id="regPassword" class="form-control" minlength="8" required autocomplete="new-password">
+                    <small class="text-muted">En az 8 karakter uzunluğunda olmalıdır.</small>
                 </div>
                 <button type="submit" class="btn btn-cta-primary w-100 py-2 fw-semibold">Kayıt Ol</button>
             </form>

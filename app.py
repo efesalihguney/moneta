@@ -10,9 +10,45 @@ import re
 import io
 import calendar
 import os
+import hmac
+import secrets
 import uuid
 import threading
 from concurrent.futures import ThreadPoolExecutor
+
+def _ensure_ascii_ca_bundle():
+    """Windows'ta Unicode klasör yollarındaki certifi paketinin curl_cffi SSL (curl 77) hatasına yol açmasını önler."""
+    try:
+        import shutil
+        import tempfile
+        import certifi
+        ca_path = certifi.where()
+        if ca_path and ca_path.isascii():
+            return
+        candidates = [
+            tempfile.gettempdir(),
+            os.path.join(os.environ.get('PUBLIC', r'C:\Users\Public'), 'moneta_certs'),
+            os.path.join(os.environ.get('ProgramData', r'C:\ProgramData'), 'moneta_certs'),
+        ]
+        for base_dir in candidates:
+            if not base_dir or not base_dir.isascii():
+                continue
+            try:
+                os.makedirs(base_dir, exist_ok=True)
+                target = os.path.join(base_dir, 'moneta_cacert.pem')
+                if (not os.path.exists(target)) or os.path.getsize(target) != os.path.getsize(ca_path):
+                    shutil.copyfile(ca_path, target)
+                certifi.where = lambda _p=target: _p
+                os.environ['CURL_CA_BUNDLE'] = target
+                os.environ['SSL_CERT_FILE'] = target
+                return
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+_ensure_ascii_ca_bundle()
+
 import requests
 import pandas as pd
 import yfinance as yf
@@ -33,6 +69,34 @@ app.secret_key = Config.SECRET_KEY
 app.config['SESSION_COOKIE_HTTPONLY'] = Config.SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = Config.SESSION_COOKIE_SAMESITE
 app.config['SESSION_COOKIE_SECURE'] = Config.SESSION_COOKIE_SECURE
+app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+
+if Config.FLASK_ENV.lower() == 'production' and Config.SECRET_KEY == 'super_secret_moneta_key_change_in_production':
+    print("[UYARI] Canlı ortamda (FLASK_ENV=production) varsayılan FLASK_SECRET_KEY kullanılıyor! Güvenlik için .env üzerinden güçlü bir anahtar tanımlayın.")
+
+
+def generate_csrf_token():
+    """Oturum bazlı CSRF doğrulama belirteci üretir ve döndürür."""
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+
+@app.before_request
+def verify_csrf_token():
+    """Tüm durum değiştiren isteklerde (POST/PUT/PATCH/DELETE) CSRF token doğrular."""
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        if app.config.get('TESTING') and not app.config.get('CSRF_ENABLED_IN_TESTS'):
+            return
+        expected = session.get('_csrf_token')
+        submitted = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not expected or not submitted or not hmac.compare_digest(str(expected), str(submitted)):
+            abort(403)
 
 def ensure_schema_migrations():
     """Veritabanı şema güncellemelerini, indeksleri, kurumsal VIEW ve STORED PROCEDURE nesnelerini güvenli bir şekilde yapar."""
@@ -210,23 +274,53 @@ def add_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
 
-# --- ÖZEL HATA YÖNETİCİLERİ (404 & 500) ---
+# --- ÖZEL HATA YÖNETİCİLERİ (403, 404, 413 & 500) ---
+@app.errorhandler(403)
+def forbidden_error(e):
+    return render_template('403.html'), 403
+
+
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
+
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    flash("Yüklenen dosya boyutu çok büyük (maksimum 5 MB).", "warning")
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
 
 @app.errorhandler(500)
 def internal_server_error(e):
     print(f"[Moneta Safe Isolation 500]: {e}")
     return render_template('500.html'), 500
 
-# --- FİŞ / MAKBUZ YÜKLEME AYARLARI ---
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads', 'receipts')
+
+# --- FİŞ / MAKBUZ YÜKLEME AYARLARI (static/ dışında güvenli depolama) ---
+UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads', 'receipts')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'}
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _save_receipt_if_valid(receipt_file):
+    """Yüklenen fişi uzantı kontrolünden geçirip diske kaydeder; (filename, err_msg) döner."""
+    if not receipt_file or not receipt_file.filename:
+        return None, None
+    if not allowed_file(receipt_file.filename):
+        return None, "İzin verilmeyen fiş dosya türü. Lütfen PNG, JPG, GIF, WEBP veya PDF yükleyin."
+    safe_name = secure_filename(receipt_file.filename)
+    if not safe_name:
+        return None, "Geçersiz dosya adı."
+    receipt_filename = f"{uuid.uuid4().hex[:12]}_{safe_name}"
+    receipt_file.save(os.path.join(UPLOAD_FOLDER, receipt_filename))
+    return receipt_filename, None
 
 def login_required(f):
     @wraps(f)
@@ -237,28 +331,34 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- CANLI FİYAT ÇEKİCİ MOTOR & ÖNBELLEK (CACHE) ---
+# --- CANLI FİYAT ÇEKİCİ MOTOR & İŞ PARÇACIĞI GÜVENLİ ÖNBELLEK (THREAD-SAFE CACHE) ---
 PRICE_CACHE = {}  # { (clean_sym, asset_type): (data, timestamp) }
+_price_cache_lock = threading.Lock()
+_LAST_KNOWN_USDTRY = {'rate': Config.DEFAULT_USD_TRY_FALLBACK}
 CACHE_TTL = 300   # 5 dakika (300 saniye)
 
 BENCHMARK_CACHE = {}  # { 'data': (results, timestamp) }
+_benchmark_cache_lock = threading.Lock()
+
 
 def get_benchmark_returns():
     """Son 1, 3 ve 6 aylık BIST100, Dolar, Gram Altın getirilerini ve TÜFE enflasyonunu döner (1 saatlik önbellek)."""
     now = time.time()
-    tufe_defaults = {'1M': 2.8, '3M': 8.9, '6M': 19.5}
+    tufe_defaults = Config.TUFE_RATES
 
-    if 'data' in BENCHMARK_CACHE and (now - BENCHMARK_CACHE['data'][1] < 3600):
-        res = BENCHMARK_CACHE['data'][0]
+    with _benchmark_cache_lock:
+        cached = BENCHMARK_CACHE.get('data')
+    if cached and (now - cached[1] < 3600):
+        res = {k: dict(v) for k, v in cached[0].items()}
         for p, t_val in tufe_defaults.items():
             if p in res:
                 res[p]['tufe'] = t_val
         return res
 
     results = {
-        '1M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': 2.8},
-        '3M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': 8.9},
-        '6M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': 19.5}
+        '1M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_defaults['1M']},
+        '3M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_defaults['3M']},
+        '6M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_defaults['6M']}
     }
     try:
         bist_hist = yf.Ticker('XU100.IS').history(period='6mo')
@@ -292,23 +392,30 @@ def get_benchmark_returns():
             g_6m = (gold_hist['Close'].iloc[0] * usd_hist['Close'].iloc[0]) / 31.1035
             results['6M']['gold'] = round(float((g_now - g_6m) / g_6m * 100), 1)
 
-        BENCHMARK_CACHE['data'] = (results, now)
+        with _benchmark_cache_lock:
+            BENCHMARK_CACHE['data'] = ({k: dict(v) for k, v in results.items()}, now)
         return results
-    except Exception as e:
+    except Exception:
         fallback = {
-            '1M': {'bist': -12.0, 'usd': 2.0, 'gold': -5.7, 'tufe': 2.8},
-            '3M': {'bist': -8.8, 'usd': 4.9, 'gold': 12.0, 'tufe': 8.9},
-            '6M': {'bist': -0.6, 'usd': 10.4, 'gold': 4.6, 'tufe': 19.5}
+            '1M': {'bist': -12.0, 'usd': 2.0, 'gold': -5.7, 'tufe': tufe_defaults['1M']},
+            '3M': {'bist': -8.8, 'usd': 4.9, 'gold': 12.0, 'tufe': tufe_defaults['3M']},
+            '6M': {'bist': -0.6, 'usd': 10.4, 'gold': 4.6, 'tufe': tufe_defaults['6M']}
         }
         return fallback
 
+
 NEWS_CACHE = {'timestamp': 0, 'data': []}
+_news_cache_lock = threading.Lock()
+
 
 def get_economy_news(force_refresh=False):
     """Günün ekonomi ve piyasa haber başlıklarını çeker ve 15 dakika önbelleğe alır."""
     now = time.time()
-    if not force_refresh and NEWS_CACHE['data'] and (now - NEWS_CACHE['timestamp'] < 900):
-        return NEWS_CACHE['data']
+    with _news_cache_lock:
+        cached_news = list(NEWS_CACHE['data']) if NEWS_CACHE['data'] else []
+        cached_ts = NEWS_CACHE['timestamp']
+    if not force_refresh and cached_news and (now - cached_ts < 900):
+        return cached_news
 
     url = 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=tr&gl=TR&ceid=TR:tr'
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
@@ -369,14 +476,16 @@ def get_economy_news(force_refresh=False):
                 })
 
         if news_items:
-            NEWS_CACHE['data'] = news_items
-            NEWS_CACHE['timestamp'] = now
+            with _news_cache_lock:
+                NEWS_CACHE['data'] = news_items
+                NEWS_CACHE['timestamp'] = now
             return news_items
     except Exception as e:
         print("Ekonomi haberleri çekilirken hata oluştu:", e)
 
-    if NEWS_CACHE['data']:
-        return NEWS_CACHE['data']
+    with _news_cache_lock:
+        if NEWS_CACHE['data']:
+            return list(NEWS_CACHE['data'])
 
     # Ağ hatası veya çevrimdışı durum için güncel yedek haberler
     fallback_news = [
@@ -645,35 +754,49 @@ def get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, s
     return notifications
 
 def get_usdtry_rate():
-    """USDTRY kurunu döner; önbellek desteklidir."""
+    """USDTRY kurunu döner; iş parçacığı güvenli önbellek desteklidir."""
     now = time.time()
     usd_key = ('USDTRY=X', 'doviz')
-    if usd_key in PRICE_CACHE and (now - PRICE_CACHE[usd_key][1] < CACHE_TTL):
-        return PRICE_CACHE[usd_key][0]
+    with _price_cache_lock:
+        cached = PRICE_CACHE.get(usd_key)
+    if cached and (now - cached[1] < CACHE_TTL):
+        return cached[0]
     try:
         t_usd = yf.Ticker('USDTRY=X')
         p_usd = t_usd.fast_info.get('lastPrice')
-        if p_usd:
+        if p_usd and float(p_usd) > 0:
             rate = float(p_usd)
-            PRICE_CACHE[usd_key] = (rate, now)
+            with _price_cache_lock:
+                PRICE_CACHE[usd_key] = (rate, now)
+                _LAST_KNOWN_USDTRY['rate'] = rate
             return rate
     except Exception:
         pass
     return None
 
+
+def get_effective_usdtry_rate():
+    """Canlı USDTRY kuru alınamazsa son bilinen veya yapılandırılmış güvenli yedek kuru döner."""
+    live = get_usdtry_rate()
+    if live and live > 0:
+        return live
+    with _price_cache_lock:
+        return _LAST_KNOWN_USDTRY.get('rate') or Config.DEFAULT_USD_TRY_FALLBACK
+
+
 def fetch_live_price(symbol, asset_type):
     """
     BIST, ABD Borsası, TEFAS/BEFAS Fonları, Altın ve Döviz için anlık fiyat çeker.
-    5 dakikalık önbellek kullanır.
+    5 dakikalık iş parçacığı güvenli önbellek kullanır.
     """
     try:
         clean_sym = symbol.strip().upper()
         cache_key = (clean_sym, asset_type)
         now = time.time()
-        if cache_key in PRICE_CACHE:
-            cached_data, cached_time = PRICE_CACHE[cache_key]
-            if now - cached_time < CACHE_TTL:
-                return cached_data
+        with _price_cache_lock:
+            cached = PRICE_CACHE.get(cache_key)
+        if cached and (now - cached[1] < CACHE_TTL):
+            return cached[0]
 
         # 1. TEFAS & BEFAS Fonları (Örn: TI2, TTE, MAC, YAY, AFT, ALR, CHH)
         if asset_type in ['tefas_fon', 'befas_fon', 'fon']:
@@ -683,7 +806,8 @@ def fetch_live_price(symbol, asset_type):
             m = re.search(r'Son Fiyat \(TL\).*?>\s*([0-9]+,[0-9]+)\s*</p>', html, re.DOTALL)
             if m:
                 val = round(float(m.group(1).replace(',', '.')), 6)
-                PRICE_CACHE[cache_key] = (val, now)
+                with _price_cache_lock:
+                    PRICE_CACHE[cache_key] = (val, now)
                 return val
             return None
 
@@ -693,14 +817,15 @@ def fetch_live_price(symbol, asset_type):
             usd_price = ticker.fast_info.get('lastPrice')
             if usd_price:
                 usd_val = round(float(usd_price), 2)
-                usdtry = get_usdtry_rate() or 1.0
+                usdtry = get_effective_usdtry_rate()
                 tl_val = round(usd_val * usdtry, 2)
                 data = {
                     'tl_price': tl_val,
                     'orig_price': usd_val,
                     'currency': 'USD'
                 }
-                PRICE_CACHE[cache_key] = (data, now)
+                with _price_cache_lock:
+                    PRICE_CACHE[cache_key] = (data, now)
                 return data
             return None
 
@@ -711,7 +836,8 @@ def fetch_live_price(symbol, asset_type):
             usdtry = get_usdtry_rate()
             if p_gold and usdtry:
                 price = round((float(p_gold) * usdtry) / 31.1035, 2)
-                PRICE_CACHE[cache_key] = (price, now)
+                with _price_cache_lock:
+                    PRICE_CACHE[cache_key] = (price, now)
                 return price
             return None
 
@@ -732,11 +858,13 @@ def fetch_live_price(symbol, asset_type):
         price = ticker.fast_info.get('lastPrice')
         if price:
             val = round(float(price), 2)
-            PRICE_CACHE[cache_key] = (val, now)
+            with _price_cache_lock:
+                PRICE_CACHE[cache_key] = (val, now)
             return val
     except Exception:
         pass
     return None
+
 
 def get_or_create_category(cursor, user_id, name, cat_type, default_budget=0.0):
     """Kategori varsa ID'sini döner, yoksa otomatik oluşturur."""
@@ -746,16 +874,61 @@ def get_or_create_category(cursor, user_id, name, cat_type, default_budget=0.0):
         return row[0]
     cursor.execute("""
         INSERT INTO categories (user_id, name, type, monthly_budget)
+        OUTPUT INSERTED.id
         VALUES (?, ?, ?, ?)
     """, (user_id, name, cat_type, default_budget))
-    cursor.execute("SELECT @@IDENTITY")
-    return cursor.fetchone()[0]
+    return int(cursor.fetchone()[0])
+
+
+_login_lock = threading.Lock()
+_login_attempts = {}  # { ip: [timestamps] }
+LOGIN_RATE_LIMIT_MAX = 10
+LOGIN_RATE_LIMIT_WINDOW = 300  # 5 dakika
+
+
+def _is_auto_login_allowed():
+    """Hızlı test girişinin yalnızca debug/test ortamında veya açık izinle aktif olmasını sağlar."""
+    return bool(app.debug or app.config.get('TESTING') or Config.ALLOW_AUTO_LOGIN)
+
+
+def _get_client_ip():
+    return request.headers.get('X-Forwarded-For', request.remote_addr or 'local').split(',')[0].strip()
+
+
+def _is_login_rate_limited(ip):
+    if app.config.get('TESTING'):
+        return False
+    now = time.time()
+    with _login_lock:
+        recent = [t for t in _login_attempts.get(ip, []) if now - t < LOGIN_RATE_LIMIT_WINDOW]
+        if recent:
+            _login_attempts[ip] = recent
+        else:
+            _login_attempts.pop(ip, None)
+        return len(recent) >= LOGIN_RATE_LIMIT_MAX
+
+
+def _record_login_failure(ip):
+    if app.config.get('TESTING'):
+        return
+    now = time.time()
+    with _login_lock:
+        recent = [t for t in _login_attempts.get(ip, []) if now - t < LOGIN_RATE_LIMIT_WINDOW]
+        recent.append(now)
+        _login_attempts[ip] = recent
+
+
+def _clear_login_failures(ip):
+    with _login_lock:
+        _login_attempts.pop(ip, None)
+
 
 @app.route('/')
 def index():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
+
 
 # --- AUTH ---
 @app.route('/register', methods=['GET', 'POST'])
@@ -771,25 +944,29 @@ def register():
             flash("Tüm alanları doldurun.", "danger")
             return render_template('register.html')
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", (username, email))
-        if cursor.fetchone():
-            flash("Bu kullanıcı adı veya e-posta zaten kullanımda.", "danger")
-            cursor.close()
-            conn.close()
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            flash("Lütfen geçerli bir e-posta adresi girin.", "danger")
             return render_template('register.html')
 
-        password_hash = generate_password_hash(password)
+        if len(password) < 8:
+            flash("Güvenliğiniz için şifreniz en az 8 karakter olmalıdır.", "danger")
+            return render_template('register.html')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
         try:
+            cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", (username, email))
+            if cursor.fetchone():
+                flash("Bu kullanıcı adı veya e-posta zaten kullanımda.", "danger")
+                return render_template('register.html')
+
+            password_hash = generate_password_hash(password)
             cursor.execute("""
                 INSERT INTO users (username, email, password_hash, first_name, last_name)
+                OUTPUT INSERTED.id
                 VALUES (?, ?, ?, ?, ?)
             """, (username, email, password_hash, first_name, last_name))
-            conn.commit()
-
-            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-            new_user_id = cursor.fetchone()[0]
+            new_user_id = int(cursor.fetchone()[0])
 
             default_categories = [
                 (new_user_id, 'Maaş & Gelir', 'gelir', 0.0),
@@ -809,16 +986,24 @@ def register():
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
-            flash(f"Hata: {e}", "danger")
+            print(f"[Register Error]: {e}")
+            flash("Kayıt sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.", "danger")
         finally:
             cursor.close()
             conn.close()
 
     return render_template('register.html')
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    allow_auto_login = _is_auto_login_allowed()
     if request.method == 'POST':
+        client_ip = _get_client_ip()
+        if _is_login_rate_limited(client_ip):
+            flash("Çok fazla başarısız giriş denemesi. Lütfen birkaç dakika bekleyip tekrar deneyin.", "danger")
+            return render_template('login.html', allow_auto_login=allow_auto_login), 429
+
         identifier = request.form.get('login_identifier', '').strip()
         password = request.form.get('password', '')
 
@@ -835,13 +1020,19 @@ def login():
             conn.close()
 
         if user and check_password_hash(user[3], password):
+            _clear_login_failures(client_ip)
+            session.clear()
             session['user_id'] = user[0]
             session['username'] = user[1]
             session['first_name'] = user[2]
+            session['_csrf_token'] = secrets.token_urlsafe(32)
             return redirect(url_for('dashboard'))
+
+        _record_login_failure(client_ip)
         flash("Giriş bilgileri hatalı.", "danger")
 
-    return render_template('login.html')
+    return render_template('login.html', allow_auto_login=allow_auto_login)
+
 
 @app.route('/logout')
 def logout():
@@ -849,15 +1040,10 @@ def logout():
     flash("Çıkış yapıldı.", "info")
     return redirect(url_for('login'))
 
+
 @app.route('/auto-login')
 def auto_login():
-    allow_auto_login = (
-        app.debug
-        or app.config.get('TESTING')
-        or os.getenv('ALLOW_AUTO_LOGIN', '1') == '1'
-        or os.environ.get('FLASK_ENV', '').lower() == 'development'
-    )
-    if not allow_auto_login:
+    if not _is_auto_login_allowed():
         flash("Otomatik test girişi yalnızca geliştirme ortamında aktiftir.", "warning")
         return redirect(url_for('login'))
 
@@ -871,9 +1057,11 @@ def auto_login():
         conn.close()
 
     if user:
+        session.clear()
         session['user_id'] = user[0]
         session['username'] = user[1]
         session['first_name'] = user[2]
+        session['_csrf_token'] = secrets.token_urlsafe(32)
         flash(f"Hoş geldiniz {user[2]}, test oturumunuz başarıyla aktif edildi.", "success")
         return redirect(url_for('dashboard'))
     flash("Sistemde kayıtlı kullanıcı bulunamadı.", "warning")
@@ -907,128 +1095,141 @@ def get_user_cash_balance(cursor, user_id):
     return round(user_init_cash + net_cash_tx, 2)
 
 
+_sync_locks_guard = threading.Lock()
+_user_sync_locks = {}
+
+
+def _get_user_sync_lock(user_id):
+    with _sync_locks_guard:
+        if user_id not in _user_sync_locks:
+            _user_sync_locks[user_id] = threading.Lock()
+        return _user_sync_locks[user_id]
+
+
 def auto_sync_monthly_obligations(user_id, target_month=None, target_year=None, cursor=None, conn=None, force_manual=False):
     """
     Kullanıcının tanımladığı aylık düzenli işlemleri (recurring_transactions) ve
     otomatik yansıtma açık sabit abonelik/faturalarını (subscriptions) ilgili ay için
-    idempotent (mükerrer kayıt üretmeden ve silinen işlemi zorla geri getirmeden)
+    idempotent ve kullanıcı kilidiyle eşzamanlılık-güvenli (race-condition safe) olarak
     transactions tablosuna yansıtır.
     """
-    own_conn = False
-    if conn is None or cursor is None:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        own_conn = True
+    with _get_user_sync_lock(user_id):
+        own_conn = False
+        if conn is None or cursor is None:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            own_conn = True
 
-    now = datetime.today()
-    month = target_month or now.month
-    year = target_year or now.year
-    last_day = calendar.monthrange(year, month)[1]
-    period_key = f"{year:04d}-{month:02d}"
-    synced_count = 0
-    meta_updated = False
+        now = datetime.today()
+        month = target_month or now.month
+        year = target_year or now.year
+        last_day = calendar.monthrange(year, month)[1]
+        period_key = f"{year:04d}-{month:02d}"
+        synced_count = 0
+        meta_updated = False
 
-    try:
-        # 1. Tekrarlayan İşlemler (recurring_transactions)
-        cursor.execute("""
-            SELECT id, category_id, title, amount, type, payment_method, day_of_month, last_synced_period
-            FROM recurring_transactions
-            WHERE user_id = ? AND is_active = 1
-        """, (user_id,))
-        rec_rows = cursor.fetchall()
-
-        for r in rec_rows:
-            rec_id, cat_id, title, amt, r_type, p_method, day, last_synced = (
-                r[0], r[1], r[2], float(r[3]), r[4], (r[5] or 'nakit'), int(r[6] or 1), r[7]
-            )
-            if not force_manual and last_synced == period_key:
-                continue
-
-            actual_day = min(max(day, 1), last_day)
-            tx_date = f"{year:04d}-{month:02d}-{actual_day:02d}"
-            desc_tag = f"[Düzenli] {title}"
-
+        try:
+            # 1. Tekrarlayan İşlemler (recurring_transactions)
             cursor.execute("""
-                SELECT id FROM transactions
-                WHERE user_id = ? AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
-                  AND (description = ? OR description = ?)
-            """, (user_id, month, year, desc_tag, title))
-            if cursor.fetchone():
-                if last_synced != period_key:
-                    cursor.execute("UPDATE recurring_transactions SET last_synced_period = ? WHERE id = ?", (period_key, rec_id))
+                SELECT id, category_id, title, amount, type, payment_method, day_of_month, last_synced_period
+                FROM recurring_transactions
+                WHERE user_id = ? AND is_active = 1
+            """, (user_id,))
+            rec_rows = cursor.fetchall()
+
+            for r in rec_rows:
+                rec_id, cat_id, title, amt, r_type, p_method, day, last_synced = (
+                    r[0], r[1], r[2], float(r[3]), r[4], (r[5] or 'nakit'), int(r[6] or 1), r[7]
+                )
+                if not force_manual and last_synced == period_key:
+                    continue
+
+                actual_day = min(max(day, 1), last_day)
+                tx_date = f"{year:04d}-{month:02d}-{actual_day:02d}"
+                desc_tag = f"[Düzenli] {title}"
+
+                cursor.execute("""
+                    SELECT id FROM transactions
+                    WHERE user_id = ? AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
+                      AND (description = ? OR description = ?)
+                """, (user_id, month, year, desc_tag, title))
+                if cursor.fetchone():
+                    if last_synced != period_key:
+                        cursor.execute("UPDATE recurring_transactions SET last_synced_period = ? WHERE id = ?", (period_key, rec_id))
+                        meta_updated = True
+                    continue
+
+                is_paid = 0 if p_method == 'kredi_karti' else 1
+                cursor.execute("""
+                    INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, cat_id, amt, tx_date, desc_tag, p_method, is_paid))
+                cursor.execute("UPDATE recurring_transactions SET last_synced_period = ? WHERE id = ?", (period_key, rec_id))
+                synced_count += 1
+
+            # 2. Sabit Abonelikler ve Faturalar (subscriptions)
+            cursor.execute("""
+                SELECT id, title, amount, billing_cycle, next_due_date,
+                       ISNULL(payment_method, 'nakit') AS payment_method,
+                       ISNULL(auto_apply, 1) AS auto_apply,
+                       last_synced_period
+                FROM subscriptions
+                WHERE user_id = ? AND is_active = 1 AND ISNULL(auto_apply, 1) = 1
+            """, (user_id,))
+            sub_rows = cursor.fetchall()
+
+            for s in sub_rows:
+                sub_id, title, amt, cycle, due_date, p_method, auto_apply, last_synced = (
+                    s[0], s[1], float(s[2]), s[3], s[4], (s[5] or 'nakit'), int(s[6]), s[7]
+                )
+                due_day = due_date.day if due_date else 1
+
+                # Vadesi geçmiş aylarda kalan next_due_date'i güncel aya ilerlet
+                if due_date and (due_date.year, due_date.month) < (now.year, now.month):
+                    new_last_day = calendar.monthrange(now.year, now.month)[1]
+                    new_due = f"{now.year:04d}-{now.month:02d}-{min(due_day, new_last_day):02d}"
+                    cursor.execute("UPDATE subscriptions SET next_due_date = ? WHERE id = ?", (new_due, sub_id))
                     meta_updated = True
-                continue
 
-            is_paid = 0 if p_method == 'kredi_karti' else 1
-            cursor.execute("""
-                INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, cat_id, amt, tx_date, desc_tag, p_method, is_paid))
-            cursor.execute("UPDATE recurring_transactions SET last_synced_period = ? WHERE id = ?", (period_key, rec_id))
-            synced_count += 1
+                if not force_manual and last_synced == period_key:
+                    continue
 
-        # 2. Sabit Abonelikler ve Faturalar (subscriptions)
-        cursor.execute("""
-            SELECT id, title, amount, billing_cycle, next_due_date,
-                   ISNULL(payment_method, 'nakit') AS payment_method,
-                   ISNULL(auto_apply, 1) AS auto_apply,
-                   last_synced_period
-            FROM subscriptions
-            WHERE user_id = ? AND is_active = 1 AND ISNULL(auto_apply, 1) = 1
-        """, (user_id,))
-        sub_rows = cursor.fetchall()
+                actual_day = min(max(due_day, 1), last_day)
+                tx_date = f"{year:04d}-{month:02d}-{actual_day:02d}"
+                desc_sub = f"[Fatura/Abonelik] {title}"
+                desc_rec = f"[Düzenli] {title}"
 
-        for s in sub_rows:
-            sub_id, title, amt, cycle, due_date, p_method, auto_apply, last_synced = (
-                s[0], s[1], float(s[2]), s[3], s[4], (s[5] or 'nakit'), int(s[6]), s[7]
-            )
-            due_day = due_date.day if due_date else 1
+                cursor.execute("""
+                    SELECT id FROM transactions
+                    WHERE user_id = ? AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
+                      AND (description = ? OR description = ? OR description = ?)
+                """, (user_id, month, year, desc_sub, desc_rec, title))
+                if cursor.fetchone():
+                    if last_synced != period_key:
+                        cursor.execute("UPDATE subscriptions SET last_synced_period = ? WHERE id = ?", (period_key, sub_id))
+                        meta_updated = True
+                    continue
 
-            # Vadesi geçmiş aylarda kalan next_due_date'i güncel aya ilerlet
-            if due_date and (due_date.year, due_date.month) < (now.year, now.month):
-                new_last_day = calendar.monthrange(now.year, now.month)[1]
-                new_due = f"{now.year:04d}-{now.month:02d}-{min(due_day, new_last_day):02d}"
-                cursor.execute("UPDATE subscriptions SET next_due_date = ? WHERE id = ?", (new_due, sub_id))
-                meta_updated = True
+                cat_id = get_or_create_category(cursor, user_id, 'Faturalar', 'gider')
+                is_paid = 0 if p_method == 'kredi_karti' else 1
+                cursor.execute("""
+                    INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, cat_id, amt, tx_date, desc_sub, p_method, is_paid))
+                cursor.execute("UPDATE subscriptions SET last_synced_period = ? WHERE id = ?", (period_key, sub_id))
+                synced_count += 1
 
-            if not force_manual and last_synced == period_key:
-                continue
+            if synced_count > 0 or meta_updated:
+                conn.commit()
+        except Exception as e:
+            print(f"[auto_sync_monthly_obligations] Hata: {e}")
+            conn.rollback()
+        finally:
+            if own_conn:
+                cursor.close()
+                conn.close()
 
-            actual_day = min(max(due_day, 1), last_day)
-            tx_date = f"{year:04d}-{month:02d}-{actual_day:02d}"
-            desc_sub = f"[Fatura/Abonelik] {title}"
-            desc_rec = f"[Düzenli] {title}"
-
-            cursor.execute("""
-                SELECT id FROM transactions
-                WHERE user_id = ? AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?
-                  AND (description = ? OR description = ? OR description = ?)
-            """, (user_id, month, year, desc_sub, desc_rec, title))
-            if cursor.fetchone():
-                if last_synced != period_key:
-                    cursor.execute("UPDATE subscriptions SET last_synced_period = ? WHERE id = ?", (period_key, sub_id))
-                    meta_updated = True
-                continue
-
-            cat_id = get_or_create_category(cursor, user_id, 'Faturalar', 'gider')
-            is_paid = 0 if p_method == 'kredi_karti' else 1
-            cursor.execute("""
-                INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, cat_id, amt, tx_date, desc_sub, p_method, is_paid))
-            cursor.execute("UPDATE subscriptions SET last_synced_period = ? WHERE id = ?", (period_key, sub_id))
-            synced_count += 1
-
-        if synced_count > 0 or meta_updated:
-            conn.commit()
-    except Exception:
-        conn.rollback()
-    finally:
-        if own_conn:
-            cursor.close()
-            conn.close()
-
-    return synced_count
+        return synced_count
 
 
 # --- ANA DASHBOARD ---
@@ -1170,6 +1371,16 @@ def dashboard():
         total_portfolio_value = 0.0
         total_portfolio_cost = 0.0
 
+        unique_pairs = list({(a[1], a[2]) for a in assets_raw})
+        if len(unique_pairs) > 1:
+            with ThreadPoolExecutor(max_workers=min(6, len(unique_pairs))) as pool:
+                price_map = dict(zip(unique_pairs, pool.map(lambda p: fetch_live_price(p[0], p[1]), unique_pairs)))
+        elif len(unique_pairs) == 1:
+            p0 = unique_pairs[0]
+            price_map = {p0: fetch_live_price(p0[0], p0[1])}
+        else:
+            price_map = {}
+
         for a in assets_raw:
             asset_id = a[0]
             symbol = a[1]
@@ -1177,7 +1388,7 @@ def dashboard():
             qty = float(a[3])
             avg_cost = float(a[4])
 
-            price_info = fetch_live_price(symbol, atype)
+            price_info = price_map.get((symbol, atype))
             if price_info is None:
                 live_price = avg_cost
                 orig_price = None
@@ -1483,14 +1694,14 @@ def dashboard():
 
     # 12. Piyasa Benchmark & Fisher Denklemi ile Enflasyona Karşı Reel Getiri Analizi
     benchmark_data = get_benchmark_returns()
-    tufe_rates = {'1M': 2.8, '3M': 8.9, '6M': 19.5}
+    tufe_rates = Config.TUFE_RATES
     period_labels = {'1M': '1 Aylık', '3M': '3 Aylık', '6M': '6 Aylık'}
     nom = total_portfolio_pnl_pct
 
     for p in ['1M', '3M', '6M']:
         if p not in benchmark_data:
             benchmark_data[p] = {'bist': 0.0, 'usd': 0.0, 'gold': 0.0}
-        t_rate = tufe_rates.get(p, 2.8)
+        t_rate = tufe_rates.get(p, tufe_rates['1M'])
         benchmark_data[p]['tufe'] = t_rate
         benchmark_data[p]['period_label'] = period_labels.get(p, p)
         benchmark_data[p]['nominal_return'] = nom
@@ -1516,7 +1727,7 @@ def dashboard():
     notifications = get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, savings_goals, total_portfolio_pnl_pct)
     notification_count = len(notifications)
 
-    usd_try_rate = round(get_usdtry_rate() or 34.25, 2)
+    usd_try_rate = round(get_effective_usdtry_rate(), 2)
 
     return render_template(
         'dashboard.html',
@@ -1980,7 +2191,8 @@ def add_recurring():
         flash(f"'{title}' düzenli işlem şablonu başarıyla eklendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[add_recurring Error]: {e}")
+        flash("Düzenli işlem eklenirken beklenmeyen bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -1999,7 +2211,8 @@ def delete_recurring(rec_id):
         flash("Düzenli işlem şablonu silindi.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Silme hatası: {e}", "danger")
+        print(f"[delete_recurring Error]: {e}")
+        flash("Düzenli işlem silinirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2022,7 +2235,8 @@ def apply_recurring():
             flash("Tüm düzenli işlemler ve faturalar bu dönem için zaten eklenmiş veya aktif şablon bulunmuyor.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Uygulama hatası: {e}", "danger")
+        print(f"[apply_recurring Error]: {e}")
+        flash("Düzenli işlemler uygulanırken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2052,17 +2266,22 @@ def add_transaction():
         return redirect_back_to_dashboard()
 
     receipt_file = request.files.get('receipt')
-    receipt_filename = None
-    if receipt_file and receipt_file.filename and allowed_file(receipt_file.filename):
-        receipt_filename = f"{uuid.uuid4().hex[:12]}_{secure_filename(receipt_file.filename)}"
-        receipt_file.save(os.path.join(UPLOAD_FOLDER, receipt_filename))
+    if receipt_file and receipt_file.filename and not allowed_file(receipt_file.filename):
+        flash("İzin verilmeyen fiş dosya türü. Lütfen PNG, JPG, GIF, WEBP veya PDF yükleyin.", "warning")
+        return redirect_back_to_dashboard()
 
+    receipt_filename = None
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id, type FROM categories WHERE id = ? AND user_id = ?", (category_id, user_id))
         if not cursor.fetchone():
             flash("Geçersiz kategori seçimi.", "warning")
+            return redirect_back_to_dashboard()
+
+        receipt_filename, receipt_err = _save_receipt_if_valid(receipt_file)
+        if receipt_err:
+            flash(receipt_err, "warning")
             return redirect_back_to_dashboard()
 
         cursor.execute("""
@@ -2073,7 +2292,15 @@ def add_transaction():
         flash("İşlem başarıyla kaydedildi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        if receipt_filename:
+            try:
+                r_path = os.path.join(UPLOAD_FOLDER, receipt_filename)
+                if os.path.exists(r_path):
+                    os.remove(r_path)
+            except Exception:
+                pass
+        print(f"[add_transaction Error]: {e}")
+        flash("İşlem kaydedilirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2109,7 +2336,8 @@ def update_initial_balance():
         flash('Vadesiz nakit bakiyeniz başarıyla güncellendi.', 'success')
     except Exception as e:
         conn.rollback()
-        flash(f'Bakiye güncellenirken hata oluştu: {e}', 'danger')
+        print(f"[update_initial_balance Error]: {e}")
+        flash('Bakiye güncellenirken bir hata oluştu.', 'danger')
     finally:
         cursor.close()
         conn.close()
@@ -2133,7 +2361,8 @@ def update_card_limit():
         flash(f"Kredi kartı limitiniz {currency_tr_filter(limit)} TL olarak başarıyla güncellendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Limit güncellenirken hata oluştu: {e}", "danger")
+        print(f"[update_card_limit Error]: {e}")
+        flash("Limit güncellenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2156,11 +2385,12 @@ def edit_transaction(tx_id):
         return redirect_back_to_dashboard(default_tab='transactions')
 
     receipt_file = request.files.get('receipt')
-    receipt_filename = None
-    if receipt_file and receipt_file.filename and allowed_file(receipt_file.filename):
-        receipt_filename = f"{uuid.uuid4().hex[:12]}_{secure_filename(receipt_file.filename)}"
-        receipt_file.save(os.path.join(UPLOAD_FOLDER, receipt_filename))
+    if receipt_file and receipt_file.filename and not allowed_file(receipt_file.filename):
+        flash("İzin verilmeyen fiş dosya türü. Lütfen PNG, JPG, GIF, WEBP veya PDF yükleyin.", "warning")
+        return redirect_back_to_dashboard(default_tab='transactions')
 
+    receipt_filename = None
+    old_receipt_path = None
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -2171,7 +2401,7 @@ def edit_transaction(tx_id):
 
         # Mevcut işlemi kontrol et (Çift yönlü veri tutarlılığı)
         cursor.execute("""
-            SELECT t.amount, ISNULL(t.description, ''), c.name, ISNULL(t.payment_method, 'nakit'), ISNULL(t.is_paid, 1)
+            SELECT t.amount, ISNULL(t.description, ''), c.name, ISNULL(t.payment_method, 'nakit'), ISNULL(t.is_paid, 1), t.receipt_path
             FROM transactions t
             JOIN categories c ON t.category_id = c.id
             WHERE t.id = ? AND t.user_id = ?
@@ -2186,6 +2416,7 @@ def edit_transaction(tx_id):
         old_cat_name = str(existing_tx[2] or '').strip()
         old_payment_method = str(existing_tx[3] or 'nakit').strip()
         old_is_paid = int(existing_tx[4]) if existing_tx[4] is not None else 1
+        old_receipt_path = existing_tx[5]
 
         if payment_method == 'nakit':
             new_is_paid = 1
@@ -2218,6 +2449,13 @@ def edit_transaction(tx_id):
                 new_status = 'devam_ediyor' if (g_status == 'tamamlandi' and new_curr < g_target) else g_status
                 cursor.execute("UPDATE savings_goals SET current_amount = ?, status = ? WHERE id = ?", (new_curr, new_status, g_id))
 
+        # Doğrulamalar geçildikten sonra yeni fişi kaydet
+        receipt_filename, receipt_err = _save_receipt_if_valid(receipt_file)
+        if receipt_err:
+            conn.rollback()
+            flash(receipt_err, "warning")
+            return redirect_back_to_dashboard(default_tab='transactions')
+
         if receipt_filename:
             cursor.execute("""
                 UPDATE transactions 
@@ -2231,10 +2469,28 @@ def edit_transaction(tx_id):
                 WHERE id = ? AND user_id = ?
             """, (category_id, safe_amount, transaction_date, description, payment_method, new_is_paid, tx_id, user_id))
         conn.commit()
+
+        # Yeni fiş başarıyla kaydedildiyse eski fişi diskten temizle
+        if receipt_filename and old_receipt_path and old_receipt_path != receipt_filename:
+            try:
+                old_full = os.path.join(UPLOAD_FOLDER, old_receipt_path)
+                if os.path.exists(old_full):
+                    os.remove(old_full)
+            except Exception:
+                pass
+
         flash("İşlem güncellendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Güncelleme hatası: {e}", "danger")
+        if receipt_filename:
+            try:
+                new_full = os.path.join(UPLOAD_FOLDER, receipt_filename)
+                if os.path.exists(new_full):
+                    os.remove(new_full)
+            except Exception:
+                pass
+        print(f"[edit_transaction Error]: {e}")
+        flash("İşlem güncellenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2380,7 +2636,8 @@ def delete_transaction(tx_id):
         flash("İşlem ve ilişkili bakiye kayıtları başarıyla silindi.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Silme hatası: {e}", "danger")
+        print(f"[delete_transaction Error]: {e}")
+        flash("İşlem silinirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2470,7 +2727,8 @@ def pay_credit_card():
         flash(f"{currency_tr_filter(unpaid_cc)} TL tutarındaki kredi kartı ekstresi Vadesiz Nakit Bakiyenizden başarıyla ödendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Ekstre ödeme hatası: {e}", "danger")
+        print(f"[pay_credit_card Error]: {e}")
+        flash("Ekstre ödenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2506,7 +2764,8 @@ def add_subscription():
         flash("Ödeme / Fatura eklendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[add_subscription Error]: {e}")
+        flash("Fatura eklenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2523,7 +2782,8 @@ def delete_subscription(sub_id):
         flash("Fatura silindi.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Silme hatası: {e}", "danger")
+        print(f"[delete_subscription Error]: {e}")
+        flash("Fatura silinirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2554,7 +2814,8 @@ def add_savings_goal():
         flash("Tasarruf hedefi oluşturuldu.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[add_savings_goal Error]: {e}")
+        flash("Tasarruf hedefi oluşturulurken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2606,7 +2867,8 @@ def deposit_savings_goal():
         flash(f"Kumbaraya {currency_tr_filter(safe_amount)} TL eklendi ve Vadesiz Nakit Bakiyenizden düşüldü!", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[deposit_savings_goal Error]: {e}")
+        flash("Kumbara aktarımı sırasında bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2635,7 +2897,8 @@ def delete_savings_goal(goal_id):
         flash("Tasarruf hedefi kaldırıldı ve bakiyesi nakit hesabınıza iade edildi.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[delete_savings_goal Error]: {e}")
+        flash("Tasarruf hedefi silinirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2663,7 +2926,8 @@ def complete_savings_goal(goal_id):
         flash("Tebrikler! Tasarruf hedefini başarıyla tamamladınız ve biriken tutar nakit bakiyenize iade edildi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Hata: {e}", "danger")
+        print(f"[complete_savings_goal Error]: {e}")
+        flash("Tasarruf hedefi tamamlanırken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2693,7 +2957,7 @@ def buy_asset():
     # ABD hissesi için USD girildiyse TL'ye dönüştür
     unit_price_tl = unit_price
     if asset_type == 'abd_hisse' and price_currency == 'USD':
-        rate = get_usdtry_rate() or 34.25
+        rate = get_effective_usdtry_rate()
         unit_price_tl = round(unit_price * rate, 2)
 
     total_cost_tl = round(quantity * unit_price_tl, 2)
@@ -2724,16 +2988,16 @@ def buy_asset():
 
             cursor.execute("""
                 UPDATE portfolio_assets 
-                SET total_quantity = ?, average_cost = ?
+                SET total_quantity = ?, average_cost = ?, updated_at = GETDATE()
                 WHERE id = ?
             """, (new_qty, new_avg_cost, asset_id))
         else:
             cursor.execute("""
                 INSERT INTO portfolio_assets (user_id, asset_symbol, asset_type, total_quantity, average_cost)
+                OUTPUT INSERTED.id
                 VALUES (?, ?, ?, ?, ?)
             """, (user_id, symbol, asset_type, quantity, unit_price_tl))
-            cursor.execute("SELECT @@IDENTITY")
-            asset_id = cursor.fetchone()[0]
+            asset_id = int(cursor.fetchone()[0])
 
         # Alım hareketini kaydet
         cursor.execute("""
@@ -2757,7 +3021,8 @@ def buy_asset():
         conn.commit()
     except Exception as e:
         conn.rollback()
-        flash(f"Alım hatası: {e}", "danger")
+        print(f"[buy_asset Error]: {e}")
+        flash("Varlık alımı sırasında bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2803,7 +3068,7 @@ def sell_asset():
 
         unit_price_tl = unit_price
         if asset_type == 'abd_hisse' and sell_currency == 'USD':
-            rate = get_usdtry_rate() or 34.25
+            rate = get_effective_usdtry_rate()
             unit_price_tl = round(unit_price * rate, 2)
 
         new_qty = cur_qty - quantity
@@ -2821,7 +3086,7 @@ def sell_asset():
         final_qty = 0.0 if new_qty <= 0.0001 else round(new_qty, 4)
         cursor.execute("""
             UPDATE portfolio_assets 
-            SET total_quantity = ? 
+            SET total_quantity = ?, updated_at = GETDATE()
             WHERE id = ?
         """, (final_qty, asset_id))
 
@@ -2840,7 +3105,8 @@ def sell_asset():
         flash(f"{symbol} satışı yapıldı ({qty_str} adet, {pnl_text}) ve {currency_tr_filter(total_amount_tl)} TL Vadesiz Nakit Bakiyenize eklendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Satış işlemi sırasında hata: {e}", "danger")
+        print(f"[sell_asset Error]: {e}")
+        flash("Satış işlemi sırasında bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2877,7 +3143,8 @@ def add_category():
         flash(f"'{name}' kategorisi başarıyla eklendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Kategori eklenirken hata: {e}", "danger")
+        print(f"[add_category Error]: {e}")
+        flash("Kategori eklenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2904,7 +3171,8 @@ def update_category_budget():
         flash("Kategori bütçesi güncellendi.", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Güncelleme hatası: {e}", "danger")
+        print(f"[update_category_budget Error]: {e}")
+        flash("Kategori bütçesi güncellenirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -2920,15 +3188,18 @@ def delete_category(cat_id):
     try:
         cursor.execute("SELECT COUNT(*) FROM transactions WHERE category_id = ? AND user_id = ?", (cat_id, user_id))
         tx_count = cursor.fetchone()[0]
-        if tx_count > 0:
-            flash("Bu kategoriye bağlı harcama/gelir kayıtları bulunduğu için kategori silinemez.", "warning")
+        cursor.execute("SELECT COUNT(*) FROM recurring_transactions WHERE category_id = ? AND user_id = ?", (cat_id, user_id))
+        rec_count = cursor.fetchone()[0]
+        if tx_count > 0 or rec_count > 0:
+            flash("Bu kategoriye bağlı harcama/gelir veya düzenli işlem şablonları bulunduğu için kategori silinemez.", "warning")
         else:
             cursor.execute("DELETE FROM categories WHERE id = ? AND user_id = ?", (cat_id, user_id))
             conn.commit()
             flash("Kategori başarıyla silindi.", "info")
     except Exception as e:
         conn.rollback()
-        flash(f"Silme hatası: {e}", "danger")
+        print(f"[delete_category Error]: {e}")
+        flash("Kategori silinirken bir hata oluştu.", "danger")
     finally:
         cursor.close()
         conn.close()
@@ -3074,13 +3345,26 @@ def backup_restore():
 
     try:
         content = json.loads(backup_file.read().decode('utf-8'))
+        if not isinstance(content, dict):
+            raise ValueError("Kök JSON nesnesi dict değil")
     except Exception as e:
-        flash(f"Yedek dosyası okunamadı (Geçersiz JSON formatı): {e}", "danger")
+        print(f"[backup_restore JSON Error]: {e}")
+        flash("Yedek dosyası okunamadı. Lütfen geçerli bir Moneta JSON yedek dosyası seçin.", "danger")
         return redirect_back_to_dashboard()
+
+    restore_mode = request.form.get('restore_mode', 'merge')
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        if restore_mode == 'replace':
+            cursor.execute("DELETE FROM asset_transactions WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM portfolio_assets WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM transactions WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM recurring_transactions WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM subscriptions WHERE user_id = ?", (user_id,))
+            cursor.execute("DELETE FROM savings_goals WHERE user_id = ?", (user_id,))
+
         if 'initial_cash_balance' in content and content['initial_cash_balance'] is not None:
             try:
                 init_cash_val = round(float(content['initial_cash_balance']), 2)
@@ -3096,42 +3380,77 @@ def backup_restore():
 
         cat_map = {}
         for c in content.get('categories', []):
-            cat_id = get_or_create_category(cursor, user_id, c['name'], c['type'], float(c.get('monthly_budget', 0)))
-            cat_map[c['name']] = cat_id
+            c_name = str(c.get('name', '')).strip()
+            c_type = c.get('type', 'gider')
+            if not c_name or c_type not in ('gelir', 'gider'):
+                continue
+            budget_val = parse_safe_amount(c.get('monthly_budget', 0), min_val=0.0) or 0.0
+            cat_id = get_or_create_category(cursor, user_id, c_name, c_type, budget_val)
+            cat_map[c_name] = cat_id
 
         for t in content.get('transactions', []):
-            cat_id = cat_map.get(t['category_name'])
+            t_amt = parse_safe_amount(t.get('amount'), min_val=0.01)
+            t_cat = str(t.get('category_name', '')).strip()
+            t_date = str(t.get('transaction_date', '')).strip()[:10]
+            if t_amt is None or not t_cat or not t_date:
+                continue
+            cat_id = cat_map.get(t_cat)
             if not cat_id:
-                cat_id = get_or_create_category(cursor, user_id, t['category_name'], 'gider', 0)
-                cat_map[t['category_name']] = cat_id
+                cat_id = get_or_create_category(cursor, user_id, t_cat, 'gider', 0)
+                cat_map[t_cat] = cat_id
+            t_desc = str(t.get('description', '') or '').strip()
+            t_method = t.get('payment_method', 'nakit')
+            if t_method not in ('nakit', 'kredi_karti'):
+                t_method = 'nakit'
+            t_paid = 1 if int(t.get('is_paid', 1)) else 0
+            raw_rp = t.get('receipt_path')
+            safe_rp = secure_filename(os.path.basename(str(raw_rp))) if raw_rp else None
+            if safe_rp and not os.path.exists(os.path.join(UPLOAD_FOLDER, safe_rp)):
+                safe_rp = None
+
+            if restore_mode != 'replace':
+                cursor.execute("""
+                    SELECT 1 FROM transactions
+                    WHERE user_id = ? AND category_id = ? AND amount = ? AND transaction_date = ?
+                      AND ISNULL(description, '') = ? AND ISNULL(payment_method, 'nakit') = ?
+                """, (user_id, cat_id, t_amt, t_date, t_desc, t_method))
+                if cursor.fetchone():
+                    continue
+
             cursor.execute("""
                 INSERT INTO transactions (user_id, category_id, amount, transaction_date, description, payment_method, is_paid, receipt_path)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, cat_id, float(t['amount']), t['transaction_date'], t.get('description', ''), t.get('payment_method', 'nakit'), int(t.get('is_paid', 1)), t.get('receipt_path')))
+            """, (user_id, cat_id, t_amt, t_date, t_desc, t_method, t_paid, safe_rp))
 
         asset_map = {}
         for a in content.get('portfolio_assets', []):
-            cursor.execute("SELECT id FROM portfolio_assets WHERE user_id = ? AND asset_symbol = ?", (user_id, a['asset_symbol']))
+            a_sym = str(a.get('asset_symbol', '')).strip().upper()
+            a_type = str(a.get('asset_type', 'hisse')).strip()
+            a_qty = parse_safe_amount(a.get('total_quantity', 0), min_val=0.0)
+            a_cost = parse_safe_amount(a.get('average_cost', 0), min_val=0.0)
+            if not a_sym or a_qty is None or a_cost is None:
+                continue
+            cursor.execute("SELECT id FROM portfolio_assets WHERE user_id = ? AND asset_symbol = ?", (user_id, a_sym))
             existing = cursor.fetchone()
             if existing:
                 cursor.execute("""
                     UPDATE portfolio_assets 
                     SET total_quantity = ?, average_cost = ?, updated_at = GETDATE()
                     WHERE id = ?
-                """, (float(a['total_quantity']), float(a['average_cost']), existing[0]))
-                asset_map[a['asset_symbol']] = existing[0]
+                """, (a_qty, a_cost, existing[0]))
+                asset_map[a_sym] = existing[0]
             else:
                 cursor.execute("""
                     INSERT INTO portfolio_assets (user_id, asset_symbol, asset_type, total_quantity, average_cost)
+                    OUTPUT INSERTED.id
                     VALUES (?, ?, ?, ?, ?)
-                """, (user_id, a['asset_symbol'], a['asset_type'], float(a['total_quantity']), float(a['average_cost'])))
-                cursor.execute("SELECT @@IDENTITY")
+                """, (user_id, a_sym, a_type, a_qty, a_cost))
                 new_aid = cursor.fetchone()
                 if new_aid and new_aid[0]:
-                    asset_map[a['asset_symbol']] = int(new_aid[0])
+                    asset_map[a_sym] = int(new_aid[0])
 
         for at in content.get('asset_transactions', []):
-            sym = at.get('asset_symbol')
+            sym = str(at.get('asset_symbol', '') or '').strip().upper()
             a_id = asset_map.get(sym)
             if not a_id and sym:
                 cursor.execute("SELECT id FROM portfolio_assets WHERE user_id = ? AND asset_symbol = ?", (user_id, sym))
@@ -3139,31 +3458,49 @@ def backup_restore():
                 if arow:
                     a_id = arow[0]
                     asset_map[sym] = a_id
-            if a_id:
+            if not a_id:
+                continue
+            at_type = at.get('transaction_type', 'alis')
+            at_qty = parse_safe_amount(at.get('quantity', 0), min_val=0.0) or 0.0
+            at_price = parse_safe_amount(at.get('unit_price', 0), min_val=0.0) or 0.0
+            at_total = parse_safe_amount(at.get('total_amount', 0), min_val=0.0) or 0.0
+            try:
+                at_pnl = round(float(at.get('realized_pnl', 0) or 0.0), 2)
+            except (ValueError, TypeError):
+                at_pnl = 0.0
+            at_date = str(at.get('transaction_date') or datetime.now().strftime('%Y-%m-%d'))[:10]
+
+            if restore_mode != 'replace':
                 cursor.execute("""
-                    INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, realized_pnl, transaction_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    a_id,
-                    user_id,
-                    at.get('transaction_type', 'alis'),
-                    float(at.get('quantity', 0)),
-                    float(at.get('unit_price', 0)),
-                    float(at.get('total_amount', 0)),
-                    float(at.get('realized_pnl', 0)),
-                    at.get('transaction_date') or datetime.now().strftime('%Y-%m-%d')
-                ))
+                    SELECT 1 FROM asset_transactions
+                    WHERE asset_id = ? AND user_id = ? AND transaction_type = ? AND quantity = ? AND unit_price = ? AND transaction_date = ?
+                """, (a_id, user_id, at_type, at_qty, at_price, at_date))
+                if cursor.fetchone():
+                    continue
+
+            cursor.execute("""
+                INSERT INTO asset_transactions (asset_id, user_id, transaction_type, quantity, unit_price, total_amount, realized_pnl, transaction_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (a_id, user_id, at_type, at_qty, at_price, at_total, at_pnl, at_date))
 
         for s in content.get('subscriptions', []):
+            s_title = str(s.get('title', '')).strip()
+            s_amt = parse_safe_amount(s.get('amount'), min_val=0.01)
+            if not s_title or s_amt is None:
+                continue
+            if restore_mode != 'replace':
+                cursor.execute("SELECT 1 FROM subscriptions WHERE user_id = ? AND title = ? AND amount = ?", (user_id, s_title, s_amt))
+                if cursor.fetchone():
+                    continue
             cursor.execute("""
                 INSERT INTO subscriptions (user_id, title, amount, billing_cycle, next_due_date, is_active, payment_method, auto_apply, last_synced_period)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
-                s['title'],
-                float(s['amount']),
+                s_title,
+                s_amt,
                 s.get('billing_cycle', 'aylik'),
-                s['next_due_date'],
+                s.get('next_due_date'),
                 int(s.get('is_active', 1)),
                 s.get('payment_method', 'kredi_karti'),
                 int(s.get('auto_apply', 1)),
@@ -3171,25 +3508,44 @@ def backup_restore():
             ))
 
         for g in content.get('savings_goals', []):
+            g_title = str(g.get('title', '')).strip()
+            g_target = parse_safe_amount(g.get('target_amount'), min_val=0.01)
+            g_curr = parse_safe_amount(g.get('current_amount', 0), min_val=0.0) or 0.0
+            if not g_title or g_target is None:
+                continue
+            if restore_mode != 'replace':
+                cursor.execute("SELECT 1 FROM savings_goals WHERE user_id = ? AND title = ?", (user_id, g_title))
+                if cursor.fetchone():
+                    continue
             cursor.execute("""
                 INSERT INTO savings_goals (user_id, title, target_amount, current_amount, target_date, status)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (user_id, g['title'], float(g['target_amount']), float(g.get('current_amount', 0)), g.get('target_date'), g.get('status', 'devam_ediyor')))
+            """, (user_id, g_title, g_target, g_curr, g.get('target_date'), g.get('status', 'devam_ediyor')))
 
         for r in content.get('recurring_transactions', []):
-            cat_id = cat_map.get(r['category_name'])
+            r_title = str(r.get('title', '')).strip()
+            r_amt = parse_safe_amount(r.get('amount'), min_val=0.01)
+            r_cat = str(r.get('category_name', '')).strip()
+            r_type = r.get('type', 'gider')
+            if not r_title or r_amt is None or not r_cat:
+                continue
+            cat_id = cat_map.get(r_cat)
             if not cat_id:
-                cat_id = get_or_create_category(cursor, user_id, r['category_name'], r.get('type', 'gider'), 0)
-                cat_map[r['category_name']] = cat_id
+                cat_id = get_or_create_category(cursor, user_id, r_cat, r_type, 0)
+                cat_map[r_cat] = cat_id
+            if restore_mode != 'replace':
+                cursor.execute("SELECT 1 FROM recurring_transactions WHERE user_id = ? AND title = ? AND amount = ? AND type = ?", (user_id, r_title, r_amt, r_type))
+                if cursor.fetchone():
+                    continue
             cursor.execute("""
                 INSERT INTO recurring_transactions (user_id, category_id, title, amount, type, payment_method, day_of_month, is_active, last_synced_period)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
                 cat_id,
-                r['title'],
-                float(r['amount']),
-                r.get('type', 'gider'),
+                r_title,
+                r_amt,
+                r_type,
                 r.get('payment_method', 'nakit'),
                 int(r.get('day_of_month', 1)),
                 int(r.get('is_active', 1)),
@@ -3200,12 +3556,15 @@ def backup_restore():
         flash("Yedek başarıyla geri yüklendi ve tüm verileriniz güncellendi!", "success")
     except Exception as e:
         conn.rollback()
-        flash(f"Geri yükleme sırasında hata: {e}", "danger")
+        print(f"[backup_restore Error]: {e}")
+        flash("Yedek geri yüklenirken bir hata oluştu. Lütfen dosya içeriğini kontrol edin.", "danger")
     finally:
         cursor.close()
         conn.close()
 
     return redirect_back_to_dashboard()
 
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    debug_mode = os.getenv('FLASK_DEBUG', '1') == '1' and Config.FLASK_ENV.lower() != 'production'
+    app.run(debug=debug_mode, port=int(os.getenv('PORT', 5000)))

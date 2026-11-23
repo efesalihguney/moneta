@@ -496,5 +496,148 @@ class TestStatePersistenceAndBackupSchema(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
 
 
+class TestProductionSecurityHardening(unittest.TestCase):
+    """Test 7: Canlı Ortam Güvenlik, CSRF, SQL Auth, Kategori FK ve Yedek Tekilleştirme Testleri"""
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        self.client = app.test_client()
+
+    def tearDown(self):
+        app.config.pop('CSRF_ENABLED_IN_TESTS', None)
+
+    def test_csrf_protection_blocks_missing_token_and_allows_valid_token(self):
+        """CSRF aktifken token olmadan gelen POST 403 almalı; geçerli oturum token'ı ile kabul edilmeli."""
+        import re
+        app.config['CSRF_ENABLED_IN_TESTS'] = True
+        bad_res = self.client.post('/login', data={'login_identifier': 'efoss13', 'password': 'wrong'})
+        self.assertEqual(bad_res.status_code, 403)
+
+        page_res = self.client.get('/login')
+        self.assertEqual(page_res.status_code, 200)
+        m = re.search(r'name="csrf_token"\s+value="([^"]+)"', page_res.text)
+        self.assertIsNotNone(m, "Login formunda csrf_token gizli alanı bulunamadı.")
+        token = m.group(1)
+
+        ok_res = self.client.post('/login', data={
+            'csrf_token': token,
+            'login_identifier': 'nonexistent_qa_user',
+            'password': 'wrongpassword123'
+        })
+        self.assertNotEqual(ok_res.status_code, 403)
+
+    def test_auto_login_disabled_in_production_by_default(self):
+        """Debug/Testing kapalıyken ALLOW_AUTO_LOGIN açık değilse otomatik giriş engellenmeli."""
+        from app import _is_auto_login_allowed
+        from config import Config
+        orig_debug = app.debug
+        orig_testing = app.config.get('TESTING')
+        orig_allow = Config.ALLOW_AUTO_LOGIN
+        try:
+            app.debug = False
+            app.config['TESTING'] = False
+            Config.ALLOW_AUTO_LOGIN = False
+            self.assertFalse(_is_auto_login_allowed())
+
+            res = self.client.get('/auto-login', follow_redirects=False)
+            self.assertEqual(res.status_code, 302)
+            self.assertIn('/login', res.headers.get('Location', ''))
+        finally:
+            app.debug = orig_debug
+            app.config['TESTING'] = orig_testing
+            Config.ALLOW_AUTO_LOGIN = orig_allow
+
+    def test_config_supports_sql_auth_connection_string(self):
+        """Bulut/Linux MSSQL için DB_USER/DB_PASSWORD verildiğinde UID/PWD bağlantı dizgesi üretilmeli."""
+        from config import Config
+        orig_user = Config.DB_USER
+        orig_pwd = Config.DB_PASSWORD
+        orig_srv = Config.DB_SERVER
+        try:
+            Config.DB_USER = 'sa_cloud'
+            Config.DB_PASSWORD = 'Secret!123'
+            Config.DB_SERVER = 'moneta.database.windows.net'
+            conn_str = Config.get_connection_string()
+            self.assertIn('UID=sa_cloud;', conn_str)
+            self.assertIn('PWD=Secret!123;', conn_str)
+            self.assertIn('Trusted_Connection=no;', conn_str)
+            self.assertEqual(Config.get_candidate_servers(), ['moneta.database.windows.net'])
+        finally:
+            Config.DB_USER = orig_user
+            Config.DB_PASSWORD = orig_pwd
+            Config.DB_SERVER = orig_srv
+
+    def test_register_rejects_short_password_and_invalid_email(self):
+        """Kayıt formu 8 karakterden kısa şifreleri ve geçersiz e-postaları reddetmeli."""
+        res_short = self.client.post('/register', data={
+            'first_name': 'Test',
+            'last_name': 'User',
+            'username': 'shortpwduser_qa',
+            'email': 'valid@moneta.local',
+            'password': '123'
+        })
+        self.assertEqual(res_short.status_code, 200)
+        self.assertIn('en az 8 karakter', res_short.text)
+
+        res_email = self.client.post('/register', data={
+            'first_name': 'Test',
+            'last_name': 'User',
+            'username': 'bademailuser_qa',
+            'email': 'not-an-email',
+            'password': 'StrongPassword123'
+        })
+        self.assertEqual(res_email.status_code, 200)
+        self.assertIn('geçerli bir e-posta', res_email.text)
+
+    def test_delete_category_blocked_when_used_by_recurring(self):
+        """Düzenli işlem şablonuna bağlı kategori silinmeye çalışıldığında güvenli uyarı vermeli."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cat_id = None
+        rec_id = None
+        try:
+            # Önceki yarım kalmış test artıklarını temizle (FK sırasına uygun)
+            cursor.execute("DELETE FROM transactions WHERE user_id = 1 AND (description LIKE '%TEST_REC_FK_QA%' OR category_id IN (SELECT id FROM categories WHERE user_id = 1 AND name = 'TEST_CAT_FK_QA'))")
+            cursor.execute("DELETE FROM recurring_transactions WHERE user_id = 1 AND title = 'TEST_REC_FK_QA'")
+            cursor.execute("DELETE FROM categories WHERE user_id = 1 AND name = 'TEST_CAT_FK_QA'")
+            conn.commit()
+
+            cursor.execute("INSERT INTO categories (user_id, name, type, monthly_budget) OUTPUT INSERTED.id VALUES (1, 'TEST_CAT_FK_QA', 'gider', 0)")
+            cat_id = int(cursor.fetchone()[0])
+
+            cursor.execute("""
+                INSERT INTO recurring_transactions (user_id, category_id, title, amount, type, payment_method, day_of_month, is_active)
+                OUTPUT INSERTED.id
+                VALUES (1, ?, 'TEST_REC_FK_QA', 100.0, 'gider', 'nakit', 1, 0)
+            """, (cat_id,))
+            rec_id = int(cursor.fetchone()[0])
+            conn.commit()
+
+            with self.client.session_transaction() as sess:
+                sess['user_id'] = 1
+                sess['username'] = 'efoss13'
+
+            res = self.client.post(f'/delete_category/{cat_id}', follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+            self.assertIn('silinemez', res.text)
+        finally:
+            cursor.execute("DELETE FROM transactions WHERE user_id = 1 AND (description LIKE '%TEST_REC_FK_QA%' OR category_id IN (SELECT id FROM categories WHERE user_id = 1 AND name = 'TEST_CAT_FK_QA'))")
+            cursor.execute("DELETE FROM recurring_transactions WHERE user_id = 1 AND title = 'TEST_REC_FK_QA'")
+            if rec_id:
+                cursor.execute("DELETE FROM recurring_transactions WHERE id = ?", (rec_id,))
+            if cat_id:
+                cursor.execute("DELETE FROM categories WHERE id = ?", (cat_id,))
+            cursor.execute("DELETE FROM categories WHERE user_id = 1 AND name = 'TEST_CAT_FK_QA'")
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+    def test_upload_folder_is_outside_static(self):
+        """Yüklenen fiş klasörü kimlik doğrulamasız /static/ altından servis edilmemeli."""
+        from app import UPLOAD_FOLDER
+        normalized = os.path.normpath(UPLOAD_FOLDER).lower()
+        self.assertNotIn(os.path.sep + 'static' + os.path.sep, normalized)
+
+
 if __name__ == '__main__':
     unittest.main()
