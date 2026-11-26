@@ -26,14 +26,19 @@ gerçekçi ve uçtan uca tutarlı bir finansal veri seti yükler:
 
 from datetime import datetime, timedelta
 import calendar
-from db import get_db_connection
+from db import get_db_connection, is_postgres
 from app import get_effective_usdtry_rate, get_or_create_category
 
 
 def seed_demo_account():
     print("=" * 68)
-    print("MONETA - ZENGİN FİNANSAL DEMO VERİSİ YÜKLEME MOTORU")
+    engine_label = "PostgreSQL (Supabase)" if is_postgres() else "Microsoft SQL Server"
+    print(f"MONETA - ZENGİN FİNANSAL DEMO VERİSİ YÜKLEME MOTORU [{engine_label}]")
     print("=" * 68)
+
+    if is_postgres():
+        from init_db import ensure_tables_and_objects
+        ensure_tables_and_objects()
 
     conn = get_db_connection()
     cursor = conn.cursor()

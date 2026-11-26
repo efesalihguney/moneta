@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response, send_from_directory, abort
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, safe_join
 from functools import wraps
 from datetime import datetime
 import json
@@ -53,7 +53,7 @@ import requests
 import pandas as pd
 import yfinance as yf
 import xml.etree.ElementTree as ET
-from db import get_db_connection
+from db import get_db_connection, is_postgres
 from config import Config
 from services.finance_engine import (
     calculate_fisher_real_return,
@@ -63,16 +63,21 @@ from services.finance_engine import (
     calculate_realized_pnl,
     parse_safe_amount
 )
+from services.receipt_scanner import (
+    scan_receipt,
+    is_allowed_scan_file,
+    MAX_RECEIPT_SCAN_BYTES
+)
 
 app = Flask(__name__)
-app.secret_key = Config.SECRET_KEY
+app.secret_key = Config.get_secret_key()
 app.config['SESSION_COOKIE_HTTPONLY'] = Config.SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = Config.SESSION_COOKIE_SAMESITE
 app.config['SESSION_COOKIE_SECURE'] = Config.SESSION_COOKIE_SECURE
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
-if Config.FLASK_ENV.lower() == 'production' and Config.SECRET_KEY == 'super_secret_moneta_key_change_in_production':
-    print("[UYARI] Canlı ortamda (FLASK_ENV=production) varsayılan FLASK_SECRET_KEY kullanılıyor! Güvenlik için .env üzerinden güçlü bir anahtar tanımlayın.")
+if Config.is_production() and app.secret_key == 'super_secret_moneta_key_change_in_production':
+    print("[UYARI] Canlı ortamda (production) varsayılan SECRET_KEY kullanılıyor! Güvenlik için ortam değişkeni üzerinden güçlü bir anahtar tanımlayın.")
 
 
 def generate_csrf_token():
@@ -100,6 +105,9 @@ def verify_csrf_token():
 
 def ensure_schema_migrations():
     """Veritabanı şema güncellemelerini, indeksleri, kurumsal VIEW ve STORED PROCEDURE nesnelerini güvenli bir şekilde yapar."""
+    if is_postgres():
+        # PostgreSQL / Supabase şeması schema_postgres.sql ve init_db.py üzerinden yönetilir
+        return
     conn = None
     cursor = None
     try:
@@ -287,6 +295,11 @@ def page_not_found(e):
 
 @app.errorhandler(413)
 def payload_too_large(e):
+    if request.path.startswith('/api/'):
+        return {
+            'success': False,
+            'error': 'Yüklenen dosya boyutu çok büyük (maksimum 5 MB).'
+        }, 413
     flash("Yüklenen dosya boyutu çok büyük (maksimum 5 MB).", "warning")
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
@@ -299,9 +312,16 @@ def internal_server_error(e):
     return render_template('500.html'), 500
 
 
-# --- FİŞ / MAKBUZ YÜKLEME AYARLARI (static/ dışında güvenli depolama) ---
-UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads', 'receipts')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# --- FİŞ / MAKBUZ YÜKLEME AYARLARI (static/ dışında güvenli ve Serverless/Read-Only uyumlu depolama) ---
+UPLOAD_FOLDER = Config.resolve_upload_folder(app.root_path)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except OSError:
+    UPLOAD_FOLDER = Config.TEMP_UPLOAD_FOLDER
+    try:
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    except OSError:
+        pass
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'}
 
 
@@ -310,7 +330,11 @@ def allowed_file(filename):
 
 
 def _save_receipt_if_valid(receipt_file):
-    """Yüklenen fişi uzantı kontrolünden geçirip diske kaydeder; (filename, err_msg) döner."""
+    """
+    Yüklenen fişi uzantı kontrolünden geçirip diske kaydeder; (filename, err_msg) döner.
+    Vercel Serverless / salt-okunur dosya sisteminde diske yazma başarısız olursa (OSError),
+    geçici /tmp dizinini dener; yine yazılamasa bile veritabanı işlemini kesmeden güvenli dosya adını döner.
+    """
     if not receipt_file or not receipt_file.filename:
         return None, None
     if not allowed_file(receipt_file.filename):
@@ -319,7 +343,25 @@ def _save_receipt_if_valid(receipt_file):
     if not safe_name:
         return None, "Geçersiz dosya adı."
     receipt_filename = f"{uuid.uuid4().hex[:12]}_{safe_name}"
-    receipt_file.save(os.path.join(UPLOAD_FOLDER, receipt_filename))
+
+    target_dirs = list(dict.fromkeys([
+        Config.resolve_upload_folder(app.root_path) if Config.is_vercel() else UPLOAD_FOLDER,
+        Config.TEMP_UPLOAD_FOLDER,
+    ]))
+    last_os_error = None
+    for target_dir in target_dirs:
+        if not target_dir:
+            continue
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            receipt_file.save(os.path.join(target_dir, receipt_filename))
+            return receipt_filename, None
+        except OSError as exc:
+            last_os_error = exc
+            continue
+
+    if last_os_error is not None:
+        print(f"[Receipt Upload Warning]: Dosya diske yazılamadı ({last_os_error}); yalnızca dosya adı kaydediliyor.")
     return receipt_filename, None
 
 def login_required(f):
@@ -888,7 +930,9 @@ LOGIN_RATE_LIMIT_WINDOW = 300  # 5 dakika
 
 def _is_auto_login_allowed():
     """Hızlı test girişinin yalnızca debug/test ortamında veya açık izinle aktif olmasını sağlar."""
-    return bool(app.debug or app.config.get('TESTING') or Config.ALLOW_AUTO_LOGIN)
+    if Config.is_production() and not app.config.get('TESTING'):
+        return False
+    return bool(app.debug or app.config.get('TESTING') or Config.is_auto_login_enabled())
 
 
 def _get_client_ip():
@@ -1958,6 +2002,71 @@ def api_db_diagnostics():
         cursor.close()
         conn.close()
 
+
+@app.route('/api/scan-receipt', methods=['POST'])
+@login_required
+def api_scan_receipt():
+    """
+    Akıllı Fiş & Fatura Okuma (OCR & AI Kategorizasyon) Uç Noktası.
+    JPG, PNG, WEBP veya PDF (maks. 5 MB) dosyasını okuyup tutar, tarih, işletme adı
+    ve kullanıcının mevcut veritabanı kategorileri arasından en uygun kategoriyi döner.
+    """
+    receipt_file = request.files.get('receipt') or request.files.get('file')
+    if not receipt_file or not receipt_file.filename:
+        return {
+            'success': False,
+            'error': 'Lütfen taranacak bir fiş veya fatura dosyası seçin.'
+        }, 400
+
+    if not is_allowed_scan_file(receipt_file.filename):
+        return {
+            'success': False,
+            'error': 'Desteklenmeyen dosya türü. Lütfen JPG, PNG, WEBP veya PDF yükleyin.'
+        }, 400
+
+    file_bytes = receipt_file.read(MAX_RECEIPT_SCAN_BYTES + 1)
+    if not file_bytes:
+        return {
+            'success': False,
+            'error': 'Yüklenen dosya boş.'
+        }, 400
+
+    if len(file_bytes) > MAX_RECEIPT_SCAN_BYTES:
+        return {
+            'success': False,
+            'error': 'Yüklenen dosya boyutu çok büyük (maksimum 5 MB).'
+        }, 413
+
+    user_id = session['user_id']
+    categories = []
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, name, type FROM categories WHERE user_id = ? ORDER BY type, name",
+            (user_id,)
+        )
+        for row in cursor.fetchall():
+            categories.append({
+                'id': int(row[0]),
+                'name': str(row[1]),
+                'type': str(row[2])
+            })
+    except Exception as e:
+        print(f"[api_scan_receipt DB Error]: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    result = scan_receipt(
+        file_bytes=file_bytes,
+        filename=receipt_file.filename,
+        categories=categories,
+        content_type=receipt_file.mimetype,
+    )
+    status_code = 200 if result.get('success') else 400
+    return result, status_code
+
 # --- İŞLEMLER (ACTIONS) ---
 
 # --- DIŞA AKTARMA (EXPORT) İŞLEMLERİ ---
@@ -2656,7 +2765,22 @@ def get_receipt(filename):
     finally:
         cursor.close()
         conn.close()
-    return send_from_directory(UPLOAD_FOLDER, filename)
+
+    candidate_dirs = list(dict.fromkeys([
+        Config.resolve_upload_folder(app.root_path) if Config.is_vercel() else UPLOAD_FOLDER,
+        UPLOAD_FOLDER,
+        Config.TEMP_UPLOAD_FOLDER,
+    ]))
+    for candidate_dir in candidate_dirs:
+        if not candidate_dir:
+            continue
+        try:
+            full_path = safe_join(candidate_dir, filename)
+            if full_path and os.path.isfile(full_path):
+                return send_from_directory(candidate_dir, filename)
+        except OSError:
+            continue
+    abort(404)
 
 @app.route('/pay_credit_card', methods=['POST'])
 @login_required
@@ -3566,5 +3690,5 @@ def backup_restore():
 
 
 if __name__ == '__main__':
-    debug_mode = os.getenv('FLASK_DEBUG', '1') == '1' and Config.FLASK_ENV.lower() != 'production'
+    debug_mode = os.getenv('FLASK_DEBUG', '1') == '1' and not Config.is_production()
     app.run(debug=debug_mode, port=int(os.getenv('PORT', 5000)))

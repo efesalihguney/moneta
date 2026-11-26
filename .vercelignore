@@ -1,0 +1,19 @@
+# Vercel Serverless paketinden hariç tutulacak yerel dosyalar
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.git/
+.gitignore
+uploads/
+*.log
+tests/
+.env
+.env.*
+!.env.example
+docs/
+*.bak
+*.tmp

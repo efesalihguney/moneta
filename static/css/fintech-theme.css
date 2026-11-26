@@ -1100,3 +1100,33 @@ body.privacy-mode-active .sensitive-amount:not([data-privacy-masked="1"]):not(.i
 .cc-marker:hover {
     transform: scaleY(1.4);
 }
+
+/* ==========================================================================
+   Akıllı Fiş & Fatura Tarayıcı (Smart Receipt OCR & AI Dropzone)
+   ========================================================================== */
+.receipt-scan-dropzone {
+    border: 1.5px dashed var(--primary);
+    border-radius: var(--radius-md);
+    background: var(--primary-subtle);
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.receipt-scan-dropzone:hover,
+.receipt-scan-dropzone.is-dragover {
+    border-color: var(--primary-hover);
+    box-shadow: 0 0 0 3px var(--primary-ring);
+    transform: translateY(-1px);
+}
+
+[data-bs-theme="dark"] .receipt-scan-dropzone {
+    background: rgba(79, 70, 229, 0.12);
+    border-color: rgba(129, 140, 248, 0.55);
+}
+
+.ai-autofill-highlight {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.22) !important;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}

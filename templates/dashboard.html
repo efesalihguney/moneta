@@ -12,6 +12,9 @@
         <button class="btn btn-cta-primary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#transactionModal">
             <i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Harcama / Gelir Ekle
         </button>
+        <button class="btn btn-saas-secondary flex-shrink-0" id="btnOpenReceiptScanner" type="button" data-bs-toggle="modal" data-bs-target="#transactionModal">
+            <i class="bi bi-qr-code-scan me-1 text-primary" aria-hidden="true"></i> Fiş Tara (AI)
+        </button>
         <button class="btn btn-saas-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#initialBalanceModal">
             <i class="bi bi-wallet2 me-1 text-success" aria-hidden="true"></i> Nakit Bakiye
         </button>
@@ -1411,6 +1414,33 @@
             <form action="{{ url_for('add_transaction') }}" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
+                    <!-- AKILLI FİŞ & FATURA OKUMA (OCR & AI KATEGORİZASYON) -->
+                    <div class="mb-3">
+                        <div id="receiptScanDropzone" class="receipt-scan-dropzone" role="button" tabindex="0" aria-label="Akıllı fiş veya fatura taramak için tıklayın ya da dosyayı sürükleyin">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+                                        <i class="bi bi-magic fs-5" aria-hidden="true"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small text-body">Akıllı Fiş / Fatura Tara (AI)</div>
+                                        <div class="text-muted" style="font-size: 0.74rem;">JPG, PNG, WEBP veya PDF yükleyin (maks. 5 MB) — tutar, tarih ve kategori otomatik dolsun</div>
+                                    </div>
+                                </div>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle flex-shrink-0">OCR + AI</span>
+                            </div>
+                        </div>
+
+                        <!-- Tarama Yükleniyor Durumu -->
+                        <div id="receiptScanLoading" class="alert alert-info py-2 px-3 mt-2 mb-0 d-none align-items-center gap-2 small" role="status" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" aria-hidden="true"></div>
+                            <span>Fiş/fatura okunuyor, tutar ve en uygun kategori analiz ediliyor...</span>
+                        </div>
+
+                        <!-- Tarama Sonuç / Uyarı Kutusu -->
+                        <div id="receiptScanFeedback" class="mt-2 d-none" role="status" aria-live="polite"></div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label" for="txCategorySelect">Kategori <span class="text-danger" aria-hidden="true">*</span></label>
                         <select name="category_id" id="txCategorySelect" class="form-select" required>
@@ -1439,8 +1469,13 @@
                         <input type="text" name="description" id="txDescInput" class="form-control" placeholder="Örn: Market alışverişi">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="txReceiptInput"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Fiş / Dekont Ekle <small class="text-muted">(İsteğe Bağlı - PNG, JPG, PDF)</small></label>
-                        <input type="file" name="receipt" id="txReceiptInput" class="form-control" accept=".png,.jpg,.jpeg,.pdf,.webp,.gif">
+                        <label class="form-label d-flex justify-content-between align-items-center" for="txReceiptInput">
+                            <span><i class="bi bi-receipt me-1" aria-hidden="true"></i>Fiş / Dekont Ekle <small class="text-muted">(İsteğe Bağlı - JPG, PNG, WEBP, PDF)</small></span>
+                            <button type="button" id="btnScanSelectedReceipt" class="btn btn-sm btn-outline-primary py-0 px-2 d-none" style="font-size: 0.74rem;">
+                                <i class="bi bi-stars me-1" aria-hidden="true"></i>Tekrar Tara
+                            </button>
+                        </label>
+                        <input type="file" name="receipt" id="txReceiptInput" class="form-control" accept=".png,.jpg,.jpeg,.webp,.pdf">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -3453,6 +3488,223 @@
                 }
             }
         });
+
+        // 17. Akıllı Fiş & Fatura Okuma (OCR & AI Kategorizasyon) Entegrasyonu
+        const txModalEl = document.getElementById('transactionModal');
+        const scanDropzone = document.getElementById('receiptScanDropzone');
+        const txReceiptInput = document.getElementById('txReceiptInput');
+        const btnScanSelected = document.getElementById('btnScanSelectedReceipt');
+        const btnOpenScanner = document.getElementById('btnOpenReceiptScanner');
+        const scanLoadingEl = document.getElementById('receiptScanLoading');
+        const scanFeedbackEl = document.getElementById('receiptScanFeedback');
+
+        let openFilePickerOnModalShow = false;
+        if (btnOpenScanner) {
+            btnOpenScanner.addEventListener('click', function() {
+                openFilePickerOnModalShow = true;
+            });
+        }
+
+        function highlightAutofilled(el) {
+            if (!el) return;
+            el.classList.add('ai-autofill-highlight');
+            setTimeout(() => el.classList.remove('ai-autofill-highlight'), 2200);
+        }
+
+        function renderScanFeedback(type, htmlContent) {
+            if (!scanFeedbackEl) return;
+            scanFeedbackEl.className = `alert alert-${type} py-2 px-3 mt-2 mb-0 small`;
+            scanFeedbackEl.innerHTML = htmlContent;
+        }
+
+        function clearScanFeedback() {
+            if (scanFeedbackEl) {
+                scanFeedbackEl.className = 'mt-2 d-none';
+                scanFeedbackEl.innerHTML = '';
+            }
+            if (scanLoadingEl) {
+                scanLoadingEl.classList.add('d-none');
+                scanLoadingEl.classList.remove('d-flex');
+            }
+        }
+
+        function escapeScanHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function runReceiptScan(file) {
+            if (!file) return;
+            const maxBytes = 5 * 1024 * 1024;
+            const allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+            clearScanFeedback();
+            if (!allowedExt.includes(ext)) {
+                renderScanFeedback('warning', '<i class="bi bi-exclamation-triangle me-1"></i>Desteklenmeyen dosya türü. Lütfen JPG, PNG, WEBP veya PDF yükleyin.');
+                return;
+            }
+            if (file.size > maxBytes) {
+                renderScanFeedback('warning', '<i class="bi bi-exclamation-triangle me-1"></i>Dosya boyutu 5 MB sınırını aşıyor.');
+                return;
+            }
+
+            if (scanLoadingEl) {
+                scanLoadingEl.classList.remove('d-none');
+                scanLoadingEl.classList.add('d-flex');
+            }
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            const formData = new FormData();
+            formData.append('receipt', file);
+
+            try {
+                const resp = await fetch('/api/scan-receipt', {
+                    method: 'POST',
+                    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+                    body: formData
+                });
+                const data = await resp.json().catch(() => ({}));
+
+                if (scanLoadingEl) {
+                    scanLoadingEl.classList.add('d-none');
+                    scanLoadingEl.classList.remove('d-flex');
+                }
+
+                if (!resp.ok || !data.success) {
+                    renderScanFeedback('danger', `<i class="bi bi-x-circle me-1"></i>${escapeScanHtml(data.error || 'Fiş taranırken bir hata oluştu.')}`);
+                    return;
+                }
+
+                const catSelect = document.getElementById('txCategorySelect');
+                const amountInput = document.getElementById('txAmountInput');
+                const dateInput = document.getElementById('txDateInput');
+                const descInput = document.getElementById('txDescInput');
+
+                if (data.category_id && catSelect) {
+                    const targetOpt = Array.from(catSelect.options).find(opt => String(opt.value) === String(data.category_id));
+                    if (targetOpt) {
+                        catSelect.value = String(data.category_id);
+                        highlightAutofilled(catSelect);
+                    }
+                }
+                if (data.amount !== null && data.amount !== undefined && amountInput) {
+                    amountInput.value = Number(data.amount).toFixed(2);
+                    highlightAutofilled(amountInput);
+                }
+                if (data.date && dateInput) {
+                    dateInput.value = data.date;
+                    highlightAutofilled(dateInput);
+                }
+                if (data.description && descInput) {
+                    descInput.value = data.description;
+                    highlightAutofilled(descInput);
+                }
+
+                const confPct = typeof data.confidence === 'number' ? Math.round(data.confidence * 100) : null;
+                const engineLabel = data.engine === 'gemini' ? 'Vision AI' : 'Çevrimdışı Yedek';
+                const summaryParts = [];
+                if (data.merchant) summaryParts.push(`<strong>${escapeScanHtml(data.merchant)}</strong>`);
+                if (data.category_name) summaryParts.push(`<span class="badge bg-primary-subtle text-primary">${escapeScanHtml(data.category_name)}</span>`);
+                if (confPct !== null) summaryParts.push(`<span class="badge bg-secondary-subtle text-body">Güven: %${confPct}</span>`);
+                summaryParts.push(`<span class="badge bg-info-subtle text-info">${engineLabel}</span>`);
+
+                if (data.warning) {
+                    renderScanFeedback(
+                        'warning',
+                        `<div class="d-flex flex-wrap align-items-center gap-1 mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>${summaryParts.join(' ')}</div>` +
+                        `<div class="small">${escapeScanHtml(data.warning)}</div>`
+                    );
+                } else {
+                    renderScanFeedback(
+                        'success',
+                        `<div class="d-flex flex-wrap align-items-center gap-1"><i class="bi bi-check-circle-fill me-1"></i>Fiş okundu: ${summaryParts.join(' ')}</div>` +
+                        `<div class="small text-muted mt-1">Alanlar otomatik dolduruldu; kaydetmeden önce düzenleyebilirsiniz.</div>`
+                    );
+                }
+            } catch (err) {
+                if (scanLoadingEl) {
+                    scanLoadingEl.classList.add('d-none');
+                    scanLoadingEl.classList.remove('d-flex');
+                }
+                renderScanFeedback('danger', '<i class="bi bi-wifi-off me-1"></i>Tarama servisine bağlanılamadı. Bilgileri manuel olarak girebilirsiniz.');
+            }
+        }
+
+        if (scanDropzone && txReceiptInput) {
+            scanDropzone.addEventListener('click', function() {
+                txReceiptInput.click();
+            });
+            scanDropzone.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    txReceiptInput.click();
+                }
+            });
+            ['dragenter', 'dragover'].forEach(evtName => {
+                scanDropzone.addEventListener(evtName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    scanDropzone.classList.add('is-dragover');
+                });
+            });
+            ['dragleave', 'drop'].forEach(evtName => {
+                scanDropzone.addEventListener(evtName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    scanDropzone.classList.remove('is-dragover');
+                });
+            });
+            scanDropzone.addEventListener('drop', function(e) {
+                const droppedFiles = e.dataTransfer && e.dataTransfer.files;
+                if (droppedFiles && droppedFiles.length > 0) {
+                    const file = droppedFiles[0];
+                    try {
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        txReceiptInput.files = dt.files;
+                    } catch (_) { /* DataTransfer desteklenmiyorsa yine de taramayı çalıştır */ }
+                    if (btnScanSelected) btnScanSelected.classList.remove('d-none');
+                    runReceiptScan(file);
+                }
+            });
+
+            txReceiptInput.addEventListener('change', function() {
+                const file = txReceiptInput.files && txReceiptInput.files[0];
+                if (file) {
+                    if (btnScanSelected) btnScanSelected.classList.remove('d-none');
+                    runReceiptScan(file);
+                } else if (btnScanSelected) {
+                    btnScanSelected.classList.add('d-none');
+                }
+            });
+
+            if (btnScanSelected) {
+                btnScanSelected.addEventListener('click', function() {
+                    const file = txReceiptInput.files && txReceiptInput.files[0];
+                    if (file) runReceiptScan(file);
+                });
+            }
+        }
+
+        if (txModalEl) {
+            txModalEl.addEventListener('shown.bs.modal', function() {
+                if (openFilePickerOnModalShow && txReceiptInput) {
+                    openFilePickerOnModalShow = false;
+                    txReceiptInput.click();
+                }
+            });
+            txModalEl.addEventListener('hidden.bs.modal', function() {
+                openFilePickerOnModalShow = false;
+                clearScanFeedback();
+                if (btnScanSelected) btnScanSelected.classList.add('d-none');
+            });
+        }
 
         // Sayfa DOM'u ve diğer kritik bileşenler çizildikten hemen sonra haberleri asenkron olarak arka planda yükle
         setTimeout(function() {

@@ -13,9 +13,10 @@ tek komutla (`python init_db.py`):
    (mevcut kullanıcı ve verilere kesinlikle dokunmadan) oluşturmasını sağlar.
 """
 
+import os
 from werkzeug.security import generate_password_hash
 from config import Config
-from db import get_db_connection
+from db import get_db_connection, is_postgres
 
 
 REQUIRED_SCHEMA_COLUMNS = {
@@ -31,7 +32,10 @@ REQUIRED_SCHEMA_COLUMNS = {
 
 
 def connect_master_and_ensure_database():
-    """Akıllı SQL Server keşfiyle master veritabanına bağlanarak wealth_tracker_db yoksa oluşturur."""
+    """Veritabanı sunucusunu doğrular; MSSQL'de wealth_tracker_db yoksa oluşturur."""
+    if is_postgres():
+        print("[OK] PostgreSQL (Supabase) modu aktif: DATABASE_URL üzerinden bağlanılıyor.")
+        return
     db_name = Config.DB_DATABASE
     conn = get_db_connection(database='master', autocommit=True)
     try:
@@ -44,8 +48,47 @@ def connect_master_and_ensure_database():
         conn.close()
 
 
+def _ensure_postgres_schema_and_objects():
+    """schema_postgres.sql dosyasını çalıştırarak Supabase / PostgreSQL tablolarını, View ve fonksiyonunu kurar."""
+    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema_postgres.sql')
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        schema_sql = f.read()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Ham psycopg2 imleci çoklu DDL deyimlerini tek seferde güvenle yürütür
+        raw_cursor = conn._conn.cursor() if hasattr(conn, '_conn') else cursor
+        raw_cursor.execute(schema_sql)
+        if raw_cursor is not cursor:
+            raw_cursor.close()
+        conn.commit()
+        print("[OK] schema_postgres.sql başarıyla uygulandı (8 tablo, indeksler, View ve PostgreSQL fonksiyonu).")
+
+        # information_schema.columns doğrulaması
+        for tbl_name, req_cols in REQUIRED_SCHEMA_COLUMNS.items():
+            cursor.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ?",
+                (tbl_name,),
+            )
+            existing_cols = {str(r[0]).lower() for r in cursor.fetchall()}
+            missing = req_cols - existing_cols
+            if missing:
+                raise RuntimeError(f"PostgreSQL şema doğrulama hatası: '{tbl_name}' tablosunda eksik sütunlar: {missing}")
+        print("[OK] PostgreSQL information_schema.columns doğrulaması %100 başarılı.")
+
+        ensure_default_seed_data(cursor=cursor, conn=conn)
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def ensure_tables_and_objects():
     """Tüm tabloları, sütun migrasyonlarını, indeksleri, View ve SP nesnelerini oluşturur ve doğrular."""
+    if is_postgres():
+        _ensure_postgres_schema_and_objects()
+        return
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:

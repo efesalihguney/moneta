@@ -1,15 +1,26 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (override stale OS/process values)
+load_dotenv(override=True)
 
 class Config:
     """Moneta application configuration."""
-    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'super_secret_moneta_key_change_in_production')
-    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
-    ALLOW_AUTO_LOGIN = os.getenv('ALLOW_AUTO_LOGIN', '0').lower() in ('1', 'true', 'yes')
+    VERCEL = os.getenv('VERCEL', '').strip()
+    VERCEL_ENV = os.getenv('VERCEL_ENV', '').strip()
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development').strip()
+    _IS_PROD_STARTUP = (VERCEL_ENV.lower() == 'production') or (FLASK_ENV.lower() == 'production')
+
+    SECRET_KEY = (
+        os.getenv('SECRET_KEY')
+        or os.getenv('FLASK_SECRET_KEY')
+        or 'super_secret_moneta_key_change_in_production'
+    )
+    ALLOW_AUTO_LOGIN = False if _IS_PROD_STARTUP else (
+        os.getenv('ALLOW_AUTO_LOGIN', '0').lower() in ('1', 'true', 'yes')
+    )
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB upload sınırı
+    TEMP_UPLOAD_FOLDER = '/tmp/moneta_uploads'
 
     # Session Cookie Security
     SESSION_COOKIE_HTTPONLY = True
@@ -23,6 +34,14 @@ class Config:
         '3M': float(os.getenv('TUFE_3M', '8.9')),
         '6M': float(os.getenv('TUFE_6M', '19.5')),
     }
+
+    # Akıllı Fiş & Fatura Okuma (Gemini Vision AI) Ayarları
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
+    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash').strip() or 'gemini-2.5-flash'
+    RECEIPT_SCAN_TIMEOUT = int(os.getenv('RECEIPT_SCAN_TIMEOUT', '25'))
+
+    # Supabase / PostgreSQL Bağlantı Adresi (Tanımlıysa birincil motor PostgreSQL olur)
+    DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 
     # MSSQL Database Settings (Windows Trusted Auth veya Bulut/Linux SQL Auth destekli)
     DB_DRIVER = os.getenv('DB_DRIVER', '{ODBC Driver 17 for SQL Server}')
@@ -45,6 +64,97 @@ class Config:
         r'.\SQLEXPRESS',
         r'(localdb)\MSSQLLocalDB',
     ]
+
+    @classmethod
+    def normalize_database_url(cls, raw_url=None):
+        """
+        Supabase / PostgreSQL DATABASE_URL değerini normalize eder:
+        - postgres:// önekini postgresql:// olarak dönüştürür.
+        - sslmode parametresi yoksa sslmode=require ekler.
+        """
+        url = (cls.DATABASE_URL if raw_url is None else raw_url) or ''
+        url = str(url).strip()
+        if not url:
+            return ''
+        if url.startswith('postgres://'):
+            url = 'postgresql://' + url[len('postgres://'):]
+        if 'sslmode=' not in url.lower():
+            sep = '&' if '?' in url else '?'
+            url = f"{url}{sep}sslmode=require"
+        return url
+
+    @classmethod
+    def get_database_url(cls):
+        return cls.normalize_database_url(cls.DATABASE_URL)
+
+    @classmethod
+    def is_vercel(cls):
+        """Vercel Serverless çalışma ortamında olup olmadığını döner."""
+        return bool(
+            os.getenv('VERCEL', '').strip()
+            or os.getenv('VERCEL_ENV', '').strip()
+            or cls.VERCEL
+            or cls.VERCEL_ENV
+        )
+
+    @classmethod
+    def is_production(cls):
+        """VERCEL_ENV=production veya FLASK_ENV=production durumunu döner."""
+        vercel_env = os.getenv('VERCEL_ENV', cls.VERCEL_ENV or '').strip().lower()
+        flask_env = os.getenv('FLASK_ENV', cls.FLASK_ENV or '').strip().lower()
+        return vercel_env == 'production' or flask_env == 'production'
+
+    @classmethod
+    def get_secret_key(cls):
+        """Ortam değişkenlerinden (SECRET_KEY / FLASK_SECRET_KEY) gizli anahtarı okur."""
+        return (
+            os.getenv('SECRET_KEY')
+            or os.getenv('FLASK_SECRET_KEY')
+            or cls.SECRET_KEY
+        )
+
+    @classmethod
+    def is_auto_login_enabled(cls):
+        """Production ortamında ALLOW_AUTO_LOGIN varsayılan olarak kapalıdır."""
+        if cls.is_production():
+            return False
+        raw = os.getenv('ALLOW_AUTO_LOGIN')
+        if raw is not None:
+            return raw.strip().lower() in ('1', 'true', 'yes')
+        return bool(cls.ALLOW_AUTO_LOGIN)
+
+    @classmethod
+    def resolve_upload_folder(cls, app_root_path=None):
+        """
+        Vercel veya salt-okunur dosya sistemi algılandığında /tmp/moneta_uploads dizinine yönlendirir.
+        Dizin oluşturma hatalarını (OSError) yakalayarak uygulama açılış çökmesini önler.
+        """
+        if cls.is_vercel():
+            target = cls.TEMP_UPLOAD_FOLDER
+            try:
+                os.makedirs(target, exist_ok=True)
+            except OSError:
+                pass
+            return target
+
+        base_root = app_root_path or os.path.dirname(os.path.abspath(__file__))
+        local_target = os.path.join(base_root, 'uploads', 'receipts')
+        try:
+            os.makedirs(local_target, exist_ok=True)
+            if not os.access(local_target, os.W_OK):
+                raise OSError(f"Upload dizini yazılabilir değil: {local_target}")
+            return local_target
+        except OSError:
+            fallback = cls.TEMP_UPLOAD_FOLDER
+            try:
+                os.makedirs(fallback, exist_ok=True)
+            except OSError:
+                pass
+            return fallback
+
+    @classmethod
+    def is_postgres(cls):
+        return bool(cls.get_database_url())
 
     @classmethod
     def get_candidate_servers(cls):
