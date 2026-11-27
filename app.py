@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import time
 import urllib.request
+from urllib.parse import parse_qsl, urlencode, unquote, urlsplit
 import re
 import io
 import calendar
@@ -106,6 +107,96 @@ app.config['SESSION_COOKIE_HTTPONLY'] = Config.SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = Config.SESSION_COOKIE_SAMESITE
 app.config['SESSION_COOKIE_SECURE'] = Config.SESSION_COOKIE_SECURE
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+
+
+class VercelPathRestoreMiddleware:
+    """
+    Vercel Flask preset veya routes/rewrites sonrası PATH_INFO '/api/index(.py)' olarak
+    geldiğinde gerçek istek yolunu query parametresi veya Vercel başlıklarından geri yükler.
+    """
+
+    _FUNCTION_PREFIXES = ('/api/index.py', '/api/index')
+    _FALLBACK_HEADERS = (
+        'HTTP_X_VERCEL_ORIGINAL_URL',
+        'HTTP_X_FORWARDED_URI',
+        'HTTP_X_INVOKE_PATH',
+        'HTTP_X_ORIGINAL_URL',
+        'REQUEST_URI',
+        'RAW_URI',
+    )
+
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    @classmethod
+    def _is_function_path(cls, path: str) -> bool:
+        p = str(path or '')
+        return any(p == pref or p.startswith(pref + '/') for pref in cls._FUNCTION_PREFIXES)
+
+    @staticmethod
+    def _extract_clean_path(raw_value: str) -> tuple:
+        raw = str(raw_value or '').strip()
+        if not raw:
+            return '/', ''
+        parts = urlsplit(raw)
+        clean_path = unquote(parts.path or '').strip()
+        if not clean_path:
+            clean_path = '/'
+        else:
+            clean_path = '/' + clean_path.lstrip('/')
+        return clean_path, parts.query or ''
+
+    def __call__(self, environ, start_response):
+        qs = environ.get('QUERY_STRING', '') or ''
+        vercel_path = None
+        if qs:
+            pairs = parse_qsl(qs, keep_blank_values=True)
+            remaining = []
+            for key, value in pairs:
+                if key == '__vercel_path' and vercel_path is None:
+                    vercel_path = value
+                elif key != '__vercel_path':
+                    remaining.append((key, value))
+            if vercel_path is not None:
+                environ['QUERY_STRING'] = urlencode(remaining, doseq=True)
+
+        if self._is_function_path(environ.get('SCRIPT_NAME', '')):
+            environ['SCRIPT_NAME'] = ''
+
+        current_path = environ.get('PATH_INFO', '') or ''
+        if vercel_path is not None:
+            restored_path, extra_qs = self._extract_clean_path(vercel_path)
+            environ['PATH_INFO'] = restored_path
+            if extra_qs and not environ.get('QUERY_STRING'):
+                cleaned = [
+                    (k, v)
+                    for k, v in parse_qsl(extra_qs, keep_blank_values=True)
+                    if k != '__vercel_path'
+                ]
+                environ['QUERY_STRING'] = urlencode(cleaned, doseq=True)
+        elif self._is_function_path(current_path):
+            restored = None
+            for header_key in self._FALLBACK_HEADERS:
+                hdr_val = environ.get(header_key)
+                if not hdr_val:
+                    continue
+                candidate_path, hdr_qs = self._extract_clean_path(hdr_val)
+                if not self._is_function_path(candidate_path):
+                    restored = candidate_path
+                    if hdr_qs and not environ.get('QUERY_STRING'):
+                        cleaned = [
+                            (k, v)
+                            for k, v in parse_qsl(hdr_qs, keep_blank_values=True)
+                            if k != '__vercel_path'
+                        ]
+                        environ['QUERY_STRING'] = urlencode(cleaned, doseq=True)
+                    break
+            environ['PATH_INFO'] = restored or '/'
+
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = VercelPathRestoreMiddleware(app.wsgi_app)
 
 if Config.is_production() and app.secret_key == 'super_secret_moneta_key_change_in_production':
     print("[UYARI] Canlı ortamda (production) varsayılan SECRET_KEY kullanılıyor! Güvenlik için ortam değişkeni üzerinden güçlü bir anahtar tanımlayın.")

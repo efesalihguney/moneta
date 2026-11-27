@@ -1284,21 +1284,20 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         self.assertTrue(hasattr(module, 'app'))
         self.assertIs(module.app, app)
 
-        # 2. vercel.json geçerlilik ve yönlendirme doğrulaması
+        # 2. vercel.json geçerlilik ve v2 routes yönlendirme doğrulaması
         vercel_json_path = os.path.join(root_dir, 'vercel.json')
         self.assertTrue(os.path.isfile(vercel_json_path), 'vercel.json bulunamadı.')
         with open(vercel_json_path, 'r', encoding='utf-8') as f:
             vcfg = json.load(f)
-        self.assertIn('functions', vcfg)
-        self.assertIn('api/index.py', vcfg['functions'])
-        self.assertIn('rewrites', vcfg)
+        self.assertEqual(vcfg.get('version'), 2)
+        self.assertIn('routes', vcfg)
         self.assertTrue(
-            any(r.get('source') == '/static/(.*)' and r.get('destination') == '/static/$1' for r in vcfg['rewrites']),
-            'vercel.json rewrites içinde /static/(.*) kuralı eksik.',
+            any(r.get('src') == '/static/(.*)' and r.get('dest') == '/static/$1' for r in vcfg['routes']),
+            'vercel.json routes içinde /static/(.*) kuralı eksik.',
         )
         self.assertTrue(
-            any(r.get('destination') == '/api/index.py?__vercel_path=/$1' for r in vcfg['rewrites']),
-            'vercel.json rewrites içinde /api/index.py?__vercel_path=/$1 hedefi eksik.',
+            any(r.get('src') == '/(.*)' and r.get('dest') == '/api/index.py' for r in vcfg['routes']),
+            'vercel.json routes içinde /api/index.py hedefi eksik.',
         )
 
         # 3. .vercelignore ve requirements.txt doğrulaması
@@ -1447,6 +1446,41 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         tpl_404 = os.path.join(root_dir, 'templates', '404.html')
         with open(tpl_404, 'r', encoding='utf-8') as f:
             self.assertIn("url_for('index')", f.read())
+
+    def test_direct_app_wsgi_restores_path_from_vercel_headers_and_full_url(self):
+        """Doğrudan app.py üzerinden yüklenen app, Vercel başlıkları ve tam URL değerlerinden gerçek PATH_INFO'yu kurtarmalı."""
+        from app import app as direct_app, VercelPathRestoreMiddleware
+
+        self.assertIsInstance(direct_app.wsgi_app, VercelPathRestoreMiddleware)
+        direct_app.config['TESTING'] = True
+        client = direct_app.test_client()
+
+        # 1. PATH_INFO='/api/index.py' + HTTP_X_VERCEL_ORIGINAL_URL='/register' -> 200 OK
+        res_register = client.get(
+            '/api/index.py',
+            environ_base={'HTTP_X_VERCEL_ORIGINAL_URL': '/register'},
+        )
+        self.assertEqual(res_register.status_code, 200)
+
+        # 2. PATH_INFO='/api/index.py' + tam URL içeren HTTP_X_FORWARDED_URI -> /login (200 OK)
+        res_login = client.get(
+            '/api/index.py',
+            environ_base={'HTTP_X_FORWARDED_URI': 'https://moneta.vercel.app/login'},
+        )
+        self.assertEqual(res_login.status_code, 200)
+
+        # 3. PATH_INFO='/api/index.py' + HTTP_X_INVOKE_PATH='/health' -> 200 OK
+        res_health = client.get(
+            '/api/index.py',
+            environ_base={'HTTP_X_INVOKE_PATH': '/health'},
+        )
+        self.assertEqual(res_health.status_code, 200)
+        self.assertEqual(res_health.get_json()['status'], 'ok')
+
+        # 4. PATH_INFO='/api/index.py' + başlıksız -> '/' (girişsiz kullanıcıyı /login'e 302 yönlendirir, 404 dönmez)
+        res_root = client.get('/api/index.py', follow_redirects=False)
+        self.assertEqual(res_root.status_code, 302)
+        self.assertIn('/login', res_root.headers.get('Location', ''))
 
 
 if __name__ == '__main__':
