@@ -10,6 +10,8 @@ import re
 import io
 import calendar
 import os
+import sys
+import traceback
 import hmac
 import secrets
 import uuid
@@ -340,7 +342,8 @@ def payload_too_large(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    print(f"[Moneta Safe Isolation 500]: {e}")
+    tb = traceback.format_exc()
+    print(f"[Moneta Safe Isolation 500]: {e}\n{tb}", file=sys.stderr, flush=True)
     return render_template('500.html'), 500
 
 
@@ -477,11 +480,13 @@ def get_benchmark_returns():
         '6M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_defaults['6M']}
     }
     try:
+        if yf is None:
+            raise RuntimeError("yfinance module unavailable")
         bist_hist = yf.Ticker('XU100.IS').history(period='6mo')
         usd_hist = yf.Ticker('USDTRY=X').history(period='6mo')
         gold_hist = yf.Ticker('GC=F').history(period='6mo')
 
-        if not bist_hist.empty and len(bist_hist) > 5:
+        if bist_hist is not None and not bist_hist.empty and len(bist_hist) > 5:
             b_now = bist_hist['Close'].iloc[-1]
             if len(bist_hist) >= 21:
                 results['1M']['bist'] = round(float((b_now - bist_hist['Close'].iloc[-21]) / bist_hist['Close'].iloc[-21] * 100), 1)
@@ -747,8 +752,10 @@ def get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, s
     # 1. Yaklaşan / Vadesi Dolmuş Faturalar
     if subscriptions:
         for sub in subscriptions:
-            sub_id, sub_name, sub_amount = sub[0], sub[1], float(sub[2])
+            sub_id, sub_name, sub_amount = sub[0], sub[1], float(sub[2] or 0.0)
             days_left = sub[5]
+            if days_left is None:
+                continue
             if days_left <= 0:
                 notifications.append({
                     'id': f'sub_{sub_id}',
@@ -878,6 +885,8 @@ def get_usdtry_rate():
     if cached and (now - cached[1] < CACHE_TTL):
         return cached[0]
     try:
+        if yf is None:
+            return None
         t_usd = yf.Ticker('USDTRY=X')
         p_usd = t_usd.fast_info.get('lastPrice')
         if p_usd and float(p_usd) > 0:
@@ -1490,13 +1499,16 @@ def dashboard():
         total_portfolio_cost = 0.0
 
         unique_pairs = list({(a[1], a[2]) for a in assets_raw})
-        if len(unique_pairs) > 1:
-            with ThreadPoolExecutor(max_workers=min(6, len(unique_pairs))) as pool:
-                price_map = dict(zip(unique_pairs, pool.map(lambda p: fetch_live_price(p[0], p[1]), unique_pairs)))
-        elif len(unique_pairs) == 1:
-            p0 = unique_pairs[0]
-            price_map = {p0: fetch_live_price(p0[0], p0[1])}
-        else:
+        price_map = {}
+        try:
+            if len(unique_pairs) > 1:
+                with ThreadPoolExecutor(max_workers=min(6, len(unique_pairs))) as pool:
+                    price_map = dict(zip(unique_pairs, pool.map(lambda p: fetch_live_price(p[0], p[1]), unique_pairs)))
+            elif len(unique_pairs) == 1:
+                p0 = unique_pairs[0]
+                price_map = {p0: fetch_live_price(p0[0], p0[1])}
+        except Exception as price_err:
+            print(f"[Dashboard Live Price Fallback]: {price_err}", file=sys.stderr, flush=True)
             price_map = {}
 
         for a in assets_raw:
@@ -1731,8 +1743,10 @@ def dashboard():
         smart_alerts = []
         for sub in subscriptions:
             days_left = sub[5]
+            if days_left is None:
+                continue
             sub_title = sub[1]
-            sub_amt = float(sub[2])
+            sub_amt = float(sub[2] or 0.0)
             formatted_sub_amt = currency_tr_filter(sub_amt)
             if days_left < 0:
                 smart_alerts.append({
@@ -1811,8 +1825,16 @@ def dashboard():
     savings_rate = round((net_savings / total_income * 100), 1) if total_income > 0 else 0.0
 
     # 12. Piyasa Benchmark & Fisher Denklemi ile Enflasyona Karşı Reel Getiri Analizi
-    benchmark_data = get_benchmark_returns()
     tufe_rates = Config.TUFE_RATES
+    try:
+        benchmark_data = get_benchmark_returns()
+    except Exception as bench_err:
+        print(f"[Dashboard Benchmark Fallback]: {bench_err}", file=sys.stderr, flush=True)
+        benchmark_data = {
+            '1M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_rates['1M']},
+            '3M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_rates['3M']},
+            '6M': {'bist': 0.0, 'usd': 0.0, 'gold': 0.0, 'tufe': tufe_rates['6M']},
+        }
     period_labels = {'1M': '1 Aylık', '3M': '3 Aylık', '6M': '6 Aylık'}
     nom = total_portfolio_pnl_pct
 
@@ -1845,7 +1867,11 @@ def dashboard():
     notifications = get_in_app_notifications(subscriptions, category_budgets, total_unpaid_cc, savings_goals, total_portfolio_pnl_pct)
     notification_count = len(notifications)
 
-    usd_try_rate = round(get_effective_usdtry_rate(), 2)
+    try:
+        usd_try_rate = round(float(get_effective_usdtry_rate()), 2)
+    except Exception as fx_err:
+        print(f"[Dashboard FX Fallback]: {fx_err}", file=sys.stderr, flush=True)
+        usd_try_rate = round(float(Config.DEFAULT_USD_TRY_FALLBACK), 2)
 
     return render_template(
         'dashboard.html',
@@ -1930,6 +1956,8 @@ TROY_OUNCE_GRAMS = 31.1035
 def _fetch_last_two_closes(symbol):
     """Bir sembolün son iki geçerli kapanışını (son fiyat, önceki kapanış) döner; hata halinde None."""
     try:
+        if yf is None:
+            return None
         hist = yf.Ticker(symbol).history(period='5d', interval='1d', timeout=8)
         closes = hist['Close'].dropna() if hist is not None and not hist.empty else None
         if closes is None or len(closes) < 2:

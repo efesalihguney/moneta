@@ -1359,6 +1359,127 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             self.assertNotIn('SuperSecret123', data_err['db_error'])
             self.assertNotIn('TopSecretPwd', data_err['db_error'])
 
+    def test_pg_cursor_wrapper_converts_decimal_to_float_and_extended_tsql(self):
+        """PgCursorWrapper Decimal sütunları float'a çevirmeli; DATEADD/DATEPART/CONVERT/DISTINCT TOP dönüşümleri çalışmalı."""
+        from decimal import Decimal
+        from db import PgCursorWrapper, translate_tsql_to_postgres
+
+        raw_cur = mock.MagicMock()
+        raw_cur.fetchone.return_value = (1, 'Kira', Decimal('15000.50'), None, True)
+        raw_cur.fetchall.return_value = [
+            (1, Decimal('100.25'), Decimal('0.00')),
+            (2, Decimal('250.75'), 'nakit'),
+        ]
+        raw_cur.fetchmany.return_value = [(3, Decimal('99.90'))]
+        raw_cur.__iter__.return_value = iter([(4, Decimal('42.50'))])
+
+        wrapped = PgCursorWrapper(raw_cur)
+        row1 = wrapped.fetchone()
+        self.assertEqual(row1, (1, 'Kira', 15000.5, None, True))
+        self.assertIsInstance(row1[2], float)
+
+        rows_all = wrapped.fetchall()
+        self.assertIsInstance(rows_all[0][1], float)
+        self.assertIsInstance(rows_all[0][2], float)
+        self.assertEqual(rows_all[1][1], 250.75)
+
+        rows_many = wrapped.fetchmany(1)
+        self.assertIsInstance(rows_many[0][1], float)
+        self.assertEqual(rows_many[0][1], 99.9)
+
+        iter_rows = list(wrapped)
+        self.assertIsInstance(iter_rows[0][1], float)
+        self.assertEqual(iter_rows[0][1], 42.5)
+
+        # Genişletilmiş T-SQL dönüşüm kontrolleri
+        pg_q = translate_tsql_to_postgres(
+            "SELECT DISTINCT TOP 10 DATEPART(year, transaction_date), CONVERT(DATE, created_at) "
+            "FROM transactions WHERE is_paid != 0 AND created_at >= DATEADD(day, -30, GETDATE())",
+            has_params=False,
+        )
+        self.assertIn('SELECT DISTINCT', pg_q)
+        self.assertTrue(pg_q.endswith('LIMIT 10'))
+        self.assertIn('EXTRACT(year FROM transaction_date)::INT', pg_q)
+        self.assertIn('(created_at)::date', pg_q)
+        self.assertIn('is_paid != FALSE', pg_q)
+        self.assertIn('interval', pg_q.lower())
+
+    def test_e2e_register_login_and_dashboard_render_200(self):
+        """Uçtan uca Kayıt -> Giriş -> /dashboard akışı (Supabase/PostgreSQL ve harici API hatasında bile) 200 OK dönmeli."""
+        import uuid as _uuid
+
+        app.config['TESTING'] = True
+        app.config['CSRF_ENABLED_IN_TESTS'] = False
+        client = app.test_client()
+
+        suffix = _uuid.uuid4().hex[:10]
+        test_user = f"e2e_user_{suffix}"
+        test_email = f"{test_user}@moneta.test"
+        test_pass = "MonetaTest!2026"
+        created_user_id = None
+
+        try:
+            # 1. Kayıt (POST /register)
+            res_reg = client.post(
+                '/register',
+                data={
+                    'username': test_user,
+                    'email': test_email,
+                    'password': test_pass,
+                    'confirm_password': test_pass,
+                    'first_name': 'E2E',
+                    'last_name': 'Tester',
+                },
+                follow_redirects=False,
+            )
+            self.assertIn(res_reg.status_code, (200, 302))
+
+            # Kullanıcının DB'de oluştuğunu doğrula
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT id FROM users WHERE username = ?", (test_user,))
+                row = cursor.fetchone()
+                self.assertIsNotNone(row, "Yeni kayıt olan kullanıcı veritabanında bulunamadı.")
+                created_user_id = row[0]
+            finally:
+                cursor.close()
+                conn.close()
+
+            # 2. Giriş (POST /login)
+            res_login = client.post(
+                '/login',
+                data={'login_identifier': test_user, 'password': test_pass},
+                follow_redirects=False,
+            )
+            self.assertEqual(res_login.status_code, 302)
+            self.assertIn('/dashboard', res_login.headers.get('Location', ''))
+
+            # 3. /dashboard tam sayfa render (harici benchmark & kur servisi çökse bile 200 OK)
+            with mock.patch('app.get_benchmark_returns', side_effect=RuntimeError('Simulated yfinance outage')):
+                with mock.patch('app.get_effective_usdtry_rate', side_effect=RuntimeError('Simulated FX outage')):
+                    res_dash = client.get('/dashboard')
+            self.assertEqual(res_dash.status_code, 200)
+            html = res_dash.get_data(as_text=True)
+            self.assertIn('Moneta', html)
+        finally:
+            if created_user_id is not None:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("DELETE FROM asset_transactions WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM portfolio_assets WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM transactions WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM recurring_transactions WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM subscriptions WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM savings_goals WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM categories WHERE user_id = ?", (created_user_id,))
+                    cursor.execute("DELETE FROM users WHERE id = ?", (created_user_id,))
+                    conn.commit()
+                finally:
+                    cursor.close()
+                    conn.close()
+
 
 if __name__ == '__main__':
     unittest.main()

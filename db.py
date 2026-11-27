@@ -5,6 +5,7 @@ Moneta Çift Motorlu (Dual-Engine) Veritabanı Katmanı
 """
 
 import re
+from decimal import Decimal
 from config import Config
 
 try:
@@ -152,7 +153,19 @@ def translate_tsql_to_postgres(sql: str, has_params: bool = True) -> str:
         flags=re.IGNORECASE,
     )
 
-    # 4. MONTH(expr) ve YEAR(expr)
+    # 3b. DATEADD(day|month|year, N, expr) -> ((expr)::date + (N || ' unit')::interval)
+    q = re.sub(
+        r'DATEADD\s*\(\s*(day|month|year)\s*,\s*([^,]+?)\s*,\s*([^)]+?)\s*\)',
+        r"((\3)::timestamp + ((\2)::text || ' \1')::interval)",
+        q,
+        flags=re.IGNORECASE,
+    )
+
+    # 3c. CONVERT(DATE, expr) -> (expr)::date
+    q = re.sub(r'\bCONVERT\s*\(\s*DATE\s*,\s*([^)]+?)\s*\)', r'(\1)::date', q, flags=re.IGNORECASE)
+
+    # 4. MONTH(expr), YEAR(expr) ve DATEPART(year|month|day, expr)
+    q = re.sub(r'\bDATEPART\s*\(\s*(year|month|day)\s*,\s*([^)]+?)\s*\)', r'EXTRACT(\1 FROM \2)::INT', q, flags=re.IGNORECASE)
     q = re.sub(r'\bMONTH\s*\(\s*([^)]+?)\s*\)', r'EXTRACT(MONTH FROM \1)::INT', q, flags=re.IGNORECASE)
     q = re.sub(r'\bYEAR\s*\(\s*([^)]+?)\s*\)', r'EXTRACT(YEAR FROM \1)::INT', q, flags=re.IGNORECASE)
 
@@ -184,7 +197,9 @@ def translate_tsql_to_postgres(sql: str, has_params: bool = True) -> str:
         q,
         flags=re.IGNORECASE,
     )
-    # Doğrudan bool_col = 0/1 (WHERE ve SET ifadeleri)
+    # Doğrudan bool_col = / != / <> 0/1 (WHERE ve SET ifadeleri)
+    q = re.sub(rf'({_BOOL_COL_PATTERN})\s*(!=|<>)\s*0\b', r'\1 \2 FALSE', q, flags=re.IGNORECASE)
+    q = re.sub(rf'({_BOOL_COL_PATTERN})\s*(!=|<>)\s*1\b', r'\1 \2 TRUE', q, flags=re.IGNORECASE)
     q = re.sub(rf'({_BOOL_COL_PATTERN})\s*=\s*0\b', r'\1 = FALSE', q, flags=re.IGNORECASE)
     q = re.sub(rf'({_BOOL_COL_PATTERN})\s*=\s*1\b', r'\1 = TRUE', q, flags=re.IGNORECASE)
 
@@ -196,12 +211,13 @@ def translate_tsql_to_postgres(sql: str, has_params: bool = True) -> str:
     # 7. INSERT içindeki boolean 0/1 sabitleri
     q = _convert_insert_bool_literals(q)
 
-    # 8. SELECT TOP N ... -> SELECT ... LIMIT N
-    top_match = re.match(r'^SELECT\s+TOP\s+(\d+)\s+(.+)$', q, flags=re.IGNORECASE | re.DOTALL)
+    # 8. SELECT [DISTINCT] TOP N ... -> SELECT [DISTINCT] ... LIMIT N
+    top_match = re.match(r'^SELECT\s+(DISTINCT\s+)?TOP\s+(\d+)\s+(.+)$', q, flags=re.IGNORECASE | re.DOTALL)
     if top_match:
-        limit_n = top_match.group(1)
-        rest = top_match.group(2).rstrip().rstrip(';')
-        q = f"SELECT {rest} LIMIT {limit_n}"
+        distinct_kw = top_match.group(1) or ''
+        limit_n = top_match.group(2)
+        rest = top_match.group(3).rstrip().rstrip(';')
+        q = f"SELECT {distinct_kw}{rest} LIMIT {limit_n}"
 
     # 9. Parametre yer tutucuları (? -> %s)
     q = _replace_qmark_outside_quotes(q, has_params=has_params)
@@ -246,6 +262,17 @@ def _adapt_params_for_pg(original_sql: str, params):
     return tuple(params_list)
 
 
+def _convert_pg_row(row):
+    """psycopg2 NUMERIC/DECIMAL sütunlarından gelen Decimal nesnelerini otomatik olarak float'a dönüştürür."""
+    if row is None:
+        return None
+    if isinstance(row, tuple):
+        return tuple(float(v) if isinstance(v, Decimal) else v for v in row)
+    if isinstance(row, list):
+        return [float(v) if isinstance(v, Decimal) else v for v in row]
+    return row
+
+
 class PgCursorWrapper:
     """psycopg2 imlecini pyodbc imleç arayüzüyle %100 uyumlu hale getiren sarmalayıcı."""
 
@@ -269,10 +296,15 @@ class PgCursorWrapper:
         return self
 
     def fetchone(self):
-        return self._cursor.fetchone()
+        return _convert_pg_row(self._cursor.fetchone())
 
     def fetchall(self):
-        return self._cursor.fetchall()
+        rows = self._cursor.fetchall()
+        return [_convert_pg_row(r) for r in rows]
+
+    def fetchmany(self, size=None):
+        rows = self._cursor.fetchmany(size) if size is not None else self._cursor.fetchmany()
+        return [_convert_pg_row(r) for r in rows]
 
     def close(self):
         return self._cursor.close()
@@ -286,7 +318,8 @@ class PgCursorWrapper:
         return self._cursor.rowcount
 
     def __iter__(self):
-        return iter(self._cursor)
+        for row in self._cursor:
+            yield _convert_pg_row(row)
 
 
 class PgConnectionWrapper:
