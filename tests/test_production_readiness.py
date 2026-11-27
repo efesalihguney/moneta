@@ -1498,5 +1498,110 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
                     conn.close()
 
 
+class TestPhase0SecurityHardening(unittest.TestCase):
+    """Faz 0: Zorunlu SECRET_KEY, üretim çerez bayrakları ve Gemini demo modu uyarı testleri."""
+
+    def test_production_missing_secret_key_raises_runtime_error(self):
+        """VERCEL veya FLASK_ENV=production ortamında SECRET_KEY yoksa RuntimeError fırlatılmalı."""
+        from config import Config
+
+        for prod_env in (
+            {'VERCEL': '1', 'FLASK_ENV': 'development', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': ''},
+            {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'production', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': ''},
+        ):
+            with mock.patch.dict(os.environ, prod_env, clear=False):
+                with self.assertRaises(RuntimeError):
+                    Config.get_secret_key()
+
+    def test_production_weak_or_short_secret_key_raises_runtime_error(self):
+        """Üretimde <32 karakter veya bilinen zayıf SECRET_KEY değerleri RuntimeError fırlatmalı; dev ortamında geçici anahtar üretilmeli."""
+        from config import Config
+
+        weak_candidates = [
+            'too_short_key_12345',
+            'super_secret_moneta_key_change_in_production',
+            'change_this_to_a_secure_random_string_in_production',
+            'moneta_production_secret_key_2026',
+            'please_change_this_custom_secret_key_value_2026_abcd',
+        ]
+        for weak in weak_candidates:
+            with mock.patch.dict(
+                os.environ,
+                {'VERCEL': '1', 'SECRET_KEY': weak, 'FLASK_SECRET_KEY': ''},
+                clear=False,
+            ):
+                with self.assertRaises(RuntimeError, msg=f"Zayıf anahtar reddedilmedi: {weak}"):
+                    Config.get_secret_key()
+
+        strong_key = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'
+        with mock.patch.dict(
+            os.environ,
+            {'VERCEL': '1', 'SECRET_KEY': strong_key, 'FLASK_SECRET_KEY': ''},
+            clear=False,
+        ):
+            self.assertEqual(Config.get_secret_key(), strong_key)
+
+        # Geliştirme ortamında anahtar boşsa süreç başına 64 karakterlik hex anahtar üretilmeli
+        orig_ephemeral = Config._DEV_EPHEMERAL_SECRET_KEY
+        try:
+            Config._DEV_EPHEMERAL_SECRET_KEY = None
+            with mock.patch.dict(
+                os.environ,
+                {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'development', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': ''},
+                clear=False,
+            ):
+                dev_key = Config.get_secret_key()
+                self.assertEqual(len(dev_key), 64)
+                self.assertEqual(Config.get_secret_key(), dev_key)
+        finally:
+            Config._DEV_EPHEMERAL_SECRET_KEY = orig_ephemeral
+
+    def test_session_cookie_secure_defaults_true_in_production_false_in_dev(self):
+        """Üretimde SESSION_COOKIE_SECURE varsayılan True, yerel geliştirmede False olmalı; HTTPONLY ve SAMESITE korunmalı."""
+        from config import Config
+
+        self.assertTrue(Config.SESSION_COOKIE_HTTPONLY)
+        self.assertEqual(Config.SESSION_COOKIE_SAMESITE, 'Lax')
+
+        with mock.patch.dict(
+            os.environ,
+            {'VERCEL': '1', 'FLASK_ENV': 'development', 'SESSION_COOKIE_SECURE': ''},
+            clear=False,
+        ):
+            self.assertTrue(Config.get_session_cookie_secure())
+
+        with mock.patch.dict(
+            os.environ,
+            {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'production', 'SESSION_COOKIE_SECURE': ''},
+            clear=False,
+        ):
+            self.assertTrue(Config.get_session_cookie_secure())
+
+        with mock.patch.dict(
+            os.environ,
+            {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'development', 'SESSION_COOKIE_SECURE': ''},
+            clear=False,
+        ):
+            self.assertFalse(Config.get_session_cookie_secure())
+
+    def test_gemini_paid_tier_confirmed_controls_demo_mode_warning(self):
+        """GEMINI_PAID_TIER_CONFIRMED != 'true' iken demo modu uyarısı görünmeli, 'true' iken gizlenmeli."""
+        app.config['TESTING'] = True
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'efoss13'
+
+        with mock.patch.dict(os.environ, {'GEMINI_PAID_TIER_CONFIRMED': 'false'}, clear=False):
+            res_demo = client.get('/dashboard')
+            self.assertEqual(res_demo.status_code, 200)
+            self.assertIn('Demo modu: gerçek fiş veya dekont yüklemeyin.', res_demo.get_data(as_text=True))
+
+        with mock.patch.dict(os.environ, {'GEMINI_PAID_TIER_CONFIRMED': 'true'}, clear=False):
+            res_paid = client.get('/dashboard')
+            self.assertEqual(res_paid.status_code, 200)
+            self.assertNotIn('Demo modu: gerçek fiş veya dekont yüklemeyin.', res_paid.get_data(as_text=True))
+
+
 if __name__ == '__main__':
     unittest.main()

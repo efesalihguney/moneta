@@ -1,22 +1,31 @@
 import os
+import secrets
 from urllib.parse import urlsplit
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (override stale OS/process values)
 load_dotenv(override=True)
 
+
 class Config:
     """Moneta application configuration."""
     VERCEL = os.getenv('VERCEL', '').strip()
     VERCEL_ENV = os.getenv('VERCEL_ENV', '').strip()
     FLASK_ENV = os.getenv('FLASK_ENV', 'development').strip()
-    _IS_PROD_STARTUP = (VERCEL_ENV.lower() == 'production') or (FLASK_ENV.lower() == 'production')
-
-    SECRET_KEY = (
-        os.getenv('SECRET_KEY')
-        or os.getenv('FLASK_SECRET_KEY')
-        or 'super_secret_moneta_key_change_in_production'
+    _IS_PROD_STARTUP = (
+        bool(VERCEL)
+        or (VERCEL_ENV.lower() == 'production')
+        or (FLASK_ENV.lower() == 'production')
     )
+
+    _KNOWN_WEAK_SECRET_KEYS = frozenset({
+        'super_secret_moneta_key_change_in_production',
+        'change_this_to_a_secure_random_string_in_production',
+        'moneta_production_secret_key_2026',
+    })
+    _DEV_EPHEMERAL_SECRET_KEY = None
+
+    SECRET_KEY = None  # Sınıf tanımı sonunda Config.get_secret_key() ile doğrulanarak atanır
     ALLOW_AUTO_LOGIN = False if _IS_PROD_STARTUP else (
         os.getenv('ALLOW_AUTO_LOGIN', '0').lower() in ('1', 'true', 'yes')
     )
@@ -26,7 +35,7 @@ class Config:
     # Session Cookie Security
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+    SESSION_COOKIE_SECURE = _IS_PROD_STARTUP
 
     # Merkezi Finansal Yedek Sabitleri
     DEFAULT_USD_TRY_FALLBACK = float(os.getenv('DEFAULT_USD_TRY_FALLBACK', '50.60'))
@@ -40,6 +49,7 @@ class Config:
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
     GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash').strip() or 'gemini-2.5-flash'
     RECEIPT_SCAN_TIMEOUT = int(os.getenv('RECEIPT_SCAN_TIMEOUT', '25'))
+    GEMINI_PAID_TIER_CONFIRMED = os.getenv('GEMINI_PAID_TIER_CONFIRMED', 'false').strip().lower() == 'true'
 
     # Supabase / PostgreSQL Bağlantı Adresi (Tanımlıysa birincil motor PostgreSQL olur)
     DATABASE_URL = os.getenv('DATABASE_URL', '').strip().strip('"').strip("'").strip()
@@ -113,19 +123,68 @@ class Config:
 
     @classmethod
     def is_production(cls):
-        """VERCEL_ENV=production veya FLASK_ENV=production durumunu döner."""
+        """Üretim ortamını tanır: VERCEL ortam değişkeni varsa veya FLASK_ENV=production (veya VERCEL_ENV=production) ise."""
+        has_vercel = bool(os.getenv('VERCEL', cls.VERCEL or '').strip())
         vercel_env = os.getenv('VERCEL_ENV', cls.VERCEL_ENV or '').strip().lower()
         flask_env = os.getenv('FLASK_ENV', cls.FLASK_ENV or '').strip().lower()
-        return vercel_env == 'production' or flask_env == 'production'
+        return has_vercel or vercel_env == 'production' or flask_env == 'production'
+
+    @classmethod
+    def is_weak_secret_key(cls, key: str) -> bool:
+        """Anahtarın eksik, 32 karakterden kısa veya bilinen zayıf örneklerden biri olup olmadığını denetler."""
+        cleaned = (key or '').strip()
+        if not cleaned or len(cleaned) < 32:
+            return True
+        lowered = cleaned.lower()
+        if 'change_this' in lowered:
+            return True
+        if lowered in {w.lower() for w in cls._KNOWN_WEAK_SECRET_KEYS}:
+            return True
+        return False
 
     @classmethod
     def get_secret_key(cls):
-        """Ortam değişkenlerinden (SECRET_KEY / FLASK_SECRET_KEY) gizli anahtarı okur."""
-        return (
-            os.getenv('SECRET_KEY')
-            or os.getenv('FLASK_SECRET_KEY')
-            or cls.SECRET_KEY
-        )
+        """
+        Ortam değişkenlerinden (SECRET_KEY / FLASK_SECRET_KEY) gizli anahtarı okur ve doğrular.
+        - Üretimde anahtar yoksa, <32 karakterse veya zayıf listedeyse RuntimeError fırlatır.
+        - Geliştirmede anahtar yoksa süreç başına rastgele secrets.token_hex(32) üretir ve uyarır.
+        """
+        raw_key = (os.getenv('SECRET_KEY') or os.getenv('FLASK_SECRET_KEY') or '').strip()
+        if cls.is_production():
+            if cls.is_weak_secret_key(raw_key):
+                raise RuntimeError(
+                    "Üretim ortamında güçlü bir FLASK_SECRET_KEY / SECRET_KEY zorunludur "
+                    "(en az 32 karakter, örnek/varsayılan değer içermeyen rastgele anahtar). "
+                    "Üretmek için: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
+            return raw_key
+
+        if not raw_key:
+            if not cls._DEV_EPHEMERAL_SECRET_KEY:
+                cls._DEV_EPHEMERAL_SECRET_KEY = secrets.token_hex(32)
+                print(
+                    "[UYARI] FLASK_SECRET_KEY tanımlı değil; geliştirme ortamı için süreç başına "
+                    "rastgele anahtar üretildi (oturumlar yeniden başlatmada sıfırlanır)."
+                )
+            return cls._DEV_EPHEMERAL_SECRET_KEY
+
+        return raw_key
+
+    @classmethod
+    def get_session_cookie_secure(cls) -> bool:
+        """Üretimde SESSION_COOKIE_SECURE varsayılan True, yerel HTTP geliştirmede False döner."""
+        raw = os.getenv('SESSION_COOKIE_SECURE')
+        if raw is not None and raw.strip() != '':
+            return raw.strip().lower() in ('1', 'true', 'yes')
+        return cls.is_production()
+
+    @classmethod
+    def is_gemini_paid_tier_confirmed(cls) -> bool:
+        """GEMINI_PAID_TIER_CONFIRMED ortam değişkeninin 'true' olup olmadığını döner."""
+        raw = os.getenv('GEMINI_PAID_TIER_CONFIRMED')
+        if raw is not None:
+            return raw.strip().lower() == 'true'
+        return bool(cls.GEMINI_PAID_TIER_CONFIRMED)
 
     @classmethod
     def is_auto_login_enabled(cls):
@@ -214,3 +273,7 @@ class Config:
             f"DATABASE={db_name};"
             f"{cls._auth_segment(include_trust_cert=False)}"
         )
+
+
+Config.SECRET_KEY = Config.get_secret_key()
+Config.SESSION_COOKIE_SECURE = Config.get_session_cookie_secure()

@@ -106,11 +106,15 @@ app = Flask(__name__)
 app.secret_key = Config.get_secret_key()
 app.config['SESSION_COOKIE_HTTPONLY'] = Config.SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = Config.SESSION_COOKIE_SAMESITE
-app.config['SESSION_COOKIE_SECURE'] = Config.SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_SECURE'] = Config.get_session_cookie_secure()
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
-if Config.is_production() and app.secret_key == 'super_secret_moneta_key_change_in_production':
-    print("[UYARI] Canlı ortamda (production) varsayılan SECRET_KEY kullanılıyor! Güvenlik için ortam değişkeni üzerinden güçlü bir anahtar tanımlayın.")
+
+@app.context_processor
+def inject_runtime_flags():
+    return {
+        'gemini_paid_tier_confirmed': Config.is_gemini_paid_tier_confirmed(),
+    }
 
 
 def generate_csrf_token():
