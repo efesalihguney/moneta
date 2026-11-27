@@ -1297,8 +1297,8 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             'vercel.json rewrites içinde /static/(.*) kuralı eksik.',
         )
         self.assertTrue(
-            any(r.get('destination') == '/api/index.py' for r in vcfg['rewrites']),
-            'vercel.json rewrites içinde /api/index.py hedefi eksik.',
+            any(r.get('destination') == '/api/index.py?__vercel_path=/$1' for r in vcfg['rewrites']),
+            'vercel.json rewrites içinde /api/index.py?__vercel_path=/$1 hedefi eksik.',
         )
 
         # 3. .vercelignore ve requirements.txt doğrulaması
@@ -1378,6 +1378,75 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             self.assertIsNotNone(data_err['db_error'])
             self.assertNotIn('SuperSecret123', data_err['db_error'])
             self.assertNotIn('TopSecretPwd', data_err['db_error'])
+
+    def test_vercel_path_restore_middleware_preserves_route_and_query(self):
+        """PATH_INFO='/api/index.py' ve __vercel_path query parametresiyle gerçek rota ve query parametreleri korunmalı."""
+        import importlib.util
+        from urllib.parse import parse_qs
+
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        entry_path = os.path.join(root_dir, 'api', 'index.py')
+        spec = importlib.util.spec_from_file_location('vercel_mw_index', entry_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        self.assertTrue(hasattr(module, 'handler'))
+        self.assertIs(module.handler, module.app)
+
+        # 1. İzole WSGI middleware birim testi
+        captured = {}
+
+        def fake_downstream(environ, start_response):
+            captured['PATH_INFO'] = environ.get('PATH_INFO')
+            captured['QUERY_STRING'] = environ.get('QUERY_STRING')
+            captured['SCRIPT_NAME'] = environ.get('SCRIPT_NAME')
+            start_response('200 OK', [('Content-Type', 'text/plain')])
+            return [b'ok']
+
+        mw = module.VercelPathRestoreMiddleware(fake_downstream)
+
+        # a) __vercel_path + ek query parametresi
+        env1 = {
+            'PATH_INFO': '/api/index.py',
+            'SCRIPT_NAME': '/api/index.py',
+            'QUERY_STRING': '__vercel_path=/login&next=/dashboard',
+        }
+        mw(env1, lambda status, headers: None)
+        self.assertEqual(captured['PATH_INFO'], '/login')
+        self.assertEqual(captured['SCRIPT_NAME'], '')
+        parsed_q = parse_qs(captured['QUERY_STRING'])
+        self.assertNotIn('__vercel_path', parsed_q)
+        self.assertEqual(parsed_q.get('next'), ['/dashboard'])
+
+        # b) Başlık yedeği (HTTP_X_VERCEL_ORIGINAL_URL)
+        env2 = {
+            'PATH_INFO': '/api/index.py',
+            'QUERY_STRING': '',
+            'HTTP_X_VERCEL_ORIGINAL_URL': '/health?probe=1',
+        }
+        mw(env2, lambda status, headers: None)
+        self.assertEqual(captured['PATH_INFO'], '/health')
+        self.assertEqual(parse_qs(captured['QUERY_STRING']).get('probe'), ['1'])
+
+        # c) Parametresiz /api/index -> '/'
+        env3 = {'PATH_INFO': '/api/index', 'QUERY_STRING': ''}
+        mw(env3, lambda status, headers: None)
+        self.assertEqual(captured['PATH_INFO'], '/')
+
+        # 2. Uçtan uca Flask test client doğrulaması (/login ve /health)
+        module.app.config['TESTING'] = True
+        client = module.app.test_client()
+        res_login = client.get('/api/index.py?__vercel_path=/login&next=/dashboard')
+        self.assertEqual(res_login.status_code, 200)
+
+        res_health = client.get('/api/index.py?__vercel_path=/health')
+        self.assertEqual(res_health.status_code, 200)
+        self.assertEqual(res_health.get_json()['status'], 'ok')
+
+        # 3. 404.html şablonu url_for('index') kullanmalı
+        tpl_404 = os.path.join(root_dir, 'templates', '404.html')
+        with open(tpl_404, 'r', encoding='utf-8') as f:
+            self.assertIn("url_for('index')", f.read())
 
 
 if __name__ == '__main__':

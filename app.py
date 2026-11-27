@@ -345,6 +345,7 @@ def internal_server_error(e):
 
 
 @app.route('/api/health', methods=['GET'])
+@app.route('/health', methods=['GET'])
 def api_health():
     """Hafif sistem ve veritabanı sağlık teşhis ucu (hassas bilgi sızdırmaz)."""
     engine = 'postgres' if is_postgres() else 'mssql'
