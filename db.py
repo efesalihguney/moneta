@@ -317,7 +317,7 @@ def get_db_connection(database=None, autocommit=False):
     if Config.is_postgres():
         if psycopg2 is None:
             raise RuntimeError("PostgreSQL bağlantısı için 'psycopg2-binary' paketi kurulu olmalıdır.")
-        db_url = Config.get_database_url()
+        db_url = Config.get_database_url().strip().strip('"').strip("'").strip()
         pg_conn = psycopg2.connect(db_url, connect_timeout=10)
         pg_conn.autocommit = autocommit
         return PgConnectionWrapper(pg_conn)

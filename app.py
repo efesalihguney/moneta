@@ -49,9 +49,40 @@ def _ensure_ascii_ca_bundle():
 
 _ensure_ascii_ca_bundle()
 
+
+def _configure_serverless_cache_env():
+    """Vercel / salt-okunur HOME ortamında kütüphane önbelleklerinin (yfinance vb.) /tmp altına yazılmasını sağlar."""
+    try:
+        is_serverless = bool(os.getenv('VERCEL') or os.getenv('VERCEL_ENV'))
+        home_dir = os.environ.get('HOME', '')
+        home_readonly = bool(home_dir) and (not os.access(home_dir, os.W_OK))
+        if is_serverless or (os.name != 'nt' and (not home_dir or home_readonly)):
+            os.environ['HOME'] = '/tmp'
+            os.environ['XDG_CACHE_HOME'] = '/tmp/.cache'
+            os.environ['TMPDIR'] = '/tmp'
+            for _d in ('/tmp/.cache', '/tmp/.cache/py-yfinance'):
+                try:
+                    os.makedirs(_d, exist_ok=True)
+                except OSError:
+                    pass
+    except Exception:
+        pass
+
+
+_configure_serverless_cache_env()
+
 import requests
 import pandas as pd
-import yfinance as yf
+try:
+    import yfinance as yf
+    if os.getenv('VERCEL') or os.getenv('VERCEL_ENV') or os.name != 'nt':
+        try:
+            yf.set_tz_cache_location('/tmp/.cache/py-yfinance')
+        except Exception:
+            pass
+except Exception as _yf_import_err:
+    print(f"[yfinance Import Warning]: {_yf_import_err}")
+    yf = None
 import xml.etree.ElementTree as ET
 from db import get_db_connection, is_postgres
 from config import Config
@@ -258,9 +289,10 @@ def ensure_schema_migrations():
                 pass
 
 try:
-    ensure_schema_migrations()
-except Exception:
-    pass
+    if not Config.is_vercel() and not is_postgres():
+        ensure_schema_migrations()
+except Exception as _mig_err:
+    print(f"[Startup Migration Skipped]: {_mig_err}")
 
 @app.template_filter('currency_tr')
 def currency_tr_filter(value, decimals=2):
@@ -310,6 +342,47 @@ def payload_too_large(e):
 def internal_server_error(e):
     print(f"[Moneta Safe Isolation 500]: {e}")
     return render_template('500.html'), 500
+
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    """Hafif sistem ve veritabanı sağlık teşhis ucu (hassas bilgi sızdırmaz)."""
+    engine = 'postgres' if is_postgres() else 'mssql'
+    db_connected = False
+    db_error = None
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        db_connected = True
+    except Exception as exc:
+        raw_msg = str(exc)
+        # Olası bağlantı dizgesi / şifre bilgisini maskele
+        sanitized = re.sub(r'://[^@\s]+@', '://***:***@', raw_msg)
+        sanitized = re.sub(r'(?i)(password|pwd)\s*=\s*[^\s;]+', r'\1=***', sanitized)
+        db_error = sanitized.strip().splitlines()[0][:200] if sanitized.strip() else exc.__class__.__name__
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    payload = {
+        'status': 'ok' if db_connected else 'degraded',
+        'db_engine': engine,
+        'db_connected': db_connected,
+        'db_error': db_error,
+    }
+    return payload, (200 if db_connected else 503)
 
 
 # --- FİŞ / MAKBUZ YÜKLEME AYARLARI (static/ dışında güvenli ve Serverless/Read-Only uyumlu depolama) ---

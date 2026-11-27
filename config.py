@@ -41,7 +41,7 @@ class Config:
     RECEIPT_SCAN_TIMEOUT = int(os.getenv('RECEIPT_SCAN_TIMEOUT', '25'))
 
     # Supabase / PostgreSQL Bağlantı Adresi (Tanımlıysa birincil motor PostgreSQL olur)
-    DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+    DATABASE_URL = os.getenv('DATABASE_URL', '').strip().strip('"').strip("'").strip()
 
     # MSSQL Database Settings (Windows Trusted Auth veya Bulut/Linux SQL Auth destekli)
     DB_DRIVER = os.getenv('DB_DRIVER', '{ODBC Driver 17 for SQL Server}')
@@ -73,7 +73,7 @@ class Config:
         - sslmode parametresi yoksa sslmode=require ekler.
         """
         url = (cls.DATABASE_URL if raw_url is None else raw_url) or ''
-        url = str(url).strip()
+        url = str(url).strip().strip('"').strip("'").strip()
         if not url:
             return ''
         if url.startswith('postgres://'):

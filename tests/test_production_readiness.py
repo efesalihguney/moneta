@@ -1293,6 +1293,10 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         self.assertIn('api/index.py', vcfg['functions'])
         self.assertIn('rewrites', vcfg)
         self.assertTrue(
+            any(r.get('source') == '/static/(.*)' and r.get('destination') == '/static/$1' for r in vcfg['rewrites']),
+            'vercel.json rewrites içinde /static/(.*) kuralı eksik.',
+        )
+        self.assertTrue(
             any(r.get('destination') == '/api/index.py' for r in vcfg['rewrites']),
             'vercel.json rewrites içinde /api/index.py hedefi eksik.',
         )
@@ -1310,6 +1314,70 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             req_text = f.read().lower()
         for pkg in ('flask', 'psycopg2-binary', 'python-dotenv', 'pypdf', 'werkzeug', 'requests'):
             self.assertIn(pkg, req_text, f"requirements.txt içinde eksik paket: {pkg}")
+
+    def test_api_index_cold_start_with_readonly_home(self):
+        """Salt-okunur HOME simülasyonu ile api/index.py cold-start import edildiğinde önbellekler /tmp altına yönlenmeli."""
+        import importlib.util
+        from config import Config
+
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        entry_path = os.path.join(root_dir, 'api', 'index.py')
+
+        # Tırnak ve boşluk içeren DATABASE_URL temizlenmeli
+        quoted_url = '  "postgres://user:pw@db.example.supabase.co:5432/postgres"  '
+        self.assertEqual(
+            Config.normalize_database_url(quoted_url),
+            'postgresql://user:pw@db.example.supabase.co:5432/postgres?sslmode=require',
+        )
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                'VERCEL': '1',
+                'HOME': '/home/sbx_readonly_user',
+                'XDG_CACHE_HOME': '/home/sbx_readonly_user/.cache',
+                'TMPDIR': '/home/sbx_readonly_user/tmp',
+            },
+            clear=False,
+        ):
+            with mock.patch('os.access', return_value=False):
+                with mock.patch('os.makedirs', side_effect=OSError('Read-only /tmp test guard')):
+                    spec = importlib.util.spec_from_file_location('vercel_cold_start_index', entry_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    self.assertEqual(os.environ['HOME'], '/tmp')
+                    self.assertEqual(os.environ['XDG_CACHE_HOME'], '/tmp/.cache')
+                    self.assertEqual(os.environ['TMPDIR'], '/tmp')
+                    self.assertIs(module.app, app)
+
+    def test_api_health_endpoint_ok_and_sanitized_error(self):
+        """/api/health sağlıklı durumda 200 ok, DB hatasında ise şifre sızdırmadan 503 degraded dönmeli."""
+        app.config['TESTING'] = True
+        client = app.test_client()
+
+        # 1. Normal bağlantı -> 200 OK
+        res_ok = client.get('/api/health')
+        self.assertEqual(res_ok.status_code, 200)
+        data_ok = res_ok.get_json()
+        self.assertEqual(data_ok['status'], 'ok')
+        self.assertIn(data_ok['db_engine'], ('postgres', 'mssql'))
+        self.assertTrue(data_ok['db_connected'])
+        self.assertIsNone(data_ok['db_error'])
+
+        # 2. DB bağlantı hatası -> 503 Degraded ve kimlik bilgileri maskelenmiş
+        with mock.patch(
+            'app.get_db_connection',
+            side_effect=RuntimeError('Connection failed: postgresql://admin:SuperSecret123@db.host:5432/postgres password=TopSecretPwd'),
+        ):
+            res_err = client.get('/api/health')
+            self.assertEqual(res_err.status_code, 503)
+            data_err = res_err.get_json()
+            self.assertEqual(data_err['status'], 'degraded')
+            self.assertFalse(data_err['db_connected'])
+            self.assertIsNotNone(data_err['db_error'])
+            self.assertNotIn('SuperSecret123', data_err['db_error'])
+            self.assertNotIn('TopSecretPwd', data_err['db_error'])
 
 
 if __name__ == '__main__':
