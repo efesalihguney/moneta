@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlsplit
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (override stale OS/process values)
@@ -86,6 +87,19 @@ class Config:
     @classmethod
     def get_database_url(cls):
         return cls.normalize_database_url(cls.DATABASE_URL)
+
+    @classmethod
+    def get_db_host_display(cls):
+        """Kimlik bilgisi (kullanıcı adı/şifre) sızdırmadan aktif veritabanı sunucusunu (host:port) döner."""
+        db_url = cls.get_database_url()
+        if db_url:
+            try:
+                parts = urlsplit(db_url)
+                if parts.hostname:
+                    return f"{parts.hostname}:{parts.port}" if parts.port else parts.hostname
+            except Exception:
+                return 'unknown'
+        return cls._resolved_server or cls.DB_SERVER or 'local'
 
     @classmethod
     def is_vercel(cls):

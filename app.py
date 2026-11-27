@@ -383,6 +383,7 @@ def api_health():
     payload = {
         'status': 'ok' if db_connected else 'degraded',
         'db_engine': engine,
+        'db_host': Config.get_db_host_display(),
         'db_connected': db_connected,
         'db_error': db_error,
     }

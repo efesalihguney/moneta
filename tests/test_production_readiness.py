@@ -1332,11 +1332,24 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             self.assertIn("url_for('index')", f.read())
 
     def test_api_health_endpoint_ok_and_sanitized_error(self):
-        """/api/health sağlıklı durumda 200 ok, DB hatasında ise şifre sızdırmadan 503 degraded dönmeli."""
+        """/api/health sağlıklı durumda 200 ok, DB hatasında ise şifre sızdırmadan 503 degraded ve güvenli db_host dönmeli."""
+        from config import Config
+
         app.config['TESTING'] = True
         client = app.test_client()
 
-        # 1. Normal bağlantı -> 200 OK
+        # 0. get_db_host_display kimlik bilgisini gizleyip yalnızca host:port dönmeli
+        orig_url = Config.DATABASE_URL
+        try:
+            Config.DATABASE_URL = 'postgresql://postgres.demo:VerySecretPwd@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres'
+            host_display = Config.get_db_host_display()
+            self.assertEqual(host_display, 'aws-1-ap-northeast-1.pooler.supabase.com:6543')
+            self.assertNotIn('VerySecretPwd', host_display)
+            self.assertNotIn('@', host_display)
+        finally:
+            Config.DATABASE_URL = orig_url
+
+        # 1. Normal bağlantı -> 200 OK ve db_host alanı mevcut
         res_ok = client.get('/api/health')
         self.assertEqual(res_ok.status_code, 200)
         data_ok = res_ok.get_json()
@@ -1344,6 +1357,8 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         self.assertIn(data_ok['db_engine'], ('postgres', 'mssql'))
         self.assertTrue(data_ok['db_connected'])
         self.assertIsNone(data_ok['db_error'])
+        self.assertTrue(data_ok.get('db_host'))
+        self.assertNotIn('@', data_ok['db_host'])
 
         # 2. DB bağlantı hatası -> 503 Degraded ve kimlik bilgileri maskelenmiş
         with mock.patch(
@@ -1355,6 +1370,8 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             data_err = res_err.get_json()
             self.assertEqual(data_err['status'], 'degraded')
             self.assertFalse(data_err['db_connected'])
+            self.assertTrue(data_err.get('db_host'))
+            self.assertNotIn('@', data_err['db_host'])
             self.assertIsNotNone(data_err['db_error'])
             self.assertNotIn('SuperSecret123', data_err['db_error'])
             self.assertNotIn('TopSecretPwd', data_err['db_error'])
