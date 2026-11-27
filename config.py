@@ -1,10 +1,112 @@
+import hashlib
 import os
+import re
 import secrets
-from urllib.parse import urlsplit
+from urllib.parse import unquote
 from dotenv import load_dotenv
 
 # Load environment variables from .env file (override stale OS/process values)
 load_dotenv(override=True)
+
+
+def _strip_wrapping_quotes_and_ws(value: str) -> str:
+    s = str(value or '').strip()
+    while len(s) >= 2 and ((s[0] == '"' and s[-1] == '"') or (s[0] == "'" and s[-1] == "'")):
+        s = s[1:-1].strip()
+    return s.strip(' \t\r\n"\'')
+
+
+def parse_postgres_url(raw_url: str) -> dict:
+    """
+    PostgreSQL / Supabase bağlantı adresini güvenli şekilde bileşenlerine ayırır.
+    - Baştaki/sondaki boşlukları, \\r, \\n ve tırnakları temizler.
+    - Yanlışlıkla yapışmış 'DATABASE_URL=' önekini kaldırır.
+    - Şema sonrasını sondan ilk '@' ile bölerek şifredeki '@', '?' ve '#' karakterlerini korur.
+    - Sonda kalan boş '?' veya '&' parametrelerini temizler; sslmode yoksa 'require' atar.
+    """
+    s = _strip_wrapping_quotes_and_ws(raw_url)
+    if not s:
+        return {}
+
+    s = re.sub(r'^\s*DATABASE_URL\s*=\s*', '', s, flags=re.IGNORECASE)
+    s = _strip_wrapping_quotes_and_ws(s)
+    # Satır içi kopyalama kaynaklı \r ve \n karakterlerini temizle
+    s = s.replace('\r', '').replace('\n', '').strip()
+    if not s:
+        return {}
+
+    m = re.match(r'^postgres(?:ql)?://(.*)$', s, flags=re.IGNORECASE)
+    if not m:
+        raise ValueError("Geçersiz PostgreSQL bağlantı şeması (postgres:// veya postgresql:// bekleniyor).")
+
+    remainder = m.group(1)
+    if '@' in remainder:
+        userinfo, host_and_rest = remainder.rsplit('@', 1)
+        if ':' in userinfo:
+            raw_user, raw_pass = userinfo.split(':', 1)
+            user = unquote(raw_user)
+            password = unquote(raw_pass)
+        else:
+            user = unquote(userinfo)
+            password = ''
+    else:
+        user = ''
+        password = ''
+        host_and_rest = remainder
+
+    # Host/path/query kısmındaki olası #fragment parçasını at
+    host_and_rest = host_and_rest.split('#', 1)[0]
+    host_path, _, query_str = host_and_rest.partition('?')
+    host_port, _, dbname_raw = host_path.partition('/')
+
+    dbname = unquote(dbname_raw.strip().strip('/')) or 'postgres'
+
+    host_port = host_port.strip()
+    port = 5432
+    if host_port.startswith('['):
+        # IPv6 [::1]:5432
+        end_bracket = host_port.find(']')
+        if end_bracket != -1:
+            host = host_port[1:end_bracket]
+            after = host_port[end_bracket + 1:].strip()
+            if after.startswith(':') and after[1:].strip():
+                port = int(after[1:].strip())
+        else:
+            host = host_port.strip('[]')
+    elif ':' in host_port:
+        h_part, p_part = host_port.rsplit(':', 1)
+        host = h_part.strip()
+        if p_part.strip():
+            port = int(p_part.strip())
+    else:
+        host = host_port
+
+    if not host:
+        raise ValueError("PostgreSQL bağlantı adresinde sunucu (host) bulunamadı.")
+
+    query_params = {}
+    for seg in query_str.split('&'):
+        seg = seg.strip()
+        if not seg:
+            continue
+        if '=' in seg:
+            k, v = seg.split('=', 1)
+            k = k.strip()
+            v = v.strip()
+            if k and v:
+                query_params[k.lower()] = v
+
+    sslmode = query_params.get('sslmode') or 'require'
+
+    return {
+        'host': host,
+        'port': port,
+        'dbname': dbname,
+        'user': user,
+        'password': password,
+        'sslmode': sslmode,
+        'options_dict': query_params,
+    }
 
 
 class Config:
@@ -79,34 +181,65 @@ class Config:
     @classmethod
     def normalize_database_url(cls, raw_url=None):
         """
-        Supabase / PostgreSQL DATABASE_URL değerini normalize eder:
-        - postgres:// önekini postgresql:// olarak dönüştürür.
-        - sslmode parametresi yoksa sslmode=require ekler.
+        Supabase / PostgreSQL DATABASE_URL değerini temizler ve normalize eder:
+        - DATABASE_URL= önekini, tırnakları, \\r/\\n karakterlerini ve boş ?/& parametrelerini temizler.
+        - postgres:// önekini postgresql:// olarak dönüştürür; sslmode yoksa sslmode=require ekler.
         """
-        url = (cls.DATABASE_URL if raw_url is None else raw_url) or ''
-        url = str(url).strip().strip('"').strip("'").strip()
-        if not url:
+        candidate = cls.DATABASE_URL if raw_url is None else raw_url
+        cleaned = _strip_wrapping_quotes_and_ws(candidate or '')
+        if not cleaned:
             return ''
-        if url.startswith('postgres://'):
-            url = 'postgresql://' + url[len('postgres://'):]
-        if 'sslmode=' not in url.lower():
-            sep = '&' if '?' in url else '?'
-            url = f"{url}{sep}sslmode=require"
-        return url
+        cleaned = re.sub(r'^\s*DATABASE_URL\s*=\s*', '', cleaned, flags=re.IGNORECASE)
+        cleaned = _strip_wrapping_quotes_and_ws(cleaned).replace('\r', '').replace('\n', '').strip()
+        if not cleaned:
+            return ''
+        if cleaned.lower().startswith('postgres://'):
+            cleaned = 'postgresql://' + cleaned[len('postgres://'):]
+
+        # Sonda kalan boş ? veya & karakterlerini temizle
+        if '@' in cleaned:
+            left, right = cleaned.rsplit('@', 1)
+        else:
+            left, right = '', cleaned
+
+        host_path, has_q, q_str = right.partition('?')
+        valid_pairs = []
+        has_sslmode = False
+        if has_q:
+            for seg in q_str.split('&'):
+                seg = seg.strip()
+                if not seg or '=' not in seg:
+                    continue
+                k, v = seg.split('=', 1)
+                k, v = k.strip(), v.strip()
+                if k and v:
+                    if k.lower() == 'sslmode':
+                        has_sslmode = True
+                    valid_pairs.append(f"{k}={v}")
+        if not has_sslmode:
+            valid_pairs.append('sslmode=require')
+
+        rebuilt_right = f"{host_path}?{'&'.join(valid_pairs)}" if valid_pairs else host_path
+        return f"{left}@{rebuilt_right}" if left else rebuilt_right
 
     @classmethod
     def get_database_url(cls):
         return cls.normalize_database_url(cls.DATABASE_URL)
 
     @classmethod
+    def get_postgres_params(cls, raw_url=None) -> dict:
+        target = cls.DATABASE_URL if raw_url is None else raw_url
+        return parse_postgres_url(target)
+
+    @classmethod
     def get_db_host_display(cls):
         """Kimlik bilgisi (kullanıcı adı/şifre) sızdırmadan aktif veritabanı sunucusunu (host:port) döner."""
-        db_url = cls.get_database_url()
-        if db_url:
+        raw = cls.DATABASE_URL
+        if raw and str(raw).strip():
             try:
-                parts = urlsplit(db_url)
-                if parts.hostname:
-                    return f"{parts.hostname}:{parts.port}" if parts.port else parts.hostname
+                pg = parse_postgres_url(raw)
+                if pg.get('host'):
+                    return f"{pg['host']}:{pg['port']}" if pg.get('port') else pg['host']
             except Exception:
                 return 'unknown'
         return cls._resolved_server or cls.DB_SERVER or 'local'
@@ -146,15 +279,22 @@ class Config:
     def get_secret_key(cls):
         """
         Ortam değişkenlerinden (SECRET_KEY / FLASK_SECRET_KEY) gizli anahtarı okur ve doğrular.
-        - Üretimde anahtar yoksa, <32 karakterse veya zayıf listedeyse RuntimeError fırlatır.
-        - Geliştirmede anahtar yoksa süreç başına rastgele secrets.token_hex(32) üretir ve uyarır.
+        - Canlı ortamda SECRET_KEY eksik/boşsa ve DATABASE_URL mevcutsa deterministik SHA-256 yedek anahtar üretir.
+        - Canlı ortamda hem SECRET_KEY hem DATABASE_URL yoksa veya açıkça zayıf bir anahtar verilmişse RuntimeError fırlatır.
+        - Geliştirme ortamında anahtar yoksa süreç başına rastgele secrets.token_hex(32) üretir.
         """
         raw_key = (os.getenv('SECRET_KEY') or os.getenv('FLASK_SECRET_KEY') or '').strip()
         if cls.is_production():
+            if not raw_key:
+                db_seed = _strip_wrapping_quotes_and_ws(os.getenv('DATABASE_URL', cls.DATABASE_URL or ''))
+                if db_seed:
+                    return hashlib.sha256(f"moneta-prod-fallback::{db_seed}".encode('utf-8')).hexdigest()
+                raise RuntimeError(
+                    "Üretim ortamında FLASK_SECRET_KEY / SECRET_KEY (veya yedek türetim için DATABASE_URL) zorunludur."
+                )
             if cls.is_weak_secret_key(raw_key):
                 raise RuntimeError(
-                    "Üretim ortamında güçlü bir FLASK_SECRET_KEY / SECRET_KEY zorunludur "
-                    "(en az 32 karakter, örnek/varsayılan değer içermeyen rastgele anahtar). "
+                    "Üretim ortamında zayıf veya 32 karakterden kısa SECRET_KEY kullanılamaz. "
                     "Üretmek için: python -c \"import secrets; print(secrets.token_hex(32))\""
                 )
             return raw_key

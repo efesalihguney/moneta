@@ -6,7 +6,7 @@ Moneta Çift Motorlu (Dual-Engine) Veritabanı Katmanı
 
 import re
 from decimal import Decimal
-from config import Config
+from config import Config, parse_postgres_url
 
 try:
     import pyodbc
@@ -350,8 +350,17 @@ def get_db_connection(database=None, autocommit=False):
     if Config.is_postgres():
         if psycopg2 is None:
             raise RuntimeError("PostgreSQL bağlantısı için 'psycopg2-binary' paketi kurulu olmalıdır.")
-        db_url = Config.get_database_url().strip().strip('"').strip("'").strip()
-        pg_conn = psycopg2.connect(db_url, connect_timeout=10)
+        raw_db_url = os.getenv('DATABASE_URL') if Config.DATABASE_URL == '' else Config.DATABASE_URL
+        pg_params = parse_postgres_url(raw_db_url or Config.get_database_url())
+        pg_conn = psycopg2.connect(
+            host=pg_params['host'],
+            port=pg_params['port'],
+            dbname=pg_params['dbname'],
+            user=pg_params['user'],
+            password=pg_params['password'],
+            sslmode=pg_params['sslmode'],
+            connect_timeout=10,
+        )
         pg_conn.autocommit = autocommit
         return PgConnectionWrapper(pg_conn)
 

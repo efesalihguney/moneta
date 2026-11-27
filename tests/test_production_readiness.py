@@ -1063,7 +1063,12 @@ class TestPostgresSupabaseCompatibility(unittest.TestCase):
             conn = db.get_db_connection(autocommit=True)
             self.assertIsInstance(conn, db.PgConnectionWrapper)
             fake_psycopg2.connect.assert_called_once_with(
-                'postgresql://postgres:pass@db.example.supabase.co:5432/postgres?sslmode=require',
+                host='db.example.supabase.co',
+                port=5432,
+                dbname='postgres',
+                user='postgres',
+                password='pass',
+                sslmode='require',
                 connect_timeout=10,
             )
             self.assertTrue(mock_pg_conn.autocommit)
@@ -1109,6 +1114,46 @@ class TestPostgresSupabaseCompatibility(unittest.TestCase):
         ]
         for token in required_tokens:
             self.assertIn(token, content, f"schema_postgres.sql içinde eksik ifade: {token}")
+
+    def test_parse_postgres_url_handles_malformed_queries_prefixes_and_special_passwords(self):
+        """Sonda ?/&, DATABASE_URL= öneki ve şifrede ?@# bulunan URL'ler parse_postgres_url ile hatasız ayrıştırılmalı."""
+        from config import parse_postgres_url
+
+        # 1. Sonda tek başına '?' kalan URL (invalid connection option "" tetikleyicisi)
+        p1 = parse_postgres_url('postgresql://postgres.ref:secret@aws-1.pooler.supabase.com:6543/postgres?')
+        self.assertEqual(p1['host'], 'aws-1.pooler.supabase.com')
+        self.assertEqual(p1['port'], 6543)
+        self.assertEqual(p1['dbname'], 'postgres')
+        self.assertEqual(p1['user'], 'postgres.ref')
+        self.assertEqual(p1['password'], 'secret')
+        self.assertEqual(p1['sslmode'], 'require')
+
+        # 2. Sonda '&', boş parametre, tırnak ve \r\n karakterleri
+        p2 = parse_postgres_url('  "postgres://postgres.ref:secret@aws-1.pooler.supabase.com:6543/postgres?&sslmode=require&\r\n"  ')
+        self.assertEqual(p2['host'], 'aws-1.pooler.supabase.com')
+        self.assertEqual(p2['port'], 6543)
+        self.assertEqual(p2['dbname'], 'postgres')
+        self.assertEqual(p2['sslmode'], 'require')
+
+        # 3. Yanlışlıkla yapıştırılmış DATABASE_URL= öneki
+        p3 = parse_postgres_url('DATABASE_URL=postgresql://u_name:p_word@db.host.co:5432/moneta?')
+        self.assertEqual(p3['host'], 'db.host.co')
+        self.assertEqual(p3['port'], 5432)
+        self.assertEqual(p3['dbname'], 'moneta')
+        self.assertEqual(p3['user'], 'u_name')
+        self.assertEqual(p3['password'], 'p_word')
+        self.assertEqual(p3['sslmode'], 'require')
+
+        # 4. Şifrede '?', '@' ve '#' özel karakterleri
+        p4 = parse_postgres_url(
+            'postgresql://postgres.ref:MyP@ss?w#rd!@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?'
+        )
+        self.assertEqual(p4['host'], 'aws-1-ap-northeast-1.pooler.supabase.com')
+        self.assertEqual(p4['port'], 6543)
+        self.assertEqual(p4['dbname'], 'postgres')
+        self.assertEqual(p4['user'], 'postgres.ref')
+        self.assertEqual(p4['password'], 'MyP@ss?w#rd!')
+        self.assertEqual(p4['sslmode'], 'require')
 
 
 class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
@@ -1501,17 +1546,40 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
 class TestPhase0SecurityHardening(unittest.TestCase):
     """Faz 0: Zorunlu SECRET_KEY, üretim çerez bayrakları ve Gemini demo modu uyarı testleri."""
 
-    def test_production_missing_secret_key_raises_runtime_error(self):
-        """VERCEL veya FLASK_ENV=production ortamında SECRET_KEY yoksa RuntimeError fırlatılmalı."""
+    def test_production_missing_secret_key_uses_sha256_db_fallback_or_raises(self):
+        """Canlıda SECRET_KEY boşsa DATABASE_URL üzerinden deterministik SHA-256 üretmeli; ikisi de yoksa RuntimeError fırlatmalı."""
         from config import Config
 
-        for prod_env in (
-            {'VERCEL': '1', 'FLASK_ENV': 'development', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': ''},
-            {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'production', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': ''},
-        ):
-            with mock.patch.dict(os.environ, prod_env, clear=False):
-                with self.assertRaises(RuntimeError):
-                    Config.get_secret_key()
+        orig_db_url = Config.DATABASE_URL
+        try:
+            # 1. SECRET_KEY boş ama DATABASE_URL tanımlı -> 64 karakterlik deterministik SHA-256 yedek anahtar
+            with mock.patch.dict(
+                os.environ,
+                {
+                    'VERCEL': '1',
+                    'FLASK_ENV': 'production',
+                    'SECRET_KEY': '',
+                    'FLASK_SECRET_KEY': '',
+                    'DATABASE_URL': 'postgresql://postgres.demo:pw@aws-1.pooler.supabase.com:6543/postgres',
+                },
+                clear=False,
+            ):
+                derived1 = Config.get_secret_key()
+                derived2 = Config.get_secret_key()
+                self.assertEqual(len(derived1), 64)
+                self.assertEqual(derived1, derived2)
+
+            # 2. Hem SECRET_KEY hem DATABASE_URL boş -> RuntimeError
+            Config.DATABASE_URL = ''
+            for prod_env in (
+                {'VERCEL': '1', 'FLASK_ENV': 'development', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': '', 'DATABASE_URL': ''},
+                {'VERCEL': '', 'VERCEL_ENV': '', 'FLASK_ENV': 'production', 'SECRET_KEY': '', 'FLASK_SECRET_KEY': '', 'DATABASE_URL': ''},
+            ):
+                with mock.patch.dict(os.environ, prod_env, clear=False):
+                    with self.assertRaises(RuntimeError):
+                        Config.get_secret_key()
+        finally:
+            Config.DATABASE_URL = orig_db_url
 
     def test_production_weak_or_short_secret_key_raises_runtime_error(self):
         """Üretimde <32 karakter veya bilinen zayıf SECRET_KEY değerleri RuntimeError fırlatmalı; dev ortamında geçici anahtar üretilmeli."""
