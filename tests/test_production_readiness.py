@@ -1267,40 +1267,18 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         finally:
             Config.GEMINI_API_KEY = orig_key
 
-    def test_vercel_entrypoint_and_deployment_config_valid(self):
-        """api/index.py sorunsuz import edilmeli; vercel.json, .vercelignore ve requirements.txt eksiksiz olmalı."""
-        import importlib.util
-        import json
+    def test_vercel_native_flask_preset_routes_and_cache_env(self):
+        """Vercel Native Flask Preset için gereksiz api/index.py & vercel.json olmamalı; ana rotalar 200 OK dönmeli."""
+        from app import _configure_serverless_cache_env
+        from config import Config
 
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        # 1. api/index.py import ve Flask app doğrulaması
-        entry_path = os.path.join(root_dir, 'api', 'index.py')
-        self.assertTrue(os.path.isfile(entry_path), 'api/index.py bulunamadı.')
-        spec = importlib.util.spec_from_file_location('vercel_api_index', entry_path)
-        self.assertIsNotNone(spec)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self.assertTrue(hasattr(module, 'app'))
-        self.assertIs(module.app, app)
+        # 1. Native Flask Preset: api/index.py ve vercel.json kaldırılmış olmalı
+        self.assertFalse(os.path.exists(os.path.join(root_dir, 'api', 'index.py')))
+        self.assertFalse(os.path.exists(os.path.join(root_dir, 'vercel.json')))
 
-        # 2. vercel.json geçerlilik ve v2 routes yönlendirme doğrulaması
-        vercel_json_path = os.path.join(root_dir, 'vercel.json')
-        self.assertTrue(os.path.isfile(vercel_json_path), 'vercel.json bulunamadı.')
-        with open(vercel_json_path, 'r', encoding='utf-8') as f:
-            vcfg = json.load(f)
-        self.assertEqual(vcfg.get('version'), 2)
-        self.assertIn('routes', vcfg)
-        self.assertTrue(
-            any(r.get('src') == '/static/(.*)' and r.get('dest') == '/static/$1' for r in vcfg['routes']),
-            'vercel.json routes içinde /static/(.*) kuralı eksik.',
-        )
-        self.assertTrue(
-            any(r.get('src') == '/(.*)' and r.get('dest') == '/api/index.py' for r in vcfg['routes']),
-            'vercel.json routes içinde /api/index.py hedefi eksik.',
-        )
-
-        # 3. .vercelignore ve requirements.txt doğrulaması
+        # 2. .vercelignore ve requirements.txt kontrolü
         ignore_path = os.path.join(root_dir, '.vercelignore')
         self.assertTrue(os.path.isfile(ignore_path), '.vercelignore bulunamadı.')
         with open(ignore_path, 'r', encoding='utf-8') as f:
@@ -1314,21 +1292,12 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
         for pkg in ('flask', 'psycopg2-binary', 'python-dotenv', 'pypdf', 'werkzeug', 'requests'):
             self.assertIn(pkg, req_text, f"requirements.txt içinde eksik paket: {pkg}")
 
-    def test_api_index_cold_start_with_readonly_home(self):
-        """Salt-okunur HOME simülasyonu ile api/index.py cold-start import edildiğinde önbellekler /tmp altına yönlenmeli."""
-        import importlib.util
-        from config import Config
-
-        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        entry_path = os.path.join(root_dir, 'api', 'index.py')
-
-        # Tırnak ve boşluk içeren DATABASE_URL temizlenmeli
+        # 3. Tırnaklı DATABASE_URL temizliği ve salt-okunur HOME -> /tmp yönlendirmesi
         quoted_url = '  "postgres://user:pw@db.example.supabase.co:5432/postgres"  '
         self.assertEqual(
             Config.normalize_database_url(quoted_url),
             'postgresql://user:pw@db.example.supabase.co:5432/postgres?sslmode=require',
         )
-
         with mock.patch.dict(
             os.environ,
             {
@@ -1339,16 +1308,28 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             },
             clear=False,
         ):
-            with mock.patch('os.access', return_value=False):
-                with mock.patch('os.makedirs', side_effect=OSError('Read-only /tmp test guard')):
-                    spec = importlib.util.spec_from_file_location('vercel_cold_start_index', entry_path)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-
+            with mock.patch('app.os.access', return_value=False):
+                with mock.patch('app.os.makedirs', side_effect=OSError('Read-only guard')):
+                    _configure_serverless_cache_env()
                     self.assertEqual(os.environ['HOME'], '/tmp')
                     self.assertEqual(os.environ['XDG_CACHE_HOME'], '/tmp/.cache')
                     self.assertEqual(os.environ['TMPDIR'], '/tmp')
-                    self.assertIs(module.app, app)
+
+        # 4. Doğrudan app.py üzerinden /, /login, /register, /health ve /api/health rotaları 200 OK dönmeli
+        app.config['TESTING'] = True
+        client = app.test_client()
+
+        res_root = client.get('/', follow_redirects=True)
+        self.assertEqual(res_root.status_code, 200)
+
+        for route in ('/login', '/register', '/health', '/api/health'):
+            res = client.get(route)
+            self.assertEqual(res.status_code, 200, f"Rota 200 OK dönmedi: {route}")
+
+        # 5. 404.html şablonu url_for('index') kullanmalı
+        tpl_404 = os.path.join(root_dir, 'templates', '404.html')
+        with open(tpl_404, 'r', encoding='utf-8') as f:
+            self.assertIn("url_for('index')", f.read())
 
     def test_api_health_endpoint_ok_and_sanitized_error(self):
         """/api/health sağlıklı durumda 200 ok, DB hatasında ise şifre sızdırmadan 503 degraded dönmeli."""
@@ -1377,110 +1358,6 @@ class TestVercelServerlessReadOnlyCompatibility(unittest.TestCase):
             self.assertIsNotNone(data_err['db_error'])
             self.assertNotIn('SuperSecret123', data_err['db_error'])
             self.assertNotIn('TopSecretPwd', data_err['db_error'])
-
-    def test_vercel_path_restore_middleware_preserves_route_and_query(self):
-        """PATH_INFO='/api/index.py' ve __vercel_path query parametresiyle gerçek rota ve query parametreleri korunmalı."""
-        import importlib.util
-        from urllib.parse import parse_qs
-
-        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        entry_path = os.path.join(root_dir, 'api', 'index.py')
-        spec = importlib.util.spec_from_file_location('vercel_mw_index', entry_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        self.assertTrue(hasattr(module, 'handler'))
-        self.assertIs(module.handler, module.app)
-
-        # 1. İzole WSGI middleware birim testi
-        captured = {}
-
-        def fake_downstream(environ, start_response):
-            captured['PATH_INFO'] = environ.get('PATH_INFO')
-            captured['QUERY_STRING'] = environ.get('QUERY_STRING')
-            captured['SCRIPT_NAME'] = environ.get('SCRIPT_NAME')
-            start_response('200 OK', [('Content-Type', 'text/plain')])
-            return [b'ok']
-
-        mw = module.VercelPathRestoreMiddleware(fake_downstream)
-
-        # a) __vercel_path + ek query parametresi
-        env1 = {
-            'PATH_INFO': '/api/index.py',
-            'SCRIPT_NAME': '/api/index.py',
-            'QUERY_STRING': '__vercel_path=/login&next=/dashboard',
-        }
-        mw(env1, lambda status, headers: None)
-        self.assertEqual(captured['PATH_INFO'], '/login')
-        self.assertEqual(captured['SCRIPT_NAME'], '')
-        parsed_q = parse_qs(captured['QUERY_STRING'])
-        self.assertNotIn('__vercel_path', parsed_q)
-        self.assertEqual(parsed_q.get('next'), ['/dashboard'])
-
-        # b) Başlık yedeği (HTTP_X_VERCEL_ORIGINAL_URL)
-        env2 = {
-            'PATH_INFO': '/api/index.py',
-            'QUERY_STRING': '',
-            'HTTP_X_VERCEL_ORIGINAL_URL': '/health?probe=1',
-        }
-        mw(env2, lambda status, headers: None)
-        self.assertEqual(captured['PATH_INFO'], '/health')
-        self.assertEqual(parse_qs(captured['QUERY_STRING']).get('probe'), ['1'])
-
-        # c) Parametresiz /api/index -> '/'
-        env3 = {'PATH_INFO': '/api/index', 'QUERY_STRING': ''}
-        mw(env3, lambda status, headers: None)
-        self.assertEqual(captured['PATH_INFO'], '/')
-
-        # 2. Uçtan uca Flask test client doğrulaması (/login ve /health)
-        module.app.config['TESTING'] = True
-        client = module.app.test_client()
-        res_login = client.get('/api/index.py?__vercel_path=/login&next=/dashboard')
-        self.assertEqual(res_login.status_code, 200)
-
-        res_health = client.get('/api/index.py?__vercel_path=/health')
-        self.assertEqual(res_health.status_code, 200)
-        self.assertEqual(res_health.get_json()['status'], 'ok')
-
-        # 3. 404.html şablonu url_for('index') kullanmalı
-        tpl_404 = os.path.join(root_dir, 'templates', '404.html')
-        with open(tpl_404, 'r', encoding='utf-8') as f:
-            self.assertIn("url_for('index')", f.read())
-
-    def test_direct_app_wsgi_restores_path_from_vercel_headers_and_full_url(self):
-        """Doğrudan app.py üzerinden yüklenen app, Vercel başlıkları ve tam URL değerlerinden gerçek PATH_INFO'yu kurtarmalı."""
-        from app import app as direct_app, VercelPathRestoreMiddleware
-
-        self.assertIsInstance(direct_app.wsgi_app, VercelPathRestoreMiddleware)
-        direct_app.config['TESTING'] = True
-        client = direct_app.test_client()
-
-        # 1. PATH_INFO='/api/index.py' + HTTP_X_VERCEL_ORIGINAL_URL='/register' -> 200 OK
-        res_register = client.get(
-            '/api/index.py',
-            environ_base={'HTTP_X_VERCEL_ORIGINAL_URL': '/register'},
-        )
-        self.assertEqual(res_register.status_code, 200)
-
-        # 2. PATH_INFO='/api/index.py' + tam URL içeren HTTP_X_FORWARDED_URI -> /login (200 OK)
-        res_login = client.get(
-            '/api/index.py',
-            environ_base={'HTTP_X_FORWARDED_URI': 'https://moneta.vercel.app/login'},
-        )
-        self.assertEqual(res_login.status_code, 200)
-
-        # 3. PATH_INFO='/api/index.py' + HTTP_X_INVOKE_PATH='/health' -> 200 OK
-        res_health = client.get(
-            '/api/index.py',
-            environ_base={'HTTP_X_INVOKE_PATH': '/health'},
-        )
-        self.assertEqual(res_health.status_code, 200)
-        self.assertEqual(res_health.get_json()['status'], 'ok')
-
-        # 4. PATH_INFO='/api/index.py' + başlıksız -> '/' (girişsiz kullanıcıyı /login'e 302 yönlendirir, 404 dönmez)
-        res_root = client.get('/api/index.py', follow_redirects=False)
-        self.assertEqual(res_root.status_code, 302)
-        self.assertIn('/login', res_root.headers.get('Location', ''))
 
 
 if __name__ == '__main__':
